@@ -1,0 +1,14 @@
+{
+    "005930": {
+        "name": "\uc0bc\uc131\uc804\uc790",
+        "code": "005930",
+        "envelope_p": 10,
+        "sell_target_p": 7
+    },
+    "068270": {
+        "name": "\uc140\ud2b8\ub9ac\uc628",
+        "code": "068270",
+        "envelope_p": 8,
+        "sell_target_p": 11
+    }
+}
