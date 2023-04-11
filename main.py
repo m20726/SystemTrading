@@ -11,10 +11,11 @@ STOCKS_INFO_FILE_PATH = './stocks_info.json'
 CONFIG_FILE_PATH = './config.json'
 
 
+##############################################################
 def main():
     try:
         stocks_info = Stocks_info()
-        stocks_info.load_stock_info(STOCKS_INFO_FILE_PATH)
+        stocks_info.load_stocks_info(STOCKS_INFO_FILE_PATH)
         # print(json.dumps(stocks_info.stocks, indent=4))
         stocks_info.init_config(CONFIG_FILE_PATH)
         # print(json.dumps(stocks_info.config, indent=4))
@@ -28,7 +29,9 @@ def main():
         # print(stocks_info.get_yesterday_20ma(stocks_info.stocks["005930"]["code"]))
         
         # 모든 주식의 어제 20이평선 업데이트
-        stocks_info.update_stocks_info_yesterday_20ma()
+        # stocks_info.update_stocks_info_yesterday_20ma()
+        
+        stocks_info.update_stocks_info()
         
         # stocks_info.send_message("===국내 주식 자동매매 프로그램을 시작합니다===")
         # t_now = datetime.datetime.now()
@@ -44,13 +47,20 @@ def main():
         #     if t_start <= t_now:
         #         # todo 장 시작
         #         pass
-            
+
+        # 매수 완료 여부
+        # TODO 매수 주문 후 매수 완료 여부 체크하여 세팅
+        #     if check_buy_done() == True:
+        #       stocks_info.set_set_buy_done(self.stocks[key]['code'])
+        #     if check_sell_done() == True:
+        #       stocks_info.set_set_sell_done(self.stocks[key]['code'])
+
         #     if t_exit < t_now:  # PM 03:20 ~ :프로그램 종료
         #         stocks_info.send_message("프로그램을 종료합니다.")
         #         break
         
         # save stocks_info.json
-        write_json_file(stocks_info.stocks, STOCKS_INFO_FILE_PATH)
+        stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
         
     except Exception as e:
         stocks_info.send_message(f'[exception]{e}')
