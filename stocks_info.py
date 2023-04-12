@@ -475,7 +475,7 @@ class Stocks_info:
             self.stocks[code]['avg_buy_price'] = self.get_stock_asking_price(self.stocks[code]['avg_buy_price'])
             self.stocks[code]['sell_target_price'] = self.get_stock_asking_price(self.stocks[code]['sell_target_price'])
 
-        print(json.dumps(self.stocks, indent=4))
+        print(json.dumps(self.stocks, indent=4, ensure_ascii=False))
 
     ##############################################################
     # 보유 주식 정보 업데이트
@@ -614,8 +614,8 @@ class Stocks_info:
         return int(res.json()['output'][past_day]['stck_clpr'])   # 종가
     
     ##############################################################
+    # 토큰 발급
     def get_access_token(self):
-        """토큰 발급"""
         headers = {"content-type":"application/json"}
         body = {"grant_type":"client_credentials",
         "appkey" : self.config['APP_KEY'],                            
@@ -626,8 +626,8 @@ class Stocks_info:
         return res.json()["access_token"]
 
     ##############################################################
+    # 암호화
     def hashkey(self, datas):
-        """암호화"""
         PATH = "uapi/hashkey"
         URL = f"{self.config['URL_BASE']}/{PATH}"
         headers = {

@@ -16,9 +16,9 @@ def main():
     try:
         stocks_info = Stocks_info()
         stocks_info.load_stocks_info(STOCKS_INFO_FILE_PATH)
-        # print(json.dumps(stocks_info.stocks, indent=4))
+        # print(json.dumps(stocks_info.stocks, indent=4), ensure_ascii=False)
         stocks_info.init_config(CONFIG_FILE_PATH)
-        # print(json.dumps(stocks_info.config, indent=4))
+        # print(json.dumps(stocks_info.config, indent=4), ensure_ascii=False)
         
         stocks_info.access_token = stocks_info.get_access_token()
         
@@ -31,6 +31,7 @@ def main():
         stocks_info.update_stocks_trade_info()
             
         # test
+        stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
         return
         
         stocks_info.send_message("===국내 주식 자동매매 프로그램을 시작합니다===")
