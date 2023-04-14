@@ -1,4 +1,5 @@
 {
     "editor.fontFamily": "D2Coding",
-    "editor.minimap.enabled": false
+    "editor.minimap.enabled": false,
+    "editor.formatOnSave": false        // false : 저장 시 자동 줄바꿈 안됨
 }

@@ -18,7 +18,7 @@ TR_ID_GET_STOCK_BALANCE = _cfg['TR_ID_GET_STOCK_BALANCE']
 TR_ID_BUY = _cfg['TR_ID_BUY']
 TR_ID_SELL = _cfg['TR_ID_SELL']
 
-def send_message(msg):
+def send_msg(msg):
     """디스코드 메세지 전송"""
     now = datetime.datetime.now()
     message = {"content": f"[{now.strftime('%Y-%m-%d %H:%M:%S')}] {str(msg)}"}
@@ -116,19 +116,19 @@ def get_stock_balance():
     stock_list = res.json()['output1']
     evaluation = res.json()['output2']
     stock_dict = {}
-    send_message(f"====주식 보유잔고====")
+    send_msg(f"====주식 보유잔고====")
     for stock in stock_list:
         if int(stock['hldg_qty']) > 0:
             stock_dict[stock['pdno']] = stock['hldg_qty']
-            send_message(f"{stock['prdt_name']}({stock['pdno']}): {stock['hldg_qty']}주")
+            send_msg(f"{stock['prdt_name']}({stock['pdno']}): {stock['hldg_qty']}주")
             time.sleep(0.1)
-    send_message(f"주식 평가 금액: {evaluation[0]['scts_evlu_amt']}원")
+    send_msg(f"주식 평가 금액: {evaluation[0]['scts_evlu_amt']}원")
     time.sleep(0.1)
-    send_message(f"평가 손익 합계: {evaluation[0]['evlu_pfls_smtl_amt']}원")
+    send_msg(f"평가 손익 합계: {evaluation[0]['evlu_pfls_smtl_amt']}원")
     time.sleep(0.1)
-    send_message(f"총 평가 금액: {evaluation[0]['tot_evlu_amt']}원")
+    send_msg(f"총 평가 금액: {evaluation[0]['tot_evlu_amt']}원")
     time.sleep(0.1)
-    send_message(f"=================")
+    send_msg(f"=================")
     return stock_dict
 
 def get_balance():
@@ -153,7 +153,7 @@ def get_balance():
     }
     res = requests.get(URL, headers=headers, params=params)
     cash = res.json()['output']['ord_psbl_cash']
-    send_message(f"주문 가능 현금 잔고: {cash}원")
+    send_msg(f"주문 가능 현금 잔고: {cash}원")
     return int(cash)
 
 def buy(code="005930", qty="1"):
@@ -178,10 +178,10 @@ def buy(code="005930", qty="1"):
     }
     res = requests.post(URL, headers=headers, data=json.dumps(data))
     if res.json()['rt_cd'] == '0':
-        send_message(f"[매수 성공]{str(res.json())}")
+        send_msg(f"[매수 성공]{str(res.json())}")
         return True
     else:
-        send_message(f"[매수 실패]{str(res.json())}")
+        send_msg(f"[매수 실패]{str(res.json())}")
         return False
 
 def sell(code="005930", qty="1"):
@@ -206,10 +206,10 @@ def sell(code="005930", qty="1"):
     }
     res = requests.post(URL, headers=headers, data=json.dumps(data))
     if res.json()['rt_cd'] == '0':
-        send_message(f"[매도 성공]{str(res.json())}")
+        send_msg(f"[매도 성공]{str(res.json())}")
         return True
     else:
-        send_message(f"[매도 실패]{str(res.json())}")
+        send_msg(f"[매도 실패]{str(res.json())}")
         return False
 
 # 자동매매 시작
@@ -227,7 +227,7 @@ try:
     buy_amount = total_cash * buy_percent  # 종목별 주문 금액 계산
     soldout = False
 
-    send_message("===국내 주식 자동매매 프로그램을 시작합니다===")
+    send_msg("===국내 주식 자동매매 프로그램을 시작합니다===")
     while True:
         t_now = datetime.datetime.now()
         t_9 = t_now.replace(hour=9, minute=0, second=0, microsecond=0)
@@ -236,7 +236,7 @@ try:
         t_exit = t_now.replace(hour=15, minute=20, second=0,microsecond=0)
         today = datetime.datetime.today().weekday()
         if today == 5 or today == 6:  # 토요일이나 일요일이면 자동 종료
-            send_message("주말이므로 프로그램을 종료합니다.")
+            send_msg("주말이므로 프로그램을 종료합니다.")
             break
         if t_9 < t_now < t_start and soldout == False: # 잔여 수량 매도
             for sym, qty in stock_dict.items():
@@ -256,7 +256,7 @@ try:
                         buy_qty = 0  # 매수할 수량 초기화
                         buy_qty = int(buy_amount // current_price)
                         if buy_qty > 0:
-                            send_message(f"{sym} 목표가 달성({target_price} < {current_price}) 매수를 시도합니다.")
+                            send_msg(f"{sym} 목표가 달성({target_price} < {current_price}) 매수를 시도합니다.")
                             result = buy(sym, buy_qty)
                             if result:
                                 soldout = False
@@ -276,8 +276,8 @@ try:
                 bought_list = []
                 time.sleep(1)
         if t_exit < t_now:  # PM 03:20 ~ :프로그램 종료
-            send_message("프로그램을 종료합니다.")
+            send_msg("프로그램을 종료합니다.")
             break
 except Exception as e:
-    send_message(f"[오류 발생]{e}")
+    send_msg(f"[오류 발생]{e}")
     time.sleep(1)
