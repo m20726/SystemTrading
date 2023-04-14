@@ -28,11 +28,11 @@ def main():
         # print(json.dumps(stocks_info.config, indent=4), ensure_ascii=False)
         
         stocks_info.access_token = stocks_info.get_access_token()
-        
         stocks_info.get_balance() # 보유 현금 조회
         stocks_info.get_stock_balance()  # 보유 주식 조회
         stocks_info.update_stocks_trade_info()
         stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
+        stocks_info.show_stocks_by_undervalue()
         
         # test
         # stocks_info.handle_sell_stock()

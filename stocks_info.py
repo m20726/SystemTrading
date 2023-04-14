@@ -41,11 +41,9 @@ class Stocks_info:
         self.buy_1_p = 40                           # 1차 매수 40%
         self.buy_2_p = 60                           # 2차 매수 60%
         # 1차 매수 금액
-        self.buy_1_invest_money = self.invest_money_per_stock * \
-            (self.buy_1_p / 100)
+        self.buy_1_invest_money = self.invest_money_per_stock * (self.buy_1_p / 100)
         # 2차 매수 금액
-        self.buy_2_invest_money = self.invest_money_per_stock * \
-            (self.buy_2_p / 100)
+        self.buy_2_invest_money = self.invest_money_per_stock * (self.buy_2_p / 100)
         # 네이버 증권의 기업실적분석표
         self.this_year_column_text = ""                  # 2023년 기준 2023.12(E)
         # 2023년 기준 2022.12       작년 데이터 얻기
@@ -60,8 +58,7 @@ class Stocks_info:
     def send_msg(self, msg):
         """디스코드 메세지 전송"""
         now = datetime.datetime.now()
-        message = {
-            "content": f"[{now.strftime('%Y-%m-%d %H:%M:%S')}] {str(msg)}"}
+        message = {"content": f"[{now.strftime('%Y-%m-%d %H:%M:%S')}] {str(msg)}"}
         # requests.post(DISCORD_WEBHOOK_URL, data=message)
         print(message)
 
@@ -69,8 +66,7 @@ class Stocks_info:
     # 네이버 증권 기업실적분석 정보 얻기
     ##############################################################
     def crawl_naver_finance(self, code):
-        req = requests.get(
-            'https://finance.naver.com/item/main.nhn?code=' + code)
+        req = requests.get('https://finance.naver.com/item/main.nhn?code=' + code)
         page_soup = BeautifulSoup(req.text, 'lxml')
         finance_html = page_soup.select_one('div.cop_analysis')
         th_data = [item.get_text().strip()
@@ -80,10 +76,8 @@ class Stocks_info:
         annual_date = th_data[3:7]
         quarter_date = th_data[7:13]
         # ['주요재무정보', '최근 연간 실적', '최근 분기 실적', '매출액', '영업이익', '당기순이익', '영업이익률', '순이익률', 'ROE(지배주주)', '부채비율', '당좌비율', '유보율', 'EPS(원)', 'PER(배)', 'BPS(원)', 'PBR(배)', '주당배당금(원)', '시가배당률(%)', '배당성향(%)']
-        finance_index = [item.get_text().strip()
-                         for item in finance_html.select('th.h_th2')][3:]
-        finance_data = [item.get_text().strip()
-                        for item in finance_html.select('td')]
+        finance_index = [item.get_text().strip() for item in finance_html.select('th.h_th2')][3:]
+        finance_data = [item.get_text().strip() for item in finance_html.select('td')]
         # 숫자에 , 를 없애야 int() 처리 가능
         for i in range(len(finance_data)):
             # 공백 데이터는 '0'으로 처리
@@ -94,8 +88,7 @@ class Stocks_info:
         finance_data = np.array(finance_data)
         finance_data.resize(len(finance_index), 10)
         finance_date = annual_date + quarter_date
-        finance = pd.DataFrame(
-            data=finance_data[0:, 0:], index=finance_index, columns=finance_date)
+        finance = pd.DataFrame(data=finance_data[0:, 0:], index=finance_index, columns=finance_date)
         annual_finance = finance.iloc[:, :4]
         return annual_finance
 
@@ -220,8 +213,7 @@ class Stocks_info:
     ##############################################################
     def get_buy_1_price(self, code):
         envelope_p = self.to_percent(self.stocks[code]['envelope_p'])
-        envelope_support_line = self.stocks[code]['yesterday_20ma'] * (
-            1 - envelope_p)
+        envelope_support_line = self.stocks[code]['yesterday_20ma'] * (1 - envelope_p)
         buy_1_price = envelope_support_line * MARGIN_20MA
         return int(buy_1_price)
 
@@ -420,46 +412,30 @@ class Stocks_info:
         if self.is_request_ok(res) == True:
             # 현재 PER
             self.stocks[code]['PER'] = float(res.json()['output']['per'])
-            self.stocks[code]['curr_price'] = int(
-                float(res.json()['output']['stck_prpr']))
-            self.stocks[code]['capitalization'] = int(
-                res.json()['output']['hts_avls'])         # 시가 총액(억)
-            self.stocks[code]['total_stock_count'] = int(
-                res.json()['output']['lstn_stcn'])     # 상장 주식 수
+            self.stocks[code]['curr_price'] = int(float(res.json()['output']['stck_prpr']))
+            self.stocks[code]['capitalization'] = int(res.json()['output']['hts_avls'])         # 시가 총액(억)
+            self.stocks[code]['total_stock_count'] = int(res.json()['output']['lstn_stcn'])     # 상장 주식 수
         else:
             self.send_msg(f"[update_stock_invest_info failed]{str(res.json())}")
 
         annual_finance = self.crawl_naver_finance(code)
         # PER_E, EPS, BPS, ROE 는 2013.12(E) 기준
-        self.stocks[code]['PER_E'] = float(
-            annual_finance[self.this_year_column_text]['PER(배)'])
-        self.stocks[code]['EPS_E'] = int(
-            annual_finance[self.this_year_column_text]['EPS(원)'])
-        self.stocks[code]['BPS_E'] = int(
-            annual_finance[self.this_year_column_text]['BPS(원)'])
-        self.stocks[code]['ROE_E'] = float(
-            annual_finance[self.this_year_column_text]['ROE(지배주주)'])
-        self.stocks[code]['industry_PER'] = float(self.crawl_naver_finance_by_selector(
-            code, "#tab_con1 > div:nth-child(6) > table > tbody > tr.strong > td > em"))
-        self.stocks[code]['operating_profit_margin_p'] = float(
-            annual_finance[self.this_year_column_text]['영업이익률'])
-        self.stocks[code]['sales_income'] = int(
-            annual_finance[self.this_year_column_text]['매출액'])                   # 올해 예상 매출액, 억원
-        self.stocks[code]['last_year_sales_income'] = int(
-            annual_finance[self.last_year_column_text]['매출액'])         # 작년 매출액, 억원
-        self.stocks[code]['the_year_before_last_sales_income'] = int(
-            annual_finance[self.the_year_before_last_column_text]['매출액'])       # 재작년 매출액, 억원
-        self.stocks[code]['curr_profit'] = int(
-            annual_finance[self.this_year_column_text]['당기순이익'])
+        self.stocks[code]['PER_E'] = float(annual_finance[self.this_year_column_text]['PER(배)'])
+        self.stocks[code]['EPS_E'] = int(annual_finance[self.this_year_column_text]['EPS(원)'])
+        self.stocks[code]['BPS_E'] = int(annual_finance[self.this_year_column_text]['BPS(원)'])
+        self.stocks[code]['ROE_E'] = float(annual_finance[self.this_year_column_text]['ROE(지배주주)'])
+        self.stocks[code]['industry_PER'] = float(self.crawl_naver_finance_by_selector(code, "#tab_con1 > div:nth-child(6) > table > tbody > tr.strong > td > em"))
+        self.stocks[code]['operating_profit_margin_p'] = float(annual_finance[self.this_year_column_text]['영업이익률'])
+        self.stocks[code]['sales_income'] = int(annual_finance[self.this_year_column_text]['매출액'])                   # 올해 예상 매출액, 억원
+        self.stocks[code]['last_year_sales_income'] = int(annual_finance[self.last_year_column_text]['매출액'])         # 작년 매출액, 억원
+        self.stocks[code]['the_year_before_last_sales_income'] = int(annual_finance[self.the_year_before_last_column_text]['매출액'])       # 재작년 매출액, 억원
+        self.stocks[code]['curr_profit'] = int(annual_finance[self.this_year_column_text]['당기순이익'])
         # 목표 주가 = 미래 당기순이익(원) * PER_E / 상장주식수
-        self.stocks[code]['max_target_price'] = int(
-            (self.stocks[code]['curr_profit'] * 100000000) * self.stocks[code]['PER_E'] / self.stocks[code]['total_stock_count'])
+        self.stocks[code]['max_target_price'] = int((self.stocks[code]['curr_profit'] * 100000000) * self.stocks[code]['PER_E'] / self.stocks[code]['total_stock_count'])
         # 목표 주가 GAP = (목표 주가 - 목표가) / 목표가
         # + : 저평가
         # - : 고평가
-        self.stocks[code]['gap_max_sell_target_price_p'] = int(
-            100 * (self.stocks[code]['max_target_price'] - self.stocks[code]['sell_target_price']) / self.stocks[code]['sell_target_price'])
-
+        self.stocks[code]['gap_max_sell_target_price_p'] = int(100 * (self.stocks[code]['max_target_price'] - self.stocks[code]['sell_target_price']) / self.stocks[code]['sell_target_price'])
         self.set_stock_undervalue(code)
 
     ##############################################################
@@ -489,7 +465,7 @@ class Stocks_info:
                 self.stocks[code]['ROE_E'] / 10)
 
         # PER 업종 PER 대비
-        if self.stocks[code]['PER'] <= 10:
+        if self.stocks[code]['PER'] <= 10 and self.stocks[code]['PER'] > 0:
             self.stocks[code]['undervalue'] += int(
                 (1 - self.stocks[code]['PER'] / self.stocks[code]['industry_PER']) * 5)
         elif self.stocks[code]['PER'] >= 20:
@@ -599,14 +575,11 @@ class Stocks_info:
                     # 보유 수량
                     self.stocks[code]['stockholdings'] = int(stock['hldg_qty'])
                     # 평단가
-                    self.stocks[code]['avg_buy_price'] = int(
-                        float(stock['pchs_avg_pric']))
+                    self.stocks[code]['avg_buy_price'] = int(float(stock['pchs_avg_pric']))
                     # 목표가 = 평단가에서 목표% 수익가
-                    self.stocks[code]['sell_target_price'] = self.get_sell_target_price(
-                        self.stocks[code]['code'])
+                    self.stocks[code]['sell_target_price'] = self.get_sell_target_price(self.stocks[code]['code'])
                     # self.my_stocks 업데이트
-                    temp_stock = copy.deepcopy(
-                        {self.stocks[code]['code']: self.stocks[code]})
+                    temp_stock = copy.deepcopy({code: self.stocks[code]})
                     self.my_stocks[code] = temp_stock[code]
                     time.sleep(0.1)
         else:
@@ -628,7 +601,7 @@ class Stocks_info:
         
         # test
         # 저평가 조건(X미만 매수 금지)
-        # if self.stocks[code]['undervalue'] < 3:
+        # if self.stocks[code]['undervalue'] < 2:
         #     return False
         
         # test
@@ -760,30 +733,6 @@ class Stocks_info:
         }
         res = requests.get(URL, headers=headers, params=params)
         return int(res.json()['output']['stck_prpr'])
-
-    ##############################################################
-    def get_target_price(self, code: str):
-        # """변동성 돌파 전략으로 매수 목표가 조회"""
-        # PATH = "uapi/domestic-stock/v1/quotations/inquire-daily-price"
-        # URL = f"{self.config['URL_BASE']}/{PATH}"
-        # headers = {"Content-Type":"application/json",
-        #     "authorization": f"Bearer {self.access_token}",
-        #     "appKey":self.config['APP_KEY'],
-        #     "appSecret":self.config['APP_SECRET'],
-        #     "tr_id":"FHKST01010400"}
-        # params = {
-        # "fid_cond_mrkt_div_code":"J",
-        # "fid_input_iscd":code,
-        # "fid_org_adj_prc":"1",
-        # "fid_period_div_code":"D"
-        # }
-        # res = requests.get(URL, headers=headers, params=params)
-        # stck_oprc = int(res.json()['output'][0]['stck_oprc']) #오늘 시가
-        # stck_hgpr = int(res.json()['output'][1]['stck_hgpr']) #전일 고가
-        # stck_lwpr = int(res.json()['output'][1]['stck_lwpr']) #전일 저가
-        # target_price = stck_oprc + (stck_hgpr - stck_lwpr) * 0.5
-        # return target_price
-        return 0
 
     ##############################################################
     # 주식 잔고조회
@@ -1183,3 +1132,15 @@ class Stocks_info:
                 # self.send_msg(f"이미 주문한 종목 : {stock['prdt_name']} {buy_sell_order} {stock['ord_unpr']}원 {stock['ord_qty']}주")
                 return True
         return False
+
+    ##############################################################
+    # 저평가 높은 순으로 출력
+    ##############################################################
+    def show_stocks_by_undervalue(self):
+        temp_stocks = copy.deepcopy(self.stocks)
+        sorted_data = dict(sorted(temp_stocks.items(), key=lambda x: x[1]['undervalue'], reverse=True))
+        self.send_msg(f"=================================")
+        self.send_msg(f"종목명        저평가")
+        for code in sorted_data.keys():
+            self.send_msg(f"{sorted_data[code]['name']}  {sorted_data[code]['undervalue']}")
+        self.send_msg(f"=================================")
