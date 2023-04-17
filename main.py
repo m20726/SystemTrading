@@ -27,22 +27,23 @@ def main():
         # print(json.dumps(stocks_info.config, indent=4), ensure_ascii=False)
         
         stocks_info.access_token = stocks_info.get_access_token()
-        stocks_info.get_my_cash() # 보유 현금 조회
-        stocks_info.get_stock_balance()  # 보유 주식 조회
-        stocks_info.update_stocks_trade_info()
+        # stocks_info.get_my_cash() # 보유 현금 조회
+        # stocks_info.get_stock_balance()  # 보유 주식 조회
+        # stocks_info.update_stocks_trade_info()
         stocks_info.update_my_stocks_info()     # 보유 주식 업데이트
-        stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
-        pre_stocks = copy.deepcopy(stocks_info.stocks)
-        stocks_info.show_stocks_by_undervalue()
+        # stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
+        # pre_stocks = copy.deepcopy(stocks_info.stocks)
+        # stocks_info.show_stocks_by_undervalue()
         
         # test
+        stocks_info.check_ordered_stocks_trade_done()
         # stocks_info.handle_sell_stock()
         # stocks_info.handle_buy_stock()        
         # stocks_info.show_order_list()
         #stocks_info.check_ordered_stocks_trade_done()
         #stocks_info.cancel_order("139480", SELL_CODE)
         #stocks_info.show_order_list()
-        # return
+        return
         
         stocks_info.send_msg("===국내 주식 자동매매 프로그램을 시작합니다===")
         t_now = datetime.datetime.now()

@@ -246,14 +246,19 @@ class Stocks_info:
 
     ##############################################################
     # 매수 완료 시 호출
+    # Return    : None
+    # Parameter :
+    #       code        종목코드
+    #       avg_price   체결평균가
     ##############################################################
-    def set_buy_done(self, code):
+    def set_buy_done(self, code, avg_price:int):
         if self.stocks[code]['buy_1_done'] == False:
             # 1차 매수 안된 경우는 1차 매수 완료
             self.stocks[code]['buy_1_done'] = True
         else:
-            # 1차 매수 완료된 경우는 2차 매수 완료
-            self.stocks[code]['buy_2_done'] = True
+            if avg_price <= self.stocks[code]['buy_2_price']:
+                # 1차 매수 완료된 경우는 2차 매수 완료
+                self.stocks[code]['buy_2_done'] = True
         # 매수 완료됐으니 평단가, 목표가 업데이트
         self.update_my_stocks_info()
         # 당일 매수 당일 매도 주문
@@ -603,10 +608,10 @@ class Stocks_info:
     ##############################################################
     def is_my_stock(self, code):
         if code in self.my_stocks.keys():
-            print(f"{code} is my stock")
+            # print(f"{code} is my stock")
             return True
         else:
-            print(f"{code} is not my stock")
+            # print(f"{code} is not my stock")
             return False
         
     ##############################################################
@@ -1030,7 +1035,7 @@ class Stocks_info:
     #       code            주식 코드
     #       buy_sell        "01" : 매도, "02" : 매수
     ##############################################################
-    def check_trade_done(self, code, buy_sell: str):
+    def check_trade_done(self, code, buy_sell: str, avg_price:int):
         # 이미 체결 완료 처리한 종목은 재처리 금지
         if code in self.trade_done_stocks:
             return False
@@ -1055,7 +1060,7 @@ class Stocks_info:
                     self.send_msg(f"{stock['prdt_name']} {stock['ord_unpr']}원 {tot_trade_qty}/{order_qty}주 {buy_sell_order} 전량 체결 완료")
                     # 체결 완료 체크한 종목은 다시 체크하지 않는다
                     # while loop 에서 반복적으로 체크하는거 방지
-                    self.trade_done_stocks.append(code)                    
+                    self.trade_done_stocks.append(code)
                     return True
                 elif order_qty > tot_trade_qty:
                     # 일부 체결
@@ -1072,9 +1077,10 @@ class Stocks_info:
         for stock in order_stock_list:
             code = stock['pdno']
             buy_sell = stock['sll_buy_dvsn_cd']
+            avg_price = int(float(stock['avg_prvs']))        # 체결평균가 = (총체결금액/총체결수량)
             if self.check_trade_done(code, buy_sell) == True:
                 if stock['sll_buy_dvsn_cd'] == BUY_CODE:
-                    self.set_buy_done(code)
+                    self.set_buy_done(code, avg_price)
                 else:
                     self.set_sell_done(code)
             time.sleep(0.1)
