@@ -32,12 +32,12 @@ TODAY_DATE = f"{datetime.datetime.now().strftime('%Y%m%d')}"
 class Stocks_info:
     def __init__(self) -> None:
         self.stocks = dict()                        # 모든 종목의 정보
-        self.my_stocks = dict()                     # 보유 종목
+        self.my_stocks = dict()                     # 보유 주식
         # sim_invest : 모의 투자, real_invest : 실전 투자
         self.invest_type = "sim_invest"
         self.config = dict()                        # 투자 관련 설정 정보
         self.access_token = ""
-        self.invest_money_per_stock = 1000000       # 종목 당 투자 금액
+        self.invest_money_per_stock = 1000000       # 주식 당 투자 금액
         self.buy_1_p = 40                           # 1차 매수 40%
         self.buy_2_p = 60                           # 2차 매수 60%
         # 1차 매수 금액
@@ -51,7 +51,7 @@ class Stocks_info:
         # 2023년 기준 2021.12       재작년 데이터 얻기
         self.the_year_before_last_column_text = ""
         self.init_naver_finance_year_column_texts()
-        self.trade_done_stocks = list()                 # 체결 완료 종목
+        self.trade_done_stocks = list()                 # 체결 완료 주식
 
     ##############################################################
 
@@ -303,7 +303,7 @@ class Stocks_info:
         if is_my_stock == True:
             avg_buy_price = my_stocks[code]['avg_buy_price']
         else:
-            # 보유 종목 아닌 경우
+            # 보유 주식 아닌 경우
             if self.stocks[code]['buy_1_done'] == True and self.stocks[code]['buy_2_done'] == True:
                 # 2차 매수까지 된 경우
                 tot_buy_1_money = self.stocks[code]['buy_1_price'] * self.stocks[code]['buy_1_qty']
@@ -394,7 +394,7 @@ class Stocks_info:
         return result
 
     ##############################################################
-    # 종목 투자 정보 업데이트(시가 총액, 상장 주식 수, 저평가, BPS, PER, EPS)
+    # 주식 투자 정보 업데이트(시가 총액, 상장 주식 수, 저평가, BPS, PER, EPS)
     ##############################################################
     def update_stock_invest_info(self, code):
         PATH = "uapi/domestic-stock/v1/quotations/inquire-price"
@@ -526,7 +526,7 @@ class Stocks_info:
             # 목표가 = 평단가에서 목표% 수익가
             self.stocks[code]['sell_target_price'] = self.get_sell_target_price(self.stocks[code]['code'])
 
-            # 종목 투자 정보 업데이트(시가 총액, 상장 주식 수, 저평가, BPS, PER, EPS)
+            # 주식 투자 정보 업데이트(시가 총액, 상장 주식 수, 저평가, BPS, PER, EPS)
             self.update_stock_invest_info(self.stocks[code]['code'])
             # 호가 단위로 수정
             self.stocks[code]['buy_1_price'] = self.get_stock_asking_price(self.stocks[code]['buy_1_price'])
@@ -588,6 +588,25 @@ class Stocks_info:
         return self.my_stocks
 
     ##############################################################
+    # 매수가능 주식 수 리턴
+    #   보유 현금 / 종목당 매수 금액
+    #   ex) 총 보유금액이 300만원이고 종목당 총 100만원 매수 시 총 2종목 매수
+    ##############################################################
+    def get_available_buy_stock_count(self):
+        return int(self.get_my_cash() / self.invest_money_per_stock)
+    
+    ##############################################################
+    # 보유 주식인지 체크
+    ##############################################################
+    def is_my_stock(self, code):
+        if code in self.my_stocks.keys():
+            print(f"{code} is my stock")
+            return True
+        else:
+            print(f"{code} is not my stock")
+            return False
+        
+    ##############################################################
     # 매수 여부 판단
     ##############################################################
     def is_ok_to_buy(self, code):
@@ -610,6 +629,11 @@ class Stocks_info:
         # if self.stocks[code]['gap_max_sell_target_price_p'] < 8:
         #     return False
 
+        # 보유현금에 맞게 종목개수 매수
+        #   ex) 총 보유금액이 300만원이고 종목당 총 100만원 매수 시 총 2종목 매수
+        if self.get_available_buy_stock_count() == 0 and self.is_my_stock(code) == False:
+            return False
+        
         # 매도 후 종가 > 20ma 체크
         if self.stocks[code]['sell_done'] == True:
             # 어제 종가 > 어제 20ma
@@ -626,7 +650,7 @@ class Stocks_info:
     ##############################################################
     # 20일선 가격 리턴
     # param :
-    #   code            종목 코드
+    #   code            주식 코드
     #   past_day        20일선 가격 기준
     #                   ex) 0 : 금일 20일선, 1 : 어제 20일선
     ##############################################################
@@ -664,7 +688,7 @@ class Stocks_info:
     ##############################################################
     # 종가 리턴
     # param :
-    #   code            종목 코드
+    #   code            주식 코드
     #   past_day        가져올 날짜 기준
     #                   ex) 0 : 금일 종가, 1 : 어제 종가
     ##############################################################
@@ -782,7 +806,7 @@ class Stocks_info:
     ##############################################################
     # 현금 잔고 조회
     ##############################################################
-    def get_balance(self):
+    def get_my_cash(self):
         PATH = "uapi/domestic-stock/v1/trading/inquire-psbl-order"
         URL = f"{self.config['URL_BASE']}/{PATH}"
         headers = {"Content-Type": "application/json",
@@ -810,6 +834,9 @@ class Stocks_info:
     # 지정가 매수
     ##############################################################
     def buy(self, code: str, price: str, qty: str):
+        if self.is_ok_to_buy(code) == False:
+            return False
+        
         # 주식 호가 단위로 가격 변경
         price = str(price)
         price = price.replace(',', '')
@@ -885,16 +912,16 @@ class Stocks_info:
             self.send_msg(f"[매도 주문 성공] {self.stocks[code]['name']} {price}원 {qty}주 {str(res.json())}")
             return True
         else:
-            self.send_msg(f"[매도 주문 실패]{str(res.json())}")
+            self.send_msg(f"[매도 주문 실패] {self.stocks[code]['name']} {price}원 {qty}주 {str(res.json())}")
             return False
 
     ##############################################################
-    # 금일 매수 종목 매도 주문
-    #   동일 종목 매도 주문 있으면 주문 취소 후 새 목표가로 매도 주문
+    # 금일 매수 주식 매도 주문
+    #   동일 주식 매도 주문 있으면 주문 취소 후 새 목표가로 매도 주문
     #   없으면 1차 목표가로 매도
     # Return    : None
     # Parameter :
-    #       code                    종목 코드
+    #       code                    주식 코드
     ##############################################################
     def handle_today_buy_today_sell(self, code):
         # 보유수량, 목표가 업데이트
@@ -913,23 +940,18 @@ class Stocks_info:
     #   단, 현재가 - 1% <= 매수가 매수가에 미리 매수 주문
     ##############################################################
     def handle_buy_stock(self):
+        # todo 주식 매수 제약
+        # 종 목 당 100만 원 보유금액 300만원이면 3종목
+        # 
         for code in self.stocks.keys():
             curr_price = self.get_curr_price(code)
             buy_target_price = self.get_buy_target_price(code)
             buy_target_qty = self.get_buy_target_qty(code)
-            if curr_price > 0 and buy_target_price > 0:
-                # self.send_msg(f"매수 체크 {self.stocks[code]['name']} {buy_target_price}원 {buy_target_qty}주, 현재가 {curr_price}")
+            if curr_price > 0 and buy_target_price > 0:                
                 if curr_price * 0.99 <= buy_target_price:
                     if self.is_ok_to_buy(code) == True:
-                        # 매수 주문
                         if self.buy(code, buy_target_price, buy_target_qty) == True:
                             self.show_order_list()
-                    else:
-                        pass
-                else:
-                    pass
-            else:
-                pass
             time.sleep(0.1)
 
     ##############################################################
@@ -946,7 +968,7 @@ class Stocks_info:
     # 주문 번호 리턴
     #   return : 성공 시 True 주문 번호, 실패 시 False  ""
     #   param :
-    #       code            종목 코드
+    #       code            주식 코드
     #       buy_sell        "01" : 매도, "02" : 매수
     ##############################################################
     def get_order_num(self, code, buy_sell: str):
@@ -962,7 +984,7 @@ class Stocks_info:
     #   단, 모의 투자 미지원
     #   return : 성공 시 True, 실패 시 False
     #   param :
-    #       code            종목 코드
+    #       code            주식 코드
     #       buy_sell        "01" : 매도, "02" : 매수
     ##############################################################
     def cancel_order(self, code, buy_sell: str):
@@ -990,7 +1012,7 @@ class Stocks_info:
                 "ORD_UNPR": "",
                 "QTY_ALL_ORD_YN": "Y"
             }
-            res = requests.get(URL, headers=headers, params=params)
+            res = requests.post(URL, headers=headers, params=params)
             if self.is_request_ok(res) == True:
                 self.send_msg(f"[주식 주문 전량 취소 주문 성공]{str(res.json())}")
             else:
@@ -1005,7 +1027,7 @@ class Stocks_info:
     # 매수/매도 체결 여부 체크
     # Return    : 주문 수량 전체 체결 시 True, 아니면 False
     # Parameter :
-    #       code            종목 코드
+    #       code            주식 코드
     #       buy_sell        "01" : 매도, "02" : 매수
     ##############################################################
     def check_trade_done(self, code, buy_sell: str):
@@ -1083,7 +1105,7 @@ class Stocks_info:
             "CCLD_DVSN": "00",          # 전체 : 체결, 미체결 조회
             "ORD_GNO_BRNO": "",
             "ODNO": "",
-            "INQR_DVSN_3": "",
+            "INQR_DVSN_3": "00",
             "INQR_DVSN_1": "",
             "CTX_AREA_FK100": "",
             "CTX_AREA_NK100": ""
@@ -1129,7 +1151,7 @@ class Stocks_info:
                     buy_sell_order = "매수 주문"
                 else:
                     buy_sell_order = "매도 주문"
-                # self.send_msg(f"이미 주문한 종목 : {stock['prdt_name']} {buy_sell_order} {stock['ord_unpr']}원 {stock['ord_qty']}주")
+                # self.send_msg(f"이미 주문한 주식 : {stock['prdt_name']} {buy_sell_order} {stock['ord_unpr']}원 {stock['ord_qty']}주")
                 return True
         return False
 
@@ -1140,7 +1162,13 @@ class Stocks_info:
         temp_stocks = copy.deepcopy(self.stocks)
         sorted_data = dict(sorted(temp_stocks.items(), key=lambda x: x[1]['undervalue'], reverse=True))
         self.send_msg(f"=================================")
-        self.send_msg(f"종목명        저평가")
+        self.send_msg(f"저평가")
+        data = {'name':[], 'undervalue':[]}
         for code in sorted_data.keys():
-            self.send_msg(f"{sorted_data[code]['name']}  {sorted_data[code]['undervalue']}")
+            data['name'].append(sorted_data[code]['name'])
+            data['undervalue'].append(sorted_data[code]['undervalue'])
+            # self.send_msg(f"{sorted_data[code]['name']}  {sorted_data[code]['undervalue']}")
+        df = pd.DataFrame(data)
+        df.style.set_properties(subset=['name', 'undervalue'], **{'text-align': 'center'})
+        print(df)
         self.send_msg(f"=================================")
