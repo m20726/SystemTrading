@@ -1035,7 +1035,7 @@ class Stocks_info:
     #       code            주식 코드
     #       buy_sell        "01" : 매도, "02" : 매수
     ##############################################################
-    def check_trade_done(self, code, buy_sell: str, avg_price:int):
+    def check_trade_done(self, code, buy_sell: str):
         # 이미 체결 완료 처리한 종목은 재처리 금지
         if code in self.trade_done_stocks:
             return False
