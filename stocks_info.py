@@ -26,6 +26,9 @@ BUY_CODE = "02"
 # ex) 20130414
 TODAY_DATE = f"{datetime.datetime.now().strftime('%Y%m%d')}"
 
+# MAX 보유 주식 수
+MAX_MY_STOCK_COUNT = 10
+
 ##############################################################
 
 
@@ -631,7 +634,7 @@ class Stocks_info:
 
         # 보유현금에 맞게 종목개수 매수
         #   ex) 총 보유금액이 300만원이고 종목당 총 100만원 매수 시 총 2종목 매수
-        if self.get_available_buy_stock_count() == 0 and self.is_my_stock(code) == False:
+        if (self.get_available_buy_stock_count() == 0 or len(self.my_stocks) > MAX_MY_STOCK_COUNT) and self.is_my_stock(code) == False:
             return False
         
         # 매도 후 종가 > 20ma 체크
@@ -940,9 +943,6 @@ class Stocks_info:
     #   단, 현재가 - 1% <= 매수가 매수가에 미리 매수 주문
     ##############################################################
     def handle_buy_stock(self):
-        # todo 주식 매수 제약
-        # 종 목 당 100만 원 보유금액 300만원이면 3종목
-        # 
         for code in self.stocks.keys():
             curr_price = self.get_curr_price(code)
             buy_target_price = self.get_buy_target_price(code)
