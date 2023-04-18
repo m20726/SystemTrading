@@ -23,6 +23,17 @@ def main():
         stocks_info = Stocks_info()
         stocks_info.load_stocks_info(STOCKS_INFO_FILE_PATH)
         # print(json.dumps(stocks_info.stocks, indent=4), ensure_ascii=False)
+        
+        # stocks_info.json 에 추가
+        # for code in stocks_info.stocks.keys():
+        #     stocks_info.stocks[code]['tot_buy_price'] = 0
+        # stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
+        
+        # stocks_info.json 에 key 제거
+        # for code in stocks_info.stocks.keys():
+        #     del stocks_info.stocks[code]['curr_price']
+        # stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
+
         stocks_info.init_config(CONFIG_FILE_PATH)
         # print(json.dumps(stocks_info.config, indent=4), ensure_ascii=False)
         

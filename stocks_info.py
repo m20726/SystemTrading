@@ -186,24 +186,6 @@ class Stocks_info:
         write_json_file(self.stocks, file_path)
 
     ##############################################################
-    # code 에 해당하는 종목의 key 에 value 로 세팅
-    # ex) update_stock_info("005930", "buy_1_price", 50000)
-    #       삼성전자 1차 매수가를 50000원으로 변경
-    ##############################################################
-    @dispatch(str, str, object)
-    def update_stock_info(self, code: str, key: str, value):
-        try:
-            self.stocks[code][key] = value
-        except KeyError:
-            print(f'KeyError : {code} is not found')
-
-    ##############################################################
-    # code 에 해당하는 종목의 모든 정보를 stocks 에 업데이트
-    # @dispatch(dict)
-    # def update_stock_info(self, stock:dict):
-    #     print(stock)
-
-    ##############################################################
     # 모든 주식의 어제 20일선 업데이트
     # def update_stocks_trade_info_yesterday_20ma(self):
     #     for key in self.stocks.keys():
@@ -248,16 +230,17 @@ class Stocks_info:
     # 매수 완료 시 호출
     # Return    : None
     # Parameter :
-    #       code        종목코드
-    #       avg_price   체결평균가
+    #       code            종목 코드
+    #       order_price     주문 단가
     ##############################################################
-    def set_buy_done(self, code, avg_price:int):
+    def set_buy_done(self, code, order_price:int):
         if self.stocks[code]['buy_1_done'] == False:
             # 1차 매수 안된 경우는 1차 매수 완료
             self.stocks[code]['buy_1_done'] = True
         else:
-            if avg_price <= self.stocks[code]['buy_2_price']:
-                # 1차 매수 완료된 경우는 2차 매수 완료
+            # 2차 매수 완료 조건
+            # 1차 매수 완료 상태에서 주문 단가 <= 2차 매수 예정가
+            if order_price <= self.stocks[code]['buy_2_price']:
                 self.stocks[code]['buy_2_done'] = True
         # 매수 완료됐으니 평단가, 목표가 업데이트
         self.update_my_stocks_info()
@@ -293,6 +276,7 @@ class Stocks_info:
         self.stocks[code]['avg_buy_price'] = 0
         self.stocks[code]['sell_target_price'] = 0
         self.stocks[code]['stockholdings'] = 0
+        self.stocks[code]['tot_buy_price'] = 0
 
     ##############################################################
     # 평단가
@@ -349,9 +333,7 @@ class Stocks_info:
         }
         res = requests.get(URL, headers=headers, params=params)
         if self.is_request_ok(res) == True:
-            self.stocks[code]['curr_price'] = int(
-                float(res.json()['output']['stck_prpr']))
-            curr_price = self.stocks[code]['curr_price']
+            curr_price = int(float(res.json()['output']['stck_prpr']))
         else:
             self.send_msg(f"[update_stock_invest_info failed]{str(res.json())}")
         return curr_price
@@ -420,7 +402,6 @@ class Stocks_info:
         if self.is_request_ok(res) == True:
             # 현재 PER
             self.stocks[code]['PER'] = float(res.json()['output']['per'])
-            self.stocks[code]['curr_price'] = int(float(res.json()['output']['stck_prpr']))
             self.stocks[code]['capitalization'] = int(res.json()['output']['hts_avls'])         # 시가 총액(억)
             self.stocks[code]['total_stock_count'] = int(res.json()['output']['lstn_stcn'])     # 상장 주식 수
         else:
@@ -451,22 +432,23 @@ class Stocks_info:
     ##############################################################
     def set_stock_undervalue(self, code):
         self.stocks[code]['undervalue'] = 0
+        curr_price = self.get_curr_price(code)
         # BPS_E > 현재가
-        if self.stocks[code]['BPS_E'] > self.stocks[code]['curr_price']:
+        if self.stocks[code]['BPS_E'] > curr_price:
             self.stocks[code]['undervalue'] += 2
-        elif self.stocks[code]['BPS_E'] * 1.3 < self.stocks[code]['curr_price']:
+        elif self.stocks[code]['BPS_E'] * 1.3 < curr_price:
             self.stocks[code]['undervalue'] -= 2
 
         # EPS_E * 10 > 현재가
-        if self.stocks[code]['EPS_E'] * 10 > self.stocks[code]['curr_price']:
+        if self.stocks[code]['EPS_E'] * 10 > curr_price:
             self.stocks[code]['undervalue'] += 2
-        elif self.stocks[code]['EPS_E'] * 3 < self.stocks[code]['curr_price']:
+        elif self.stocks[code]['EPS_E'] * 3 < curr_price:
             self.stocks[code]['undervalue'] -= 2
 
         # ROE_E
-        if self.stocks[code]['ROE_E'] * self.stocks[code]['EPS_E'] > self.stocks[code]['curr_price']:
+        if self.stocks[code]['ROE_E'] * self.stocks[code]['EPS_E'] > curr_price:
             self.stocks[code]['undervalue'] += 2
-        elif self.stocks[code]['ROE_E'] * self.stocks[code]['EPS_E'] * 1.3 < self.stocks[code]['curr_price']:
+        elif self.stocks[code]['ROE_E'] * self.stocks[code]['EPS_E'] * 1.3 < curr_price:
             self.stocks[code]['undervalue'] -= 2
         if self.stocks[code]['ROE_E'] > 20:
             self.stocks[code]['undervalue'] += (
@@ -529,6 +511,15 @@ class Stocks_info:
             self.stocks[code]['buy_2_qty'] = self.get_buy_2_qty(self.stocks[code]['code'])
             # 어제 종가
             self.stocks[code]['yesterday_end_price'] = self.get_end_price(self.stocks[code]['code'], past_day)
+            
+            # 어제 종가 > 어제 20ma 인가
+            if self.stocks[code]['sell_done'] == True:
+                # 어제 종가 > 어제 20ma
+                if self.stocks[code]['yesterday_end_price'] > self.stocks[code]['yesterday_20ma']:
+                    # 재매수 가능
+                    self.stocks[code]['end_price_higher_than_20ma_after_sold'] = True
+                    self.stocks[code]['sell_done'] = False
+            
             # 평단가
             self.stocks[code]['avg_buy_price'] = self.get_avg_buy_price(self.stocks[code]['code'])
             # 목표가 = 평단가에서 목표% 수익가
@@ -586,6 +577,8 @@ class Stocks_info:
                     self.stocks[code]['avg_buy_price'] = int(float(stock['pchs_avg_pric']))
                     # 목표가 = 평단가에서 목표% 수익가
                     self.stocks[code]['sell_target_price'] = self.get_sell_target_price(self.stocks[code]['code'])
+                    # 매입금액, 매도 체결 시 손익, 수익률 계산 위해 필요
+                    self.stocks[code]['tot_buy_price'] = int(float(stock['pchs_amt']))
                     # self.my_stocks 업데이트
                     temp_stock = copy.deepcopy({code: self.stocks[code]})
                     self.my_stocks[code] = temp_stock[code]
@@ -644,10 +637,7 @@ class Stocks_info:
         
         # 매도 후 종가 > 20ma 체크
         if self.stocks[code]['sell_done'] == True:
-            # 어제 종가 > 어제 20ma
-            if self.stocks[code]['yesterday_end_price'] > self.stocks[code]['yesterday_20ma']:
-                self.stocks[code]['end_price_higher_than_20ma_after_sold'] = True
-            # 매도 후 종가 > 20ma 넘지 못했으면 금지
+            # 어제 종가 <= 어제 20ma 상태면 매수 금지
             if self.stocks[code]['end_price_higher_than_20ma_after_sold'] == False:
                 return False
         else:
@@ -800,7 +790,8 @@ class Stocks_info:
         for stock in stock_list:
             if int(stock['hldg_qty']) > 0:
                 stock_dict[stock['pdno']] = stock['hldg_qty']
-                self.send_msg(f"{stock['prdt_name']}({stock['pdno']}) 평단가 {int(float(stock['pchs_avg_pric']))} {stock['hldg_qty']}주")
+                # self.send_msg(f"{stock['prdt_name']}({stock['pdno']}) 평단가 {int(float(stock['pchs_avg_pric']))} {stock['hldg_qty']}주")
+                self.send_msg(f"{stock['prdt_name']}({stock['pdno']}) {stock['hldg_qty']}주 {float(stock['evlu_pfls_rt'])}% {int(stock['evlu_pfls_amt'])} 평단가:{int(float(stock['pchs_avg_pric']))} 현재가:{int(stock['prpr'])}")
                 time.sleep(0.1)
         self.send_msg(f"주식 평가 금액: {evaluation[0]['scts_evlu_amt']}원")
         time.sleep(0.1)
@@ -1057,7 +1048,17 @@ class Stocks_info:
                     return False
                 elif order_qty == tot_trade_qty:
                     # 전량 체결 완료
-                    self.send_msg(f"{stock['prdt_name']} {stock['ord_unpr']}원 {tot_trade_qty}/{order_qty}주 {buy_sell_order} 전량 체결 완료")
+                    if stock['sll_buy_dvsn_cd'] == SELL_CODE:
+                        # 매도 체결 완료 시, 손익, 수익률 표시
+                        # 총체결금액 - 매수금액
+                        gain_loss_money = int(stock['tot_ccld_amt']) - self.stocks[code]['tot_buy_price']
+                        if self.stocks[code]['tot_buy_price'] > 0:
+                            gain_loss_p = float(gain_loss_money / self.stocks[code]['tot_buy_price'])
+                            self.send_msg(f"{stock['prdt_name']} {stock['ord_unpr']}원 {tot_trade_qty}/{order_qty}주 {buy_sell_order} 전량 체결 완료, 손익:{gain_loss_money} {gain_loss_p}%")
+                        else:
+                            self.send_msg(f"{stock['prdt_name']} {stock['ord_unpr']}원 {tot_trade_qty}/{order_qty}주 {buy_sell_order} 전량 체결 완료")
+                    else:
+                        self.send_msg(f"{stock['prdt_name']} {stock['ord_unpr']}원 {tot_trade_qty}/{order_qty}주 {buy_sell_order} 전량 체결 완료")
                     # 체결 완료 체크한 종목은 다시 체크하지 않는다
                     # while loop 에서 반복적으로 체크하는거 방지
                     self.trade_done_stocks.append(code)
@@ -1077,10 +1078,10 @@ class Stocks_info:
         for stock in order_stock_list:
             code = stock['pdno']
             buy_sell = stock['sll_buy_dvsn_cd']
-            avg_price = int(float(stock['avg_prvs']))        # 체결평균가 = (총체결금액/총체결수량)
+            order_price = int(float(stock['ord_unpr']))        # 주문단가
             if self.check_trade_done(code, buy_sell) == True:
                 if stock['sll_buy_dvsn_cd'] == BUY_CODE:
-                    self.set_buy_done(code, avg_price)
+                    self.set_buy_done(code, order_price)
                 else:
                     self.set_sell_done(code)
             time.sleep(0.1)
