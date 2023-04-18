@@ -12,9 +12,7 @@ from multipledispatch import dispatch
 import datetime
 import time
 
-STOCKS_INFO_FILE_PATH = './stocks_info.json'
-# APP_KEY, APP_SECRET 등 투자 관련 설정 정보
-CONFIG_FILE_PATH = './config.json'
+
 
 
 ##############################################################
@@ -24,14 +22,14 @@ def main():
         stocks_info.load_stocks_info(STOCKS_INFO_FILE_PATH)
         # print(json.dumps(stocks_info.stocks, indent=4), ensure_ascii=False)
         
-        # stocks_info.json 에 추가
+        # # stocks_info.json 에 추가
         # for code in stocks_info.stocks.keys():
         #     stocks_info.stocks[code]['tot_buy_price'] = 0
         # stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
         
-        # stocks_info.json 에 key 제거
+        # # stocks_info.json 에 key 제거
         # for code in stocks_info.stocks.keys():
-        #     del stocks_info.stocks[code]['curr_price']
+        #     del stocks_info.stocks[code]['buy_order_done']
         # stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
 
         stocks_info.init_config(CONFIG_FILE_PATH)
@@ -71,7 +69,7 @@ def main():
         while True:
             t_now = datetime.datetime.now()
             
-            #if t_start <= t_now:                
+            #if t_start <= t_now:
             if 1:   # test
                 # 장 시작 시 보유 종목 매도 주문
                 if sell_order_done == False:
@@ -84,11 +82,11 @@ def main():
                 stocks_info.check_ordered_stocks_trade_done()
                 
                 # stocks 변경있으면 save stocks_info.json
-                # TODO check_save_stocks_info()
-                if pre_stocks != stocks_info.stocks:
-                    stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
-                    pre_stocks.clear()
-                    pre_stocks = copy.deepcopy(stocks_info.stocks)
+                pre_stocks = stocks_info.check_save_stocks_info(pre_stocks)
+                # if pre_stocks != stocks_info.stocks:
+                #     stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
+                #     pre_stocks.clear()
+                #     pre_stocks = copy.deepcopy(stocks_info.stocks)
                 
                 # if t_exit < t_now:  # PM 03:20 ~ :프로그램 종료
                 #     stocks_info.send_msg("프로그램을 종료합니다.")

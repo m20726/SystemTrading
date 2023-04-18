@@ -8,10 +8,9 @@ import requests
 from bs4 import BeautifulSoup
 # function overloading
 from multipledispatch import dispatch
-
 from handle_json import *
 
-STOCK_INFO_FILE_PATH = './stocks_info.json'
+STOCKS_INFO_FILE_PATH = './stocks_info.json'
 # APP_KEY, APP_SECRET 등 투자 관련 설정 정보
 CONFIG_FILE_PATH = './config.json'
 
@@ -208,7 +207,10 @@ class Stocks_info:
     def get_buy_1_qty(self, code):
         # TEST
         return 1
-        # return int(self.buy_1_invest_money / self.stocks[code]['buy_1_price'])
+        # result = 0
+        # if self.stocks[code]['buy_1_price'] > 0:
+        #   result = int(self.buy_1_invest_money / self.stocks[code]['buy_1_price'])        
+        # return result
 
     ##############################################################
     # 2차 매수가 = 1차 매수가 - 10%
@@ -223,8 +225,11 @@ class Stocks_info:
     ##############################################################
     def get_buy_2_qty(self, code):
         # TEST
-        return 1        
-        # return int(self.buy_2_invest_money / self.stocks[code]['buy_2_price'])
+        return 1
+        # result = 0
+        # if self.stocks[code]['buy_1_price'] > 0:
+        #   result = int(self.buy_2_invest_money / self.stocks[code]['buy_2_price'])        
+        # return result
 
     ##############################################################
     # 매수 완료 시 호출
@@ -301,7 +306,8 @@ class Stocks_info:
                 tot_buy_1_money = self.stocks[code]['buy_1_price'] * self.stocks[code]['buy_1_qty']
                 tot_buy_2_money = self.stocks[code]['buy_2_price'] * self.stocks[code]['buy_2_qty']
                 tot_buy_qty = self.stocks[code]['buy_1_qty'] + self.stocks[code]['buy_2_qty']
-                avg_buy_price = int((tot_buy_1_money + tot_buy_2_money) / tot_buy_qty)
+                if tot_buy_qty > 0:
+                    avg_buy_price = int((tot_buy_1_money + tot_buy_2_money) / tot_buy_qty)
             else:
                 # 1차 매수만 됐거나 1차 매수도 안된 경우
                 avg_buy_price = self.stocks[code]['buy_1_price']
@@ -420,11 +426,13 @@ class Stocks_info:
         self.stocks[code]['the_year_before_last_sales_income'] = int(annual_finance[self.the_year_before_last_column_text]['매출액'])       # 재작년 매출액, 억원
         self.stocks[code]['curr_profit'] = int(annual_finance[self.this_year_column_text]['당기순이익'])
         # 목표 주가 = 미래 당기순이익(원) * PER_E / 상장주식수
-        self.stocks[code]['max_target_price'] = int((self.stocks[code]['curr_profit'] * 100000000) * self.stocks[code]['PER_E'] / self.stocks[code]['total_stock_count'])
+        if self.stocks[code]['total_stock_count'] > 0:
+            self.stocks[code]['max_target_price'] = int((self.stocks[code]['curr_profit'] * 100000000) * self.stocks[code]['PER_E'] / self.stocks[code]['total_stock_count'])
         # 목표 주가 GAP = (목표 주가 - 목표가) / 목표가
         # + : 저평가
         # - : 고평가
-        self.stocks[code]['gap_max_sell_target_price_p'] = int(100 * (self.stocks[code]['max_target_price'] - self.stocks[code]['sell_target_price']) / self.stocks[code]['sell_target_price'])
+        if self.stocks[code]['sell_target_price'] > 0:
+            self.stocks[code]['gap_max_sell_target_price_p'] = int(100 * (self.stocks[code]['max_target_price'] - self.stocks[code]['sell_target_price']) / self.stocks[code]['sell_target_price'])
         self.set_stock_undervalue(code)
 
     ##############################################################
@@ -451,13 +459,12 @@ class Stocks_info:
         elif self.stocks[code]['ROE_E'] * self.stocks[code]['EPS_E'] * 1.3 < curr_price:
             self.stocks[code]['undervalue'] -= 2
         if self.stocks[code]['ROE_E'] > 20:
-            self.stocks[code]['undervalue'] += (
-                self.stocks[code]['ROE_E'] / 10)
+            self.stocks[code]['undervalue'] += (self.stocks[code]['ROE_E'] / 10)
 
         # PER 업종 PER 대비
         if self.stocks[code]['PER'] <= 10 and self.stocks[code]['PER'] > 0:
-            self.stocks[code]['undervalue'] += int(
-                (1 - self.stocks[code]['PER'] / self.stocks[code]['industry_PER']) * 5)
+            if self.stocks[code]['industry_PER'] > 0:
+                self.stocks[code]['undervalue'] += int((1 - self.stocks[code]['PER'] / self.stocks[code]['industry_PER']) * 5)
         elif self.stocks[code]['PER'] >= 20:
             self.stocks[code]['undervalue'] -= 5
 
@@ -468,16 +475,17 @@ class Stocks_info:
             self.stocks[code]['undervalue'] -= 1
 
         # 매출액
-        if self.stocks[code]['sales_income'] / self.stocks[code]['last_year_sales_income'] >= 1.1:
-            if self.stocks[code]['last_year_sales_income'] / self.stocks[code]['the_year_before_last_sales_income'] >= 1.1:
-                self.stocks[code]['undervalue'] += 2
-            else:
-                pass
-        elif self.stocks[code]['sales_income'] / self.stocks[code]['last_year_sales_income'] <= 0.9:
-            if self.stocks[code]['last_year_sales_income'] / self.stocks[code]['the_year_before_last_sales_income'] <= 0.9:
-                self.stocks[code]['undervalue'] -= 2
-            else:
-                pass
+        if self.stocks[code]['last_year_sales_income'] > 0 and self.stocks[code]['the_year_before_last_sales_income'] > 0:
+            if self.stocks[code]['sales_income'] / self.stocks[code]['last_year_sales_income'] >= 1.1:
+                if self.stocks[code]['last_year_sales_income'] / self.stocks[code]['the_year_before_last_sales_income'] >= 1.1:
+                    self.stocks[code]['undervalue'] += 2
+                else:
+                    pass
+            elif self.stocks[code]['sales_income'] / self.stocks[code]['last_year_sales_income'] <= 0.9:
+                if self.stocks[code]['last_year_sales_income'] / self.stocks[code]['the_year_before_last_sales_income'] <= 0.9:
+                    self.stocks[code]['undervalue'] -= 2
+                else:
+                    pass
 
         self.stocks[code]['undervalue'] = int(self.stocks[code]['undervalue'])
 
@@ -486,7 +494,6 @@ class Stocks_info:
     #   1,2차 매수가, 20일선
     ##############################################################
     def update_stocks_trade_info(self):
-        print(f"update_stocks_trade_info S")
         t_now = datetime.datetime.now()
         t_exit = t_now.replace(hour=15, minute=30, second=0, microsecond=0)
         for code in self.stocks.keys():
@@ -527,19 +534,12 @@ class Stocks_info:
 
             # 주식 투자 정보 업데이트(시가 총액, 상장 주식 수, 저평가, BPS, PER, EPS)
             self.update_stock_invest_info(self.stocks[code]['code'])
-            # 호가 단위로 수정
-            self.stocks[code]['buy_1_price'] = self.get_stock_asking_price(self.stocks[code]['buy_1_price'])
-            self.stocks[code]['buy_2_price'] = self.get_stock_asking_price(self.stocks[code]['buy_2_price'])
-            self.stocks[code]['avg_buy_price'] = self.get_stock_asking_price(self.stocks[code]['avg_buy_price'])
-            self.stocks[code]['sell_target_price'] = self.get_stock_asking_price(self.stocks[code]['sell_target_price'])
-
+            
         # print(json.dumps(self.stocks, indent=4, ensure_ascii=False))
-        print(f"update_stocks_trade_info E")
 
     ##############################################################
     # 보유 주식 정보 업데이트
     #   보유 주식은 stockholdings > 0
-    #   TODO 검증
     ##############################################################
     def update_my_stocks_info(self):
         PATH = "uapi/domestic-stock/v1/trading/inquire-balance"
@@ -594,7 +594,10 @@ class Stocks_info:
     #   ex) 총 보유금액이 300만원이고 종목당 총 100만원 매수 시 총 2종목 매수
     ##############################################################
     def get_available_buy_stock_count(self):
-        return int(self.get_my_cash() / self.invest_money_per_stock)
+        result = 0
+        if self.invest_money_per_stock > 0:
+            result = int(self.get_my_cash() / self.invest_money_per_stock)
+        return result
     
     ##############################################################
     # 보유 주식인지 체크
@@ -786,7 +789,8 @@ class Stocks_info:
         stock_list = res.json()['output1']
         evaluation = res.json()['output2']
         stock_dict = {}
-        self.send_msg(f"====주식 보유잔고====")
+        self.send_msg("")
+        self.send_msg(f"==========주식 보유잔고==========")
         for stock in stock_list:
             if int(stock['hldg_qty']) > 0:
                 stock_dict[stock['pdno']] = stock['hldg_qty']
@@ -800,6 +804,7 @@ class Stocks_info:
         self.send_msg(f"총 평가 금액: {evaluation[0]['tot_evlu_amt']}원")
         time.sleep(0.1)
         self.send_msg(f"=================================")
+        self.send_msg("")
         return stock_dict
 
     ##############################################################
@@ -1025,8 +1030,9 @@ class Stocks_info:
     # Parameter :
     #       code            주식 코드
     #       buy_sell        "01" : 매도, "02" : 매수
+    #       order_price     주문 단가    
     ##############################################################
-    def check_trade_done(self, code, buy_sell: str):
+    def check_trade_done(self, code, buy_sell: str, order_price:int):
         # 이미 체결 완료 처리한 종목은 재처리 금지
         if code in self.trade_done_stocks:
             return False
@@ -1058,7 +1064,13 @@ class Stocks_info:
                         else:
                             self.send_msg(f"{stock['prdt_name']} {stock['ord_unpr']}원 {tot_trade_qty}/{order_qty}주 {buy_sell_order} 전량 체결 완료")
                     else:
-                        self.send_msg(f"{stock['prdt_name']} {stock['ord_unpr']}원 {tot_trade_qty}/{order_qty}주 {buy_sell_order} 전량 체결 완료")
+                        # 1차 매수 완료된 상태에서 프로그램 재실행 시 2차 매수로 처리되는 문제
+                        # 1차 매수 완료 상태에서 주문 단가 <= 2차 매수 예정가
+                        if order_price <= self.stocks[code]['buy_2_price']:
+                            nth_buy = 2
+                        else:
+                            nth_buy = 1
+                        self.send_msg(f"{stock['prdt_name']} {stock['ord_unpr']}원 {tot_trade_qty}/{order_qty}주 {nth_buy}차 {buy_sell_order} 전량 체결 완료")
                     # 체결 완료 체크한 종목은 다시 체크하지 않는다
                     # while loop 에서 반복적으로 체크하는거 방지
                     self.trade_done_stocks.append(code)
@@ -1079,7 +1091,7 @@ class Stocks_info:
             code = stock['pdno']
             buy_sell = stock['sll_buy_dvsn_cd']
             order_price = int(float(stock['ord_unpr']))        # 주문단가
-            if self.check_trade_done(code, buy_sell) == True:
+            if self.check_trade_done(code, buy_sell, order_price) == True:
                 if stock['sll_buy_dvsn_cd'] == BUY_CODE:
                     self.set_buy_done(code, order_price)
                 else:
@@ -1132,6 +1144,7 @@ class Stocks_info:
     ##############################################################
     def show_order_list(self):
         order_stock_list = self.get_order_list()
+        self.send_msg("")
         self.send_msg(f"====주식 일별 주문 체결 조회====")
         for stock in order_stock_list:
             if stock['sll_buy_dvsn_cd'] == BUY_CODE:
@@ -1142,6 +1155,7 @@ class Stocks_info:
             self.send_msg(f"{stock['prdt_name']} {buy_sell_order} {stock['ord_unpr']}원 {stock['ord_qty']}주, {stock['tot_ccld_qty']}주 체결, 현재가 {curr_price}원")
             time.sleep(0.1)
         self.send_msg(f"=================================")
+        self.send_msg("")
 
     ##############################################################
     # 이미 주문한 종목인지 체크
@@ -1168,6 +1182,7 @@ class Stocks_info:
     def show_stocks_by_undervalue(self):
         temp_stocks = copy.deepcopy(self.stocks)
         sorted_data = dict(sorted(temp_stocks.items(), key=lambda x: x[1]['undervalue'], reverse=True))
+        self.send_msg("")
         self.send_msg(f"=================================")
         self.send_msg(f"저평가")
         data = {'name':[], 'undervalue':[]}
@@ -1179,3 +1194,17 @@ class Stocks_info:
         df.style.set_properties(subset=['name', 'undervalue'], **{'text-align': 'center'})
         print(df)
         self.send_msg(f"=================================")
+        self.send_msg("")
+
+    ##############################################################
+    # stocks 변경있으면 save stocks_info.json
+    # Return    : 현재 stocks 정보
+    # Parameter :
+    #       pre_stocks  이전 stocks 정보
+    ##############################################################
+    def check_save_stocks_info(self, pre_stocks:dict):
+        if pre_stocks != self.stocks:
+            self.save_stocks_info(STOCKS_INFO_FILE_PATH)
+            pre_stocks.clear()
+            pre_stocks = copy.deepcopy(self.stocks)
+            return pre_stocks
