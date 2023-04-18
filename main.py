@@ -13,14 +13,16 @@ import datetime
 import time
 
 
-
-
 ##############################################################
 def main():
     try:
         stocks_info = Stocks_info()
         stocks_info.load_stocks_info(STOCKS_INFO_FILE_PATH)
         # print(json.dumps(stocks_info.stocks, indent=4), ensure_ascii=False)
+        
+        # test
+        # stocks_info.show_stocks_by_undervalue()
+        # return
         
         # # stocks_info.json 에 추가
         # for code in stocks_info.stocks.keys():
@@ -43,16 +45,6 @@ def main():
         stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
         pre_stocks = copy.deepcopy(stocks_info.stocks)
         stocks_info.show_stocks_by_undervalue()
-        
-        # test
-        # stocks_info.check_ordered_stocks_trade_done()
-        # stocks_info.handle_sell_stock()
-        # stocks_info.handle_buy_stock()        
-        # stocks_info.show_order_list()
-        #stocks_info.check_ordered_stocks_trade_done()
-        #stocks_info.cancel_order("139480", SELL_CODE)
-        #stocks_info.show_order_list()
-        # return
         
         stocks_info.send_msg("===국내 주식 자동매매 프로그램을 시작합니다===")
         t_now = datetime.datetime.now()

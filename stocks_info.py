@@ -9,6 +9,7 @@ from bs4 import BeautifulSoup
 # function overloading
 from multipledispatch import dispatch
 from handle_json import *
+from prettytable import PrettyTable
 
 STOCKS_INFO_FILE_PATH = './stocks_info.json'
 # APP_KEY, APP_SECRET 등 투자 관련 설정 정보
@@ -1182,19 +1183,21 @@ class Stocks_info:
     def show_stocks_by_undervalue(self):
         temp_stocks = copy.deepcopy(self.stocks)
         sorted_data = dict(sorted(temp_stocks.items(), key=lambda x: x[1]['undervalue'], reverse=True))
-        self.send_msg("")
-        self.send_msg(f"=================================")
-        self.send_msg(f"저평가")
-        data = {'name':[], 'undervalue':[]}
+        data = {'name':[], 'undervalue':[], 'gap_max_sell_target_price_p':[]}
         for code in sorted_data.keys():
             data['name'].append(sorted_data[code]['name'])
             data['undervalue'].append(sorted_data[code]['undervalue'])
+            data['gap_max_sell_target_price_p'].append(sorted_data[code]['gap_max_sell_target_price_p'])
             # self.send_msg(f"{sorted_data[code]['name']}  {sorted_data[code]['undervalue']}")
-        df = pd.DataFrame(data)
-        df.style.set_properties(subset=['name', 'undervalue'], **{'text-align': 'center'})
-        print(df)
-        self.send_msg(f"=================================")
-        self.send_msg("")
+
+        # PrettyTable 객체 생성 및 데이터 추가
+        table = PrettyTable()
+        table.field_names = list(data.keys())
+        table.align = 'c'  # 가운데 정렬
+        for row in zip(*data.values()):
+            table.add_row(row)
+        
+        print(table)
 
     ##############################################################
     # stocks 변경있으면 save stocks_info.json
