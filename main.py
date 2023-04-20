@@ -1,10 +1,3 @@
-##############################################################
-#   검증 리스트
-#   1차 매수
-#   2차 매수
-#   매도
-##############################################################
-
 from stocks_info import *
 from handle_json import *
 # function overloading
@@ -18,7 +11,10 @@ def main():
     try:
         stocks_info = Stocks_info()
         stocks_info.initialize()
-
+        stocks_info.update_stocks_trade_info()
+        stocks_info.update_my_stocks_info()            # 보유 주식 업데이트
+        stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
+        
         # # stocks_info.json 에 추가
         # for code in stocks_info.stocks.keys():
         #     stocks_info.stocks[code]['tot_buy_price'] = 0
@@ -46,7 +42,6 @@ def main():
         
         while True:
             t_now = datetime.datetime.now()
-            
             if t_start <= t_now:
             # if 1:   # test
                 # 장 시작 시 보유 종목 매도 주문
@@ -61,10 +56,6 @@ def main():
                 
                 # stocks 변경있으면 save stocks_info.json
                 pre_stocks = stocks_info.check_save_stocks_info(pre_stocks)
-                # if pre_stocks != stocks_info.stocks:
-                #     stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
-                #     pre_stocks.clear()
-                #     pre_stocks = copy.deepcopy(stocks_info.stocks)
                 
                 if t_exit < t_now:  # PM 03:20 ~ :프로그램 종료
                     stocks_info.send_msg("프로그램을 종료합니다.")
@@ -73,7 +64,8 @@ def main():
             time.sleep(1)
         
         # 장 종료 후 금일 체결 조회, 잔고 조회
-        stocks_info.show_trade_done_stocks()
+        stocks_info.show_trade_done_stocks(BUY_CODE)
+        stocks_info.show_trade_done_stocks(SELL_CODE)
         stocks_info.get_stock_balance()
         
     except Exception as e:

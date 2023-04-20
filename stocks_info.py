@@ -69,10 +69,6 @@ class Stocks_info:
         self.access_token = self.get_access_token()
         self.my_cash = self.get_my_cash()       # 보유 현금 세팅
         self.init_trade_done_order_list()
-        # self.get_stock_balance()                # 보유 주식 조회
-        self.update_stocks_trade_info()
-        self.update_my_stocks_info()            # 보유 주식 업데이트
-        self.save_stocks_info(STOCKS_INFO_FILE_PATH)
 
     ##############################################################
     # print and send discode
@@ -81,11 +77,11 @@ class Stocks_info:
     def send_msg(self, msg, send_discode:bool = False):
         now = datetime.datetime.now()
         if send_discode == True:
-            message = {"content": f"[{now.strftime('%Y-%m-%d %H:%M:%S')}] {str(msg)}"}
+            message = {"content": f"[{now.strftime('%H:%M:%S')}] {str(msg)}"}
             requests.post(self.config['DISCORD_WEBHOOK_URL'], data=message)
         else:
             pass
-        print(f"[{now.strftime('%Y-%m-%d %H:%M:%S')}] {str(msg)}")
+        print(f"[{now.strftime('%H:%M:%S')}] {str(msg)}")
 
     ##############################################################
     # 네이버 증권 기업실적분석 정보 얻기
@@ -305,7 +301,8 @@ class Stocks_info:
         self.stocks[code]['avg_buy_price'] = 0
         self.stocks[code]['sell_target_price'] = 0
         self.stocks[code]['stockholdings'] = 0
-        self.stocks[code]['tot_buy_price'] = 0
+        # 매도 완료 후 매도 체결 조회에서 손익 계산위해 0 세팅하지 않는다
+        # self.stocks[code]['tot_buy_price'] = 0
 
     ##############################################################
     # 평단가
@@ -812,23 +809,38 @@ class Stocks_info:
         res = requests.get(URL, headers=headers, params=params)
         stock_list = res.json()['output1']
         evaluation = res.json()['output2']
-        stock_dict = {}
-        self.send_msg("")
-        self.send_msg(f"==========주식 보유잔고==========")
+        data = {'종목명':[], '수량':[], '수익률':[], '평가금액':[], '손익금액':[], '평단가':[], '현재가':[]}
+        # self.send_msg(f"==========주식 보유잔고==========", True)
+        print(f"==========주식 보유잔고==========")
         for stock in stock_list:
+            code = stock['pdno']
             if int(stock['hldg_qty']) > 0:
-                stock_dict[stock['pdno']] = stock['hldg_qty']
-                self.send_msg(f"{stock['prdt_name']}({stock['pdno']}) {stock['hldg_qty']}주 {float(stock['evlu_pfls_rt'])}% {int(stock['evlu_pfls_amt'])} 평단가:{int(float(stock['pchs_avg_pric']))} 현재가:{int(stock['prpr'])}")
+                # self.send_msg(f"{stock['prdt_name']} {stock['hldg_qty']}주 {float(stock['evlu_pfls_rt'])}% {int(stock['evlu_amt'])} {int(stock['evlu_pfls_amt'])} 평단가:{int(float(stock['pchs_avg_pric']))} 현재가:{int(stock['prpr'])}", True)
+                data['종목명'].append(stock['prdt_name'])
+                data['수량'].append(stock['hldg_qty'])
+                data['수익률'].append(float(stock['evlu_pfls_rt']))
+                data['평가금액'].append(int(stock['evlu_amt']))
+                data['손익금액'].append(stock['evlu_pfls_amt'])
+                data['평단가'].append(int(float(stock['pchs_avg_pric'])))
+                data['현재가'].append(int(stock['prpr']))
                 time.sleep(0.1)
-        self.send_msg(f"주식 평가 금액: {evaluation[0]['scts_evlu_amt']}원")
-        time.sleep(0.1)
-        self.send_msg(f"평가 손익 합계: {evaluation[0]['evlu_pfls_smtl_amt']}원")
-        time.sleep(0.1)
-        self.send_msg(f"총 평가 금액: {evaluation[0]['tot_evlu_amt']}원")
-        time.sleep(0.1)
-        self.send_msg(f"=================================")
-        self.send_msg("")
-        return stock_dict
+
+        # PrettyTable 객체 생성 및 데이터 추가
+        table = PrettyTable()
+        table.field_names = list(data.keys())
+        table.align = 'r'  # 우측 정렬
+        for row in zip(*data.values()):
+            table.add_row(row)
+        # self.send_msg("", Ture)
+        # self.send_msg(f"주식 평가 금액: {evaluation[0]['scts_evlu_amt']}원", Ture)
+        # self.send_msg(f"평가 손익 합계: {evaluation[0]['evlu_pfls_smtl_amt']}원", Ture)
+        # self.send_msg(f"총 평가 금액: {evaluation[0]['tot_evlu_amt']}원", Ture)
+        # self.send_msg("")
+        print(table)
+        print(f"주식 평가 금액: {evaluation[0]['scts_evlu_amt']}원")
+        print(f"평가 손익 합계: {evaluation[0]['evlu_pfls_smtl_amt']}원")
+        print(f"총 평가 금액: {evaluation[0]['tot_evlu_amt']}원")
+        return stock_list      
 
     ##############################################################
     # 현금 잔고 조회
@@ -854,7 +866,7 @@ class Stocks_info:
         }
         res = requests.get(URL, headers=headers, params=params)
         cash = res.json()['output']['ord_psbl_cash']
-        self.send_msg(f"주문 가능 현금 잔고: {cash}원")
+        # self.send_msg(f"주문 가능 현금 잔고: {cash}원")
         return int(cash)
 
     ##############################################################
@@ -1193,31 +1205,55 @@ class Stocks_info:
     #       code        종목코드
     #       buy_sell    "01" : 매도, "02" : 매수
     ##############################################################
-    def show_trade_done_stocks(self, buy_sell:str):
-        self.send_msg("")
-        self.send_msg(f"===========체결 조회===========")
+    def show_trade_done_stocks(self, buy_sell:str = SELL_CODE):
+        if buy_sell == BUY_CODE:
+            buy_sell_order = "매수"
+        else:
+            buy_sell_order = "매도"
+
+        # self.send_msg(f"========={buy_sell_order} 체결 조회=========", True)
         order_stock_list = self.get_order_list()
+        data = {'종목명':[], '매수/매도':[], '체결평균가':[], '수량':[], '손익':[], '수익률(%)':[], '현재가':[]}
         for stock in order_stock_list:
             if int(stock['tot_ccld_qty']) > 0:
                 code = stock['pdno']
                 curr_price = self.get_curr_price(code)
-                if buy_sell == stock['sll_buy_dvsn_cd']:
+                gain_loss_money = 0
+                gain_loss_p = 0
+                if buy_sell == stock['sll_buy_dvsn_cd']:                    
                     if stock['sll_buy_dvsn_cd'] == BUY_CODE:
-                        buy_sell_order = "매수"
-                        self.send_msg(f"{stock['prdt_name']} {buy_sell_order} {stock['ord_unpr']}원 {stock['tot_ccld_qty']}주 체결, 현재가 {curr_price}원")
+                        # # 매도 완료 후 체결 조회 시 손익, 수익률 구하기 위함
+                        # if self.stocks[code]['tot_buy_price'] == 0:
+                        #     self.stocks[code]['tot_buy_price'] = int(float(stock['tot_ccld_amt']))
+                        # self.send_msg(f"{stock['prdt_name']} {buy_sell_order} {int(float(stock['avg_prvs']))}원 {stock['tot_ccld_qty']}주 체결, 현재가 {curr_price}원", True)
+                        pass
                     else:
-                        buy_sell_order = "매도"
                         # 매도 체결 완료 시, 손익, 수익률 표시
                         # 총체결금액 - 매수금액
                         gain_loss_money = int(stock['tot_ccld_amt']) - self.stocks[code]['tot_buy_price']
                         if self.stocks[code]['tot_buy_price'] > 0:
                             gain_loss_p = round(float(gain_loss_money / self.stocks[code]['tot_buy_price']), 3)     # 소스 3째 자리에서 반올림
-                            self.send_msg(f"{stock['prdt_name']} {buy_sell_order} {stock['ord_unpr']}원 {stock['tot_ccld_qty']}주 체결, 손익:{gain_loss_money} {gain_loss_p}%")
+                            # self.send_msg(f"{stock['prdt_name']} {buy_sell_order} {int(float(stock['avg_prvs']))}원 {stock['tot_ccld_qty']}주 체결, 손익:{gain_loss_money} {gain_loss_p}%", True)
+                    
+                    data['종목명'].append(stock['prdt_name'])
+                    data['매수/매도'].append(buy_sell_order)
+                    data['체결평균가'].append(int(float(stock['avg_prvs'])))
+                    data['수량'].append(stock['tot_ccld_qty'])
+                    data['손익'].append(gain_loss_money)
+                    data['수익률(%)'].append(gain_loss_p)
+                    data['현재가'].append(curr_price)
             time.sleep(0.1)
-        self.send_msg(f"=================================")
-        self.send_msg("")
-        return None
 
+        # PrettyTable 객체 생성 및 데이터 추가
+        table = PrettyTable()
+        table.field_names = list(data.keys())
+        table.align = 'r'  # 우측 정렬
+        for row in zip(*data.values()):
+            table.add_row(row)
+        print(table)
+        # self.send_msg(f"=================================", True)
+        return None
+        
     ##############################################################
     # 이미 주문한 종목인지 체크
     # Return    : 이미 주문한 종목이면 Ture, 아니면 False
