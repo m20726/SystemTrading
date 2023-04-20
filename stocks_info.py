@@ -84,7 +84,8 @@ class Stocks_info:
             message = {"content": f"[{now.strftime('%Y-%m-%d %H:%M:%S')}] {str(msg)}"}
             requests.post(self.config['DISCORD_WEBHOOK_URL'], data=message)
         else:
-            print(f"[{now.strftime('%Y-%m-%d %H:%M:%S')}] {str(msg)}")
+            pass
+        print(f"[{now.strftime('%Y-%m-%d %H:%M:%S')}] {str(msg)}")
 
     ##############################################################
     # 네이버 증권 기업실적분석 정보 얻기
@@ -813,20 +814,19 @@ class Stocks_info:
         evaluation = res.json()['output2']
         stock_dict = {}
         self.send_msg("")
-        self.send_msg(f"==========주식 보유잔고==========", True)
+        self.send_msg(f"==========주식 보유잔고==========")
         for stock in stock_list:
             if int(stock['hldg_qty']) > 0:
                 stock_dict[stock['pdno']] = stock['hldg_qty']
-                # self.send_msg(f"{stock['prdt_name']}({stock['pdno']}) 평단가 {int(float(stock['pchs_avg_pric']))} {stock['hldg_qty']}주")
-                self.send_msg(f"{stock['prdt_name']}({stock['pdno']}) {stock['hldg_qty']}주 {float(stock['evlu_pfls_rt'])}% {int(stock['evlu_pfls_amt'])} 평단가:{int(float(stock['pchs_avg_pric']))} 현재가:{int(stock['prpr'])}", True)
+                self.send_msg(f"{stock['prdt_name']}({stock['pdno']}) {stock['hldg_qty']}주 {float(stock['evlu_pfls_rt'])}% {int(stock['evlu_pfls_amt'])} 평단가:{int(float(stock['pchs_avg_pric']))} 현재가:{int(stock['prpr'])}")
                 time.sleep(0.1)
-        self.send_msg(f"주식 평가 금액: {evaluation[0]['scts_evlu_amt']}원", True)
+        self.send_msg(f"주식 평가 금액: {evaluation[0]['scts_evlu_amt']}원")
         time.sleep(0.1)
-        self.send_msg(f"평가 손익 합계: {evaluation[0]['evlu_pfls_smtl_amt']}원", True)
+        self.send_msg(f"평가 손익 합계: {evaluation[0]['evlu_pfls_smtl_amt']}원")
         time.sleep(0.1)
-        self.send_msg(f"총 평가 금액: {evaluation[0]['tot_evlu_amt']}원", True)
+        self.send_msg(f"총 평가 금액: {evaluation[0]['tot_evlu_amt']}원")
         time.sleep(0.1)
-        self.send_msg(f"=================================", True)
+        self.send_msg(f"=================================")
         self.send_msg("")
         return stock_dict
 
