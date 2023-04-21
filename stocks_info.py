@@ -28,8 +28,8 @@ BUY_CODE = "02"         # 매도
 # ex) 20130414
 TODAY_DATE = f"{datetime.datetime.now().strftime('%Y%m%d')}"
 
-# MAX 보유 주식 수 test
-MAX_MY_STOCK_COUNT = 20
+# MAX 보유 주식 수
+MAX_MY_STOCK_COUNT = 10
 
 ##############################################################
 
@@ -57,7 +57,8 @@ class Stocks_info:
         # 2023년 기준 2021.12       재작년 데이터 얻기
         self.the_year_before_last_column_text = ""
         self.init_naver_finance_year_column_texts()
-        self.trade_done_order_list = list()                 # 체결 완료 주문           
+        self.trade_done_order_list = list()                 # 체결 완료 주문 list
+        self.order_list = list()                            # 매수/매도 주문 list
 
 
     ##############################################################
@@ -69,18 +70,17 @@ class Stocks_info:
         self.access_token = self.get_access_token()
         self.my_cash = self.get_my_cash()       # 보유 현금 세팅
         self.init_trade_done_order_list()
+        self.init_order_list()
 
     ##############################################################
-    # print and send discode
-    #   send_discode        send discode 여부
+    # Print and send discode
     ##############################################################
     def send_msg(self, msg, send_discode:bool = False):
         now = datetime.datetime.now()
         if send_discode == True:
-            message = {"content": f"[{now.strftime('%H:%M:%S')}] {str(msg)}"}
+            # message = {"content": f"[{now.strftime('%H:%M:%S')}] {str(msg)}"}
+            message = {"content": f"{msg}"}
             requests.post(self.config['DISCORD_WEBHOOK_URL'], data=message)
-        else:
-            pass
         print(f"[{now.strftime('%H:%M:%S')}] {str(msg)}")
 
     ##############################################################
@@ -809,16 +809,14 @@ class Stocks_info:
         res = requests.get(URL, headers=headers, params=params)
         stock_list = res.json()['output1']
         evaluation = res.json()['output2']
-        data = {'종목명':[], '수량':[], '수익률':[], '평가금액':[], '손익금액':[], '평단가':[], '현재가':[]}
-        # self.send_msg(f"==========주식 보유잔고==========", True)
-        print(f"==========주식 보유잔고==========")
+        data = {'종목명':[], '수량':[], '수익률(%)':[], '평가금액':[], '손익금액':[], '평단가':[], '현재가':[]}
+        self.send_msg(f"\n==========주식 보유잔고==========", True)
         for stock in stock_list:
             code = stock['pdno']
             if int(stock['hldg_qty']) > 0:
-                # self.send_msg(f"{stock['prdt_name']} {stock['hldg_qty']}주 {float(stock['evlu_pfls_rt'])}% {int(stock['evlu_amt'])} {int(stock['evlu_pfls_amt'])} 평단가:{int(float(stock['pchs_avg_pric']))} 현재가:{int(stock['prpr'])}", True)
                 data['종목명'].append(stock['prdt_name'])
                 data['수량'].append(stock['hldg_qty'])
-                data['수익률'].append(float(stock['evlu_pfls_rt']))
+                data['수익률(%)'].append(float(stock['evlu_pfls_rt']))
                 data['평가금액'].append(int(stock['evlu_amt']))
                 data['손익금액'].append(stock['evlu_pfls_amt'])
                 data['평단가'].append(int(float(stock['pchs_avg_pric'])))
@@ -831,16 +829,11 @@ class Stocks_info:
         table.align = 'r'  # 우측 정렬
         for row in zip(*data.values()):
             table.add_row(row)
-        # self.send_msg("", Ture)
-        # self.send_msg(f"주식 평가 금액: {evaluation[0]['scts_evlu_amt']}원", Ture)
-        # self.send_msg(f"평가 손익 합계: {evaluation[0]['evlu_pfls_smtl_amt']}원", Ture)
-        # self.send_msg(f"총 평가 금액: {evaluation[0]['tot_evlu_amt']}원", Ture)
-        # self.send_msg("")
-        print(table)
-        print(f"주식 평가 금액: {evaluation[0]['scts_evlu_amt']}원")
-        print(f"평가 손익 합계: {evaluation[0]['evlu_pfls_smtl_amt']}원")
-        print(f"총 평가 금액: {evaluation[0]['tot_evlu_amt']}원")
-        return stock_list      
+        self.send_msg(f"{table}", True)
+        self.send_msg(f"주식 평가 금액: {evaluation[0]['scts_evlu_amt']}원", True)
+        self.send_msg(f"평가 손익 합계: {evaluation[0]['evlu_pfls_smtl_amt']}원", True)
+        self.send_msg(f"총 평가 금액: {evaluation[0]['tot_evlu_amt']}원", True)
+        return stock_list
 
     ##############################################################
     # 현금 잔고 조회
@@ -986,6 +979,9 @@ class Stocks_info:
                 if curr_price * 0.99 <= buy_target_price:
                     if self.is_ok_to_buy(code) == True:
                         if self.buy(code, buy_target_price, buy_target_qty) == True:
+                            result, order_num = self.get_order_num(code, BUY_CODE)
+                            if result == True:
+                                self.order_list.append(order_num)
                             self.show_order_list()
             time.sleep(0.1)
 
@@ -996,6 +992,9 @@ class Stocks_info:
         my_stocks = self.update_my_stocks_info()
         for code in my_stocks.keys():
             if self.sell(code, my_stocks[code]['sell_target_price'], my_stocks[code]['stockholdings']) == True:
+                result, order_num = self.get_order_num(code, SELL_CODE)
+                if result == True:
+                    self.order_list.append(order_num)
                 self.show_order_list()
             time.sleep(0.1)
 
@@ -1098,7 +1097,7 @@ class Stocks_info:
                         # 총체결금액 - 매수금액
                         gain_loss_money = int(stock['tot_ccld_amt']) - self.stocks[code]['tot_buy_price']
                         if self.stocks[code]['tot_buy_price'] > 0:
-                            gain_loss_p = round(float(gain_loss_money / self.stocks[code]['tot_buy_price']), 3)     # 소스 3째 자리에서 반올림
+                            gain_loss_p = round(float(gain_loss_money / self.stocks[code]['tot_buy_price']) * 100, 3)     # 소스 3째 자리에서 반올림
                             self.send_msg(f"{stock['prdt_name']} {stock['ord_unpr']}원 {tot_trade_qty}/{order_qty}주 {buy_sell_order} 전량 체결 완료, 손익:{gain_loss_money} {gain_loss_p}%", True)
                     else:
                         # 1차 매수 완료된 상태에서 프로그램 재실행 시 2차 매수로 처리되는 문제
@@ -1180,8 +1179,7 @@ class Stocks_info:
     ##############################################################
     def show_order_list(self):
         order_stock_list = self.get_order_list()
-        self.send_msg("")
-        self.send_msg(f"===========주문 조회===========")
+        self.send_msg(f"\n===========주문 조회===========")
         for stock in order_stock_list:
             # 주문 수량
             order_qty = int(stock['ord_qty'])
@@ -1196,8 +1194,7 @@ class Stocks_info:
                 curr_price = self.get_curr_price(stock['pdno'])            
                 self.send_msg(f"{stock['prdt_name']} {buy_sell_order} {stock['ord_unpr']}원 {stock['ord_qty']}주, 현재가 {curr_price}원")
             time.sleep(0.1)
-        self.send_msg(f"=================================")
-        self.send_msg("")
+        self.send_msg(f"=================================\n")
 
     ##############################################################
     # 체결 조회
@@ -1211,7 +1208,7 @@ class Stocks_info:
         else:
             buy_sell_order = "매도"
 
-        # self.send_msg(f"========={buy_sell_order} 체결 조회=========", True)
+        self.send_msg(f"\n========={buy_sell_order} 체결 조회=========")
         order_stock_list = self.get_order_list()
         data = {'종목명':[], '매수/매도':[], '체결평균가':[], '수량':[], '손익':[], '수익률(%)':[], '현재가':[]}
         for stock in order_stock_list:
@@ -1225,7 +1222,6 @@ class Stocks_info:
                         # # 매도 완료 후 체결 조회 시 손익, 수익률 구하기 위함
                         # if self.stocks[code]['tot_buy_price'] == 0:
                         #     self.stocks[code]['tot_buy_price'] = int(float(stock['tot_ccld_amt']))
-                        # self.send_msg(f"{stock['prdt_name']} {buy_sell_order} {int(float(stock['avg_prvs']))}원 {stock['tot_ccld_qty']}주 체결, 현재가 {curr_price}원", True)
                         pass
                     else:
                         # 매도 체결 완료 시, 손익, 수익률 표시
@@ -1233,7 +1229,6 @@ class Stocks_info:
                         gain_loss_money = int(stock['tot_ccld_amt']) - self.stocks[code]['tot_buy_price']
                         if self.stocks[code]['tot_buy_price'] > 0:
                             gain_loss_p = round(float(gain_loss_money / self.stocks[code]['tot_buy_price']), 3)     # 소스 3째 자리에서 반올림
-                            # self.send_msg(f"{stock['prdt_name']} {buy_sell_order} {int(float(stock['avg_prvs']))}원 {stock['tot_ccld_qty']}주 체결, 손익:{gain_loss_money} {gain_loss_p}%", True)
                     
                     data['종목명'].append(stock['prdt_name'])
                     data['매수/매도'].append(buy_sell_order)
@@ -1250,8 +1245,7 @@ class Stocks_info:
         table.align = 'r'  # 우측 정렬
         for row in zip(*data.values()):
             table.add_row(row)
-        print(table)
-        # self.send_msg(f"=================================", True)
+        self.send_msg(table)
         return None
         
     ##############################################################
@@ -1262,15 +1256,21 @@ class Stocks_info:
     #       buy_sell    "01" : 매도, "02" : 매수
     ##############################################################
     def already_ordered(self, code, buy_sell: str):
-        order_stock_list = self.get_order_list()
-        for stock in order_stock_list:
-            if stock['pdno'] == code and stock['sll_buy_dvsn_cd'] == buy_sell:
-                if stock['sll_buy_dvsn_cd'] == BUY_CODE:
-                    buy_sell_order = "매수 주문"
-                else:
-                    buy_sell_order = "매도 주문"
-                # self.send_msg(f"이미 주문한 주식 : {stock['prdt_name']} {buy_sell_order} {stock['ord_unpr']}원 {stock['ord_qty']}주")
+        result, order_num = self.get_order_num(code, buy_sell)
+        if result == True:
+            if order_num in self.order_list:
                 return True
+        else:
+            return False
+        # order_stock_list = self.get_order_list()
+        # for stock in order_stock_list:
+        #     if stock['pdno'] == code and stock['sll_buy_dvsn_cd'] == buy_sell:
+        #         if stock['sll_buy_dvsn_cd'] == BUY_CODE:
+        #             buy_sell_order = "매수 주문"
+        #         else:
+        #             buy_sell_order = "매도 주문"
+        #         # self.send_msg(f"이미 주문한 주식 : {stock['prdt_name']} {buy_sell_order} {stock['ord_unpr']}원 {stock['ord_qty']}주")
+        #         return True
         return False
 
     ##############################################################
@@ -1279,12 +1279,11 @@ class Stocks_info:
     def show_stocks_by_undervalue(self):
         temp_stocks = copy.deepcopy(self.stocks)
         sorted_data = dict(sorted(temp_stocks.items(), key=lambda x: x[1]['undervalue'], reverse=True))
-        data = {'name':[], 'undervalue':[], 'gap_max_sell_target_price_p':[]}
+        data = {'종목명':[], '저평가':[], '목표주가GAP':[]}
         for code in sorted_data.keys():
-            data['name'].append(sorted_data[code]['name'])
-            data['undervalue'].append(sorted_data[code]['undervalue'])
-            data['gap_max_sell_target_price_p'].append(sorted_data[code]['gap_max_sell_target_price_p'])
-            # self.send_msg(f"{sorted_data[code]['name']}  {sorted_data[code]['undervalue']}")
+            data['종목명'].append(sorted_data[code]['name'])
+            data['저평가'].append(sorted_data[code]['undervalue'])
+            data['목표주가GAP'].append(sorted_data[code]['gap_max_sell_target_price_p'])
 
         # PrettyTable 객체 생성 및 데이터 추가
         table = PrettyTable()
@@ -1293,7 +1292,7 @@ class Stocks_info:
         for row in zip(*data.values()):
             table.add_row(row)
         
-        print(table)
+        self.send_msg(table)
 
     ##############################################################
     # stocks 변경있으면 save stocks_info.json
@@ -1311,8 +1310,6 @@ class Stocks_info:
     
     ##############################################################
     # 금일 매수/매도 체결 완료된 주문번호로 trade_done_order_list 초기화
-    # Return    : 
-    # Parameter :
     ##############################################################    
     def init_trade_done_order_list(self):
         self.trade_done_order_list.clear()
@@ -1326,3 +1323,13 @@ class Stocks_info:
                 # 체결 완료
                 # 주문 번호
                 self.trade_done_order_list.append(stock['odno'])
+
+    ##############################################################
+    # 금일 매수/매도 주문 order_list 초기화
+    ##############################################################    
+    def init_order_list(self):
+        self.order_list.clear()
+        order_stock_list = self.get_order_list()
+        for stock in order_stock_list:
+            # 주문 번호
+            self.order_list.append(stock['odno'])
