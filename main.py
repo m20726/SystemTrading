@@ -11,11 +11,9 @@ def main():
     try:
         stocks_info = Stocks_info()
         stocks_info.initialize()
-        # stocks_info.update_stocks_trade_info()
+        stocks_info.update_stocks_trade_info()
         stocks_info.update_my_stocks_info()            # 보유 주식 업데이트
-        # stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
-        
-        stocks_info.handle_sell_stock()
+        stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
         
         #test
         # stocks_info.get_stock_balance()

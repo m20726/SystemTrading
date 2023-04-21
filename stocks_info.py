@@ -1228,7 +1228,7 @@ class Stocks_info:
                         # 총체결금액 - 매수금액
                         gain_loss_money = int(stock['tot_ccld_amt']) - self.stocks[code]['tot_buy_price']
                         if self.stocks[code]['tot_buy_price'] > 0:
-                            gain_loss_p = round(float(gain_loss_money / self.stocks[code]['tot_buy_price']), 3)     # 소스 3째 자리에서 반올림
+                            gain_loss_p = round(float(gain_loss_money / self.stocks[code]['tot_buy_price']) * 100, 3)     # 소스 3째 자리에서 반올림
                     
                     data['종목명'].append(stock['prdt_name'])
                     data['매수/매도'].append(buy_sell_order)
