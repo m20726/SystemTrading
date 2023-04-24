@@ -52,6 +52,7 @@ def main():
                     stocks_info.handle_sell_stock()
                     sell_order_done = True
 
+                # test
                 stocks_info.handle_buy_stock()
 
                 # 매수/매도 체결 여부
