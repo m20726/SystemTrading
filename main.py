@@ -15,17 +15,19 @@ def main():
         stocks_info.update_my_stocks_info()            # 보유 주식 업데이트
         stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
         
-        #test
-        # stocks_info.get_stock_balance()
+        # # test
+        # while True:
+        #     stocks_info.handle_sell_stock()
+        #     time.sleep(1)
         
         # # stocks_info.json 에 추가
         # for code in stocks_info.stocks.keys():
-        #     stocks_info.stocks[code]['tot_buy_price'] = 0
+        #     stocks_info.stocks[code]['allow_monitoring_sell'] = False
         # stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
         
         # # stocks_info.json 에 key 제거
         # for code in stocks_info.stocks.keys():
-        #     del stocks_info.stocks[code]['buy_order_done']
+        #     del stocks_info.stocks[code]['allow_monitoring_buy']
         # stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
 
         pre_stocks = copy.deepcopy(stocks_info.stocks)
@@ -47,13 +49,16 @@ def main():
             t_now = datetime.datetime.now()
             if t_start <= t_now:
             # if 1:   # test
-                # 장 시작 시 보유 종목 매도 주문
-                if sell_order_done == False:
-                    stocks_info.handle_sell_stock()
-                    sell_order_done = True
+                # # 장 시작 시 보유 종목 매도 주문
+                # if sell_order_done == False:
+                #     stocks_info.handle_sell_stock()
+                #     sell_order_done = True
 
-                # test
+                # test 전략2
+                stocks_info.handle_sell_stock()
+                
                 stocks_info.handle_buy_stock()
+                stocks_info.handle_loss_cut()                            
 
                 # 매수/매도 체결 여부
                 stocks_info.check_ordered_stocks_trade_done()
