@@ -1,17 +1,14 @@
 import copy
 import datetime
-import math
 import time
-
 import numpy as np
 import pandas as pd
 import requests
 from bs4 import BeautifulSoup
-# function overloading
-from multipledispatch import dispatch
 from prettytable import PrettyTable
-
 from handle_json import *
+
+##############################################################
 
 STOCKS_INFO_FILE_PATH = './stocks_info.json'
 # APP_KEY, APP_SECRET 등 투자 관련 설정 정보
@@ -29,7 +26,7 @@ BUY_CODE = "02"         # 매도
 TODAY_DATE = f"{datetime.datetime.now().strftime('%Y%m%d')}"
 
 # MAX 보유 주식 수
-MAX_MY_STOCK_COUNT = 10
+MAX_MY_STOCK_COUNT = 15
 
 # 주문 구분
 ORDER_TYPE_LIMIT_ORDER = "00"               # 지정가
@@ -40,8 +37,11 @@ ORDER_TYPE_IMMEDIATE_ORDER = "04"           # 최우선지정가
 # 매수/매도 전략
 BUY_STRATEGY = 2
 SELL_STRATEGY = 2
-##############################################################
 
+# 초당 API 20회 제한
+API_DELAY_S = 0.05
+
+##############################################################
 
 class Stocks_info:
     def __init__(self) -> None:
@@ -277,10 +277,9 @@ class Stocks_info:
             self.stocks[code]['buy_1_done'] = True
         else:
             # 2차 매수 완료 조건
-            # 1차 매수 완료 상태에서 주문 단가 <= 2차 매수 예정가 and 보유 수량 >= 1차 매수량 + 2차 매수량
-            if order_price <= self.stocks[code]['buy_2_price']:
-                if self.stocks[code]['stockholdings'] >= (self.stocks[code]['buy_1_qty'] + self.stocks[code]['buy_2_qty']):
-                    self.stocks[code]['buy_2_done'] = True
+            # 보유 수량 >= 1차 매수량 + 2차 매수량            
+            if self.stocks[code]['stockholdings'] >= (self.stocks[code]['buy_1_qty'] + self.stocks[code]['buy_2_qty']):
+                self.stocks[code]['buy_2_done'] = True
 
         # 다음 매수 조건 체크위해 allow_monitoring_buy 초기화
         self.stocks[code]['allow_monitoring_buy'] = False
@@ -588,7 +587,7 @@ class Stocks_info:
 
             # 주식 투자 정보 업데이트(시가 총액, 상장 주식 수, 저평가, BPS, PER, EPS)
             self.update_stock_invest_info(code)
-            # time.sleep(0.1)
+            # time.sleep(API_DELAY_S)
             
         # print(json.dumps(self.stocks, indent=4, ensure_ascii=False))
 
@@ -639,7 +638,7 @@ class Stocks_info:
                     # self.my_stocks 업데이트
                     temp_stock = copy.deepcopy({code: self.stocks[code]})
                     self.my_stocks[code] = temp_stock[code]
-                    time.sleep(0.1)
+                    # time.sleep(API_DELAY_S)
             result = True
         else:
             self.send_msg(f"[계좌 조회 실패]{str(res.json())}")
@@ -832,7 +831,6 @@ class Stocks_info:
         data = {'종목명':[], '수량':[], '수익률(%)':[], '평가금액':[], '손익금액':[], '평단가':[], '현재가':[]}
         self.send_msg(f"==========주식 보유잔고==========", True)
         for stock in stock_list:
-            code = stock['pdno']
             if int(stock['hldg_qty']) > 0:
                 data['종목명'].append(stock['prdt_name'])
                 data['수량'].append(stock['hldg_qty'])
@@ -841,7 +839,7 @@ class Stocks_info:
                 data['손익금액'].append(stock['evlu_pfls_amt'])
                 data['평단가'].append(int(float(stock['pchs_avg_pric'])))
                 data['현재가'].append(int(stock['prpr']))
-                time.sleep(0.1)
+                # time.sleep(API_DELAY_S)
 
         # PrettyTable 객체 생성 및 데이터 추가
         table = PrettyTable()
@@ -922,10 +920,10 @@ class Stocks_info:
                    }
         res = requests.post(URL, headers=headers, data=json.dumps(data))
         if self.is_request_ok(res) == True:
-            self.send_msg(f"[매수 주문 성공] {self.stocks[code]['name']} {price}원 {qty}주")
+            self.send_msg(f"[매수 주문 성공] [{self.stocks[code]['name']}] {price}원 {qty}주")
             return True
         else:
-            self.send_msg(f"[매수 주문 실패] {self.stocks[code]['name']} {str(res.json())}")
+            self.send_msg(f"[매수 주문 실패] [{self.stocks[code]['name']}] {str(res.json())}")
             return False
 
     ##############################################################
@@ -977,10 +975,10 @@ class Stocks_info:
                    }
         res = requests.post(URL, headers=headers, data=json.dumps(data))
         if self.is_request_ok(res) == True:
-            self.send_msg(f"[매도 주문 성공] {self.stocks[code]['name']} {price}원 {qty}주")
+            self.send_msg(f"[매도 주문 성공] [{self.stocks[code]['name']}] {price}원 {qty}주")
             return True
         else:
-            self.send_msg(f"[매도 주문 실패] {self.stocks[code]['name']} {price}원 {qty}주 {str(res.json())}")
+            self.send_msg(f"[매도 주문 실패] [{self.stocks[code]['name']}] {price}원 {qty}주 {str(res.json())}")
             return False
 
     ##############################################################
@@ -1047,7 +1045,7 @@ class Stocks_info:
                             if result == True:
                                 self.order_num_list.append(order_num)
                             self.show_order_list()
-                time.sleep(0.1)
+                time.sleep(API_DELAY_S)
         elif BUY_STRATEGY == 2:
             # 전략 2 : 현재가 < 매수가 된적이 있는 상태에서 (현재가 >= 저가+x% or 현재가 >= 매수가 + y%)면 최우선지정가 매수
             for code in self.stocks.keys():
@@ -1056,15 +1054,20 @@ class Stocks_info:
 
                 if self.stocks[code]['allow_monitoring_buy'] == False:
                     if curr_price < buy_target_price:
-                        self.stocks[code]['allow_monitoring_buy'] = True
+                        self.send_msg(f"[{self.stocks[code]['name']}] 매수 감시 시작, 현재가 : {curr_price}, 매수 목표가 : {buy_target_price}")
+                        self.stocks[code]['allow_monitoring_buy'] = True                        
                 else:
                     # 현재가 >= 저가 + 0.5%
                     lowest_price = self.get_lowest_price(code)
                     if (curr_price >= (lowest_price * 1.005)) or (curr_price >= buy_target_price * 1.005):
-                        buy_target_qty = self.get_buy_target_qty(code)
+                        buy_target_qty = self.get_buy_target_qty(code)                        
                         if self.buy(code, curr_price, buy_target_qty, ORDER_TYPE_IMMEDIATE_ORDER) == True:
                             self.set_order_done(code, BUY_CODE)
-                time.sleep(0.1)
+                            if curr_price >= (lowest_price * 1.005):
+                                self.send_msg(f"[{self.stocks[code]['name']}] 매수 주문, 현재가 : {curr_price} >= 저가 * 1.005 : {lowest_price * 1.005}")
+                            elif curr_price >= buy_target_price * 1.005:
+                                self.send_msg(f"[{self.stocks[code]['name']}] 매수 주문, 현재가 : {curr_price} >= 매수 목표가 * 1.005 : {buy_target_price * 1.005}")
+                time.sleep(API_DELAY_S)
 
     ##############################################################
     # 매도 처리
@@ -1077,25 +1080,30 @@ class Stocks_info:
             for code in self.my_stocks.keys():
                 if self.sell(code, self.my_stocks[code]['sell_target_price'], self.my_stocks[code]['stockholdings'], order_type) == True:
                     self.set_order_done(code, SELL_CODE)
-                time.sleep(0.1)
+                time.sleep(API_DELAY_S)
         elif SELL_STRATEGY == 2:
-            # 전략 2 : 현재가 >= 목표가 된적이 있는 상태에서 (현재가 <= 여지껏 고가 - x% or 현재가 <= 목표가 - y%)면 최우선지정가 매도
-            self.update_my_stocks_info()
+            # 전략 2 : 현재가 >= 목표가 된적이 있는 상태에서 (현재가 <= 여지껏 고가 - x% or 현재가 <= 목표가 - y%)면 최유리지정가 매도
+            # self.update_my_stocks_info()
             for code in self.my_stocks.keys():
                 curr_price = self.get_curr_price(code)
                 sell_target_price = self.my_stocks[code]['sell_target_price']
 
                 if self.stocks[code]['allow_monitoring_sell'] == False:
                     if curr_price >= sell_target_price:
+                        self.send_msg(f"[{self.stocks[code]['name']}] 매도 감시 시작, 현재가 : {curr_price}, 매도 목표가 : {sell_target_price}")
                         self.stocks[code]['allow_monitoring_sell'] = True
                 else:
                     # 매수 후 지금껏 최고가
                     self.update_highest_price_ever(code)
-                    # 현재가 <= 고가 - 2%
-                    if curr_price <= (self.stocks[code]['highest_price_ever'] * 0.98) or (curr_price <= sell_target_price * 0.99):
-                        if self.sell(code, curr_price, self.my_stocks[code]['stockholdings'], ORDER_TYPE_IMMEDIATE_ORDER) == True:
+                    # 현재가 <= 고가 - 1%
+                    if curr_price <= (self.stocks[code]['highest_price_ever'] * 0.99) or (curr_price <= sell_target_price * 0.99):
+                        if self.sell(code, curr_price, self.my_stocks[code]['stockholdings'], ORDER_TYPE_MARKETABLE_LIMIT_ORDER) == True:
                             self.set_order_done(code, SELL_CODE)
-                time.sleep(0.1)
+                            if curr_price <= (self.stocks[code]['highest_price_ever'] * 0.99):
+                                self.send_msg(f"[{self.stocks[code]['name']}] 매도 주문, 현재가 : {curr_price} <= 최고가 * 0.99 : {self.stocks[code]['highest_price_ever'] * 0.99}")
+                            elif curr_price <= sell_target_price * 0.99:
+                                self.send_msg(f"[{self.stocks[code]['name']}] 매도 주문, 현재가 : {curr_price} <= 목표가 * 0.99 : {sell_target_price * 0.99}")
+                time.sleep(API_DELAY_S)
             
     ##############################################################
     # 주문 번호 리턴
@@ -1151,12 +1159,12 @@ class Stocks_info:
                 ret = True
             else:
                 if self.config['TR_ID_MODIFY_CANCEL_ORDER'] == "VTTC0803U":
-                    self.send_msg(f"[주식 주문 전량 취소 주문 실패] {self.stocks[code]['name']} 모의 투자 미지원")
+                    self.send_msg(f"[주식 주문 전량 취소 주문 실패] [{self.stocks[code]['name']}] 모의 투자 미지원")
                 else:
-                    self.send_msg(f"[주식 주문 전량 취소 주문 실패] {self.stocks[code]['name']} {str(res.json())}")
+                    self.send_msg(f"[주식 주문 전량 취소 주문 실패] [{self.stocks[code]['name']}] {str(res.json())}")
                 ret = False
         else:
-            self.send_msg(f"[cancel_order failed] {self.stocks[code]['name']} {buy_sell}")
+            self.send_msg(f"[cancel_order failed] [{self.stocks[code]['name']}] {buy_sell}")
             ret = False
         return ret
 
@@ -1235,7 +1243,7 @@ class Stocks_info:
                     self.set_buy_done(code, order_price)
                 else:
                     self.set_sell_done(code)
-            time.sleep(0.1)
+            time.sleep(API_DELAY_S)
         
         # 여러 종목 체결되도 결과는 한 번만 출력
         if is_trade_done == True:
@@ -1303,7 +1311,7 @@ class Stocks_info:
                     buy_sell_order = "매도 주문"
                 curr_price = self.get_curr_price(stock['pdno'])            
                 self.send_msg(f"{stock['prdt_name']} {buy_sell_order} {stock['ord_unpr']}원 {stock['ord_qty']}주, 현재가 {curr_price}원")
-            time.sleep(0.1)
+            time.sleep(API_DELAY_S)
         self.send_msg(f"=================================\n")
 
     ##############################################################
@@ -1347,7 +1355,7 @@ class Stocks_info:
                     data['손익'].append(gain_loss_money)
                     data['수익률(%)'].append(gain_loss_p)
                     data['현재가'].append(curr_price)
-            time.sleep(0.1)
+            time.sleep(API_DELAY_S)
 
         # PrettyTable 객체 생성 및 데이터 추가
         table = PrettyTable()
@@ -1452,12 +1460,12 @@ class Stocks_info:
             if curr_price < loss_cut_price:
                 # 기존 매도 주문 취소
                 if self.cancel_order(code, SELL_CODE) == True:
-                    # 손절 처리(최우선지정가로 주문)
+                    # 손절 처리(최유리지정가로 주문)
                     self.stocks[code]['allow_monitoring_sell'] = True
-                    if self.sell(code, curr_price, stockholdings, ORDER_TYPE_IMMEDIATE_ORDER) == True:
+                    if self.sell(code, curr_price, stockholdings, ORDER_TYPE_MARKETABLE_LIMIT_ORDER) == True:
                         self.send_msg(f"손절 주문 성공")
                         self.set_order_done(code, SELL_CODE)
-                time.sleep(0.1)
+                time.sleep(API_DELAY_S)
                 
     ##############################################################
     # 매수 후 여지껏 최고가 업데이트
