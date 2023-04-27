@@ -14,7 +14,9 @@ def main():
 
         stocks_info.update_stocks_trade_info()
         stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
-        stocks_info.update_my_stocks_info()            # 보유 주식 업데이트
+        
+        stocks_info.update_my_stocks()            # 보유 주식 업데이트
+        stocks_info.update_buyable_stocks()
 
         # TEST        
         # stocks_info.show_trade_done_stocks(SELL_CODE)
@@ -51,6 +53,10 @@ def main():
         while True:
             t_now = datetime.datetime.now()
             if t_start <= t_now:
+                if t_exit < t_now:  # PM 03:30 ~ 장 종료
+                    stocks_info.send_msg("장 종료")
+                    break
+                                
                 # 장시작 시 한번만 allow_monitoring_buy, allow_monitoring_sell 초기화
                 #   전날에 조건에 맞았지만 체결안된 경우 다음날 다시 조건 검사부터 한다.            
                 if clear_allow_monitoring_done == False:
@@ -75,18 +81,16 @@ def main():
                 
                 # stocks 변경있으면 save stocks_info.json
                 pre_stocks = stocks_info.check_save_stocks_info(pre_stocks)
-                
-                if t_exit < t_now:  # PM 03:30 ~ 장 종료
-                    stocks_info.send_msg("장 종료")
-                    break
-    
             # time.sleep(1)
         
-        # 장 종료 후 금일 체결 조회, 잔고 조회
-        stocks_info.show_stocks_by_undervalue()
+        # 장 종료 후 처리        
+        stocks_info.update_my_stocks()
+        stocks_info.update_buy_qty_after_market_finish()            # 일부만 매수 됐을 때 처리
+        stocks_info.show_stocks_by_undervalue()                     # 저평가
         stocks_info.show_trade_done_stocks(BUY_CODE)
         stocks_info.show_trade_done_stocks(SELL_CODE)
         stocks_info.get_stock_balance()
+        stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
         
         stocks_info.send_msg("프로그램 종료")
     except Exception as e:
