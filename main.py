@@ -17,13 +17,12 @@ def main():
         
         stocks_info.update_my_stocks()            # 보유 주식 업데이트
         stocks_info.update_buyable_stocks()
+        stocks_info.show_buyable_stocks()
 
-        # TEST        
-        # stocks_info.show_trade_done_stocks(SELL_CODE)
-        
         # # stocks_info.json 에 추가
         # for code in stocks_info.stocks.keys():
-        #     stocks_info.stocks[code]['allow_monitoring_sell'] = False
+        #     stocks_info.stocks[code]['loss_cut_price'] = 0
+        #     stocks_info.stocks[code]['allow_monitoring_buy'] = False
         # stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
         
         # # stocks_info.json 에 key 제거
@@ -32,10 +31,9 @@ def main():
         # stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
 
         # # stocks_info.json 변경
-        # for code in stocks_info.stocks.keys():
-        #     stocks_info.stocks[code]['envelope_p'] = 4
-        #     stocks_info.stocks[code]['sell_target_p'] = 4
-        # stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
+        for code in stocks_info.stocks.keys():
+            stocks_info.stocks[code]['stockholdings'] = 0
+        stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
         
         stocks_info.send_msg("===국내 주식 자동매매 프로그램을 시작===")
         pre_stocks = copy.deepcopy(stocks_info.stocks)
@@ -81,7 +79,6 @@ def main():
                 
                 # stocks 변경있으면 save stocks_info.json
                 pre_stocks = stocks_info.check_save_stocks_info(pre_stocks)
-            # time.sleep(1)
         
         # 장 종료 후 처리        
         stocks_info.update_my_stocks()
