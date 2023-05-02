@@ -26,7 +26,7 @@ BUY_CODE = "02"         # 매도
 TODAY_DATE = f"{datetime.datetime.now().strftime('%Y%m%d')}"
 
 # MAX 보유 주식 수
-MAX_MY_STOCK_COUNT = 20
+MAX_MY_STOCK_COUNT = 3
 
 # 주문 구분
 ORDER_TYPE_LIMIT_ORDER = "00"               # 지정가
@@ -39,11 +39,12 @@ BUY_STRATEGY = 2
 SELL_STRATEGY = 2
 
 # 초당 API 20회 제한
-API_DELAY_S = 0.1
+API_DELAY_S = 0.05
 
-UNDER_VALUE = 2                     # 저평가가 이 값 미만은 매수 금지
-GAP_MAX_SELL_TARGET_PRICE_P = 8     # 목표주가GAP 이 이 값 미만은 매수 금지
-
+UNDER_VALUE = -3                        # 저평가가 이 값 미만은 매수 금지
+GAP_MAX_SELL_TARGET_PRICE_P = 8         # 목표주가GAP 이 이 값 미만은 매수 금지
+SUM_UNDER_VALUE_SELL_TARGET_GAP = 10    # 저평가 + 목표주가GAP 이 이 값 미만은 매수 금지
+LOSS_CUT_P = 7                          # 2차 매수에서 x% 이탈 시 손절
 ##############################################################
 
 class Stocks_info:
@@ -52,11 +53,11 @@ class Stocks_info:
         self.my_stocks = dict()                     # 보유 종목
         self.buyable_stocks = dict()                # 매수 가능 종목
         # sim_invest : 모의 투자, real_invest : 실전 투자
-        self.invest_type = "sim_invest"
+        self.invest_type = "real_invest"
         self.config = dict()                        # 투자 관련 설정 정보
         self.access_token = ""
         self.my_cash = 0                            # 주문 가능 현금 잔고
-        self.invest_money_per_stock = 2000000       # 주식 당 투자 금액
+        self.invest_money_per_stock = 1000000       # 주식 당 투자 금액
         self.buy_1_p = 40                           # 1차 매수 40%
         self.buy_2_p = 60                           # 2차 매수 60%
         # 1차 매수 금액
@@ -400,6 +401,7 @@ class Stocks_info:
             price = int(float(res.json()['output'][type]))
         else:
             self.send_msg(f"[get_price failed]{str(res.json())}")
+        time.sleep(API_DELAY_S)
         return price
     
     ##############################################################
@@ -492,6 +494,7 @@ class Stocks_info:
         if self.stocks[code]['sell_target_price'] > 0:
             self.stocks[code]['gap_max_sell_target_price_p'] = int(100 * (self.stocks[code]['max_target_price'] - self.stocks[code]['sell_target_price']) / self.stocks[code]['sell_target_price'])
         self.set_stock_undervalue(code)
+        time.sleep(API_DELAY_S)
 
     ##############################################################
     # 저평가 계산
@@ -499,28 +502,33 @@ class Stocks_info:
     def set_stock_undervalue(self, code):
         self.stocks[code]['undervalue'] = 0
         curr_price = self.get_curr_price(code)
-        # BPS_E > 현재가
-        if self.stocks[code]['BPS_E'] > curr_price:
-            self.stocks[code]['undervalue'] += 2
-        elif self.stocks[code]['BPS_E'] * 1.3 < curr_price:
-            self.stocks[code]['undervalue'] -= 2
+        
+        if curr_price > 0:
+            # BPS_E > 현재가
+            if self.stocks[code]['BPS_E'] > curr_price:
+                self.stocks[code]['undervalue'] += 2
+            elif self.stocks[code]['BPS_E'] * 1.3 < curr_price:
+                self.stocks[code]['undervalue'] -= 2
 
-        # EPS_E * 10 > 현재가
-        if self.stocks[code]['EPS_E'] * 10 > curr_price:
-            self.stocks[code]['undervalue'] += 2
-        elif self.stocks[code]['EPS_E'] * 3 < curr_price:
-            self.stocks[code]['undervalue'] -= 2
+            # EPS_E * 10 > 현재가
+            if self.stocks[code]['EPS_E'] * 10 > curr_price:
+                self.stocks[code]['undervalue'] += 2
+            elif self.stocks[code]['EPS_E'] * 3 < curr_price:
+                self.stocks[code]['undervalue'] -= 2
 
-        # ROE_E
-        if self.stocks[code]['ROE_E'] * self.stocks[code]['EPS_E'] > curr_price:
-            self.stocks[code]['undervalue'] += 2
-        elif self.stocks[code]['ROE_E'] * self.stocks[code]['EPS_E'] * 1.3 < curr_price:
-            self.stocks[code]['undervalue'] -= 2
-        if self.stocks[code]['ROE_E'] > 20:
-            self.stocks[code]['undervalue'] += (self.stocks[code]['ROE_E'] / 10)
+            # ROE_E
+            if self.stocks[code]['ROE_E'] < 0 and self.stocks[code]['EPS_E'] < 0:
+                self.stocks[code]['undervalue'] -= 4
+            else:
+                if self.stocks[code]['ROE_E'] * self.stocks[code]['EPS_E'] > curr_price:
+                    self.stocks[code]['undervalue'] += 2
+                elif self.stocks[code]['ROE_E'] * self.stocks[code]['EPS_E'] * 1.3 < curr_price:
+                    self.stocks[code]['undervalue'] -= 2
+                if self.stocks[code]['ROE_E'] > 20:
+                    self.stocks[code]['undervalue'] += (self.stocks[code]['ROE_E'] / 10)
 
         # PER 업종 PER 대비
-        if self.stocks[code]['PER'] <= 10 and self.stocks[code]['PER'] > 0:
+        if self.stocks[code]['PER'] > 0 and self.stocks[code]['PER'] <= 10:
             if self.stocks[code]['industry_PER'] > 0:
                 self.stocks[code]['undervalue'] += int((1 - self.stocks[code]['PER'] / self.stocks[code]['industry_PER']) * 5)
         elif self.stocks[code]['PER'] >= 20:
@@ -594,7 +602,6 @@ class Stocks_info:
 
             # 주식 투자 정보 업데이트(시가 총액, 상장 주식 수, 저평가, BPS, PER, EPS)
             self.update_stock_invest_info(code)
-            # time.sleep(API_DELAY_S)
             
         # print(json.dumps(self.stocks, indent=4, ensure_ascii=False))
 
@@ -645,11 +652,11 @@ class Stocks_info:
                     # self.my_stocks 업데이트
                     temp_stock = copy.deepcopy({code: self.stocks[code]})
                     self.my_stocks[code] = temp_stock[code]
-                    # time.sleep(API_DELAY_S)
             result = True
         else:
             self.send_msg(f"[계좌 조회 실패]{str(res.json())}")
             result = False
+        time.sleep(API_DELAY_S)
         return result
     
     ##############################################################
@@ -686,9 +693,16 @@ class Stocks_info:
         if self.stocks[code]['undervalue'] < UNDER_VALUE:
             return False
         
-        # 목표 주가 GAP = (목표 주가 - 목표가) / 목표가
-        # X % 미만 매수 금지
+        # 목표 주가 GAP = (목표 주가 - 목표가) / 목표가 < X% 미만 매수 금지
         if self.stocks[code]['gap_max_sell_target_price_p'] < GAP_MAX_SELL_TARGET_PRICE_P:
+            return False
+
+        # 저평가 + 목표주가GAP < X 미만 매수 금지
+        if (self.stocks[code]['undervalue'] + self.stocks[code]['gap_max_sell_target_price_p']) < SUM_UNDER_VALUE_SELL_TARGET_GAP:
+            return False
+        
+        # PER_E < 0 매수 금지
+        if self.stocks[code]['PER_E'] < 0:
             return False
 
         # 보유현금에 맞게 종목개수 매수
@@ -746,6 +760,7 @@ class Stocks_info:
             sum_end_price = sum_end_price + end_price               # 종가 합
 
         value_20ma = sum_end_price / 20                             # 20일선 가격
+        time.sleep(API_DELAY_S)
         return int(value_20ma)
 
     ##############################################################
@@ -774,6 +789,7 @@ class Stocks_info:
             "fid_period_div_code": "D"
         }
         res = requests.get(URL, headers=headers, params=params)
+        time.sleep(API_DELAY_S)
         return int(res.json()['output'][past_day]['stck_clpr'])   # 종가
 
     ##############################################################
@@ -844,7 +860,6 @@ class Stocks_info:
                 data['손익금액'].append(stock['evlu_pfls_amt'])
                 data['평단가'].append(int(float(stock['pchs_avg_pric'])))
                 data['현재가'].append(int(stock['prpr']))
-                # time.sleep(API_DELAY_S)
 
         # PrettyTable 객체 생성 및 데이터 추가
         table = PrettyTable()
@@ -856,6 +871,7 @@ class Stocks_info:
         self.send_msg(f"주식 평가 금액: {evaluation[0]['scts_evlu_amt']}원", True)
         self.send_msg(f"평가 손익 합계: {evaluation[0]['evlu_pfls_smtl_amt']}원", True)
         self.send_msg(f"총 평가 금액: {evaluation[0]['tot_evlu_amt']}원", True)
+        time.sleep(API_DELAY_S)
         return stock_list
 
     ##############################################################
@@ -883,6 +899,7 @@ class Stocks_info:
         res = requests.get(URL, headers=headers, params=params)
         cash = res.json()['output']['ord_psbl_cash']
         # self.send_msg(f"주문 가능 현금 잔고: {cash}원")
+        time.sleep(API_DELAY_S)
         return int(cash)
 
     ##############################################################
@@ -895,6 +912,8 @@ class Stocks_info:
     #       order_type      매수 타입(지정가, 최유리지정가,...)
     ##############################################################
     def buy(self, code: str, price: str, qty: str, order_type:str = ORDER_TYPE_LIMIT_ORDER):
+        result = False
+        
         if self.is_ok_to_buy(code) == False:
             return False
         
@@ -926,10 +945,13 @@ class Stocks_info:
         res = requests.post(URL, headers=headers, data=json.dumps(data))
         if self.is_request_ok(res) == True:
             self.send_msg(f"[매수 주문 성공] [{self.stocks[code]['name']}] {price}원 {qty}주")
-            return True
+            result = True
         else:
             self.send_msg(f"[매수 주문 실패] [{self.stocks[code]['name']}] {str(res.json())}")
-            return False
+            result = False
+            
+        time.sleep(API_DELAY_S)
+        return result
 
     ##############################################################
     # 매도
@@ -941,6 +963,8 @@ class Stocks_info:
     #       order_type      매도 타입(지정가, 최유리지정가,...)
     ##############################################################
     def sell(self, code: str, price: str, qty: str, order_type:str = ORDER_TYPE_LIMIT_ORDER):
+        result = False
+        
         # 오늘 주문 완료 시 금지
         if self.already_ordered(code, SELL_CODE) == True:
             return False
@@ -982,11 +1006,14 @@ class Stocks_info:
         res = requests.post(URL, headers=headers, data=json.dumps(data))
         if self.is_request_ok(res) == True:
             self.send_msg(f"[매도 주문 성공] [{self.stocks[code]['name']}] {price}원 {qty}주")
-            return True
+            result = True
         else:
             self.send_msg(f"[매도 주문 실패] [{self.stocks[code]['name']}] {price}원 {qty}주 {str(res.json())}")
-            return False
-
+            result = False
+            
+        time.sleep(API_DELAY_S)
+        return result
+        
     ##############################################################
     # 주문 성공 후 처리
     #   return : 성공 시 True , 실패 시 False
@@ -1042,6 +1069,8 @@ class Stocks_info:
             # 매수 가능 종목내에서만 매수
             for code in self.buyable_stocks.keys():
                 curr_price = self.get_curr_price(code)
+                if curr_price <= 0:
+                    continue
                 buy_target_price = self.get_buy_target_price(code)
                 buy_target_qty = self.get_buy_target_qty(code)
                 if curr_price > 0 and buy_target_price > 0:                
@@ -1052,12 +1081,14 @@ class Stocks_info:
                             if result == True:
                                 self.order_num_list.append(order_num)
                             self.show_order_list()
-                time.sleep(API_DELAY_S)
+                # time.sleep(API_DELAY_S)
         elif BUY_STRATEGY == 2:
             # 전략 2 : 현재가 < 매수가 된적이 있는 상태에서 (현재가 >= 저가+x% or 현재가 >= 매수가 + y%)면 최우선지정가 매수
             # 매수 가능 종목내에서만 매수
             for code in self.buyable_stocks.keys():
                 curr_price = self.get_curr_price(code)
+                if curr_price <= 0:
+                    continue
                 buy_target_price = self.get_buy_target_price(code)
 
                 if self.stocks[code]['allow_monitoring_buy'] == False:
@@ -1075,7 +1106,7 @@ class Stocks_info:
                                 self.send_msg(f"[{self.stocks[code]['name']}] 매수 주문, 현재가 : {curr_price} >= 저가 * 1.005 : {lowest_price * 1.005}")
                             elif curr_price >= buy_target_price * 1.005:
                                 self.send_msg(f"[{self.stocks[code]['name']}] 매수 주문, 현재가 : {curr_price} >= 매수 목표가 * 1.005 : {buy_target_price * 1.005}")
-                time.sleep(API_DELAY_S)
+                # time.sleep(API_DELAY_S)
 
     ##############################################################
     # 매도 처리
@@ -1088,7 +1119,7 @@ class Stocks_info:
         #     for code in self.my_stocks.keys():
         #         if self.sell(code, self.my_stocks[code]['sell_target_price'], self.my_stocks[code]['stockholdings'], order_type) == True:
         #             self.set_order_done(code, SELL_CODE)
-        #         time.sleep(API_DELAY_S)
+        #         # time.sleep(API_DELAY_S)
         #     return
         
         if SELL_STRATEGY == 1:
@@ -1096,12 +1127,14 @@ class Stocks_info:
             for code in self.my_stocks.keys():
                 if self.sell(code, self.my_stocks[code]['sell_target_price'], self.my_stocks[code]['stockholdings'], order_type) == True:
                     self.set_order_done(code, SELL_CODE)
-                time.sleep(API_DELAY_S)
+                # time.sleep(API_DELAY_S)
         elif SELL_STRATEGY == 2:
             # 전략 2 : 현재가 >= 목표가 된적이 있는 상태에서 (현재가 <= 여지껏 고가 - x% or 현재가 <= 목표가 - y%)면 최우선지정가 매도
             # self.update_my_stocks()
             for code in self.my_stocks.keys():
                 curr_price = self.get_curr_price(code)
+                if curr_price >= 0:
+                    continue
                 sell_target_price = self.my_stocks[code]['sell_target_price']
 
                 if self.stocks[code]['allow_monitoring_sell'] == False:
@@ -1120,7 +1153,7 @@ class Stocks_info:
                                 self.send_msg(f"[{self.stocks[code]['name']}] 매도 주문, 현재가 : {curr_price} <= 최고가 * 0.99 : {highest_price_ever * 0.99}")
                             elif curr_price <= sell_target_price * 0.99:
                                 self.send_msg(f"[{self.stocks[code]['name']}] 매도 주문, 현재가 : {curr_price} <= 목표가 * 0.99 : {sell_target_price * 0.99}")
-                time.sleep(API_DELAY_S)
+                # time.sleep(API_DELAY_S)
             
     ##############################################################
     # 주문 번호 리턴
@@ -1183,6 +1216,8 @@ class Stocks_info:
         else:
             self.send_msg(f"[cancel_order failed] [{self.stocks[code]['name']}] {buy_sell}")
             ret = False
+            
+        time.sleep(API_DELAY_S)
         return ret
 
     ##############################################################
@@ -1263,7 +1298,7 @@ class Stocks_info:
                     self.set_buy_done(code)
                 else:
                     self.set_sell_done(code)
-            time.sleep(API_DELAY_S)
+            # time.sleep(API_DELAY_S)
         
         # 여러 종목 체결되도 결과는 한 번만 출력
         if is_trade_done == True:
@@ -1309,7 +1344,8 @@ class Stocks_info:
         else:
             self.send_msg(f"[update_order_list failed]{str(res.json())}")
             result = False
-        
+            
+        time.sleep(API_DELAY_S)
         return result
 
     ##############################################################
@@ -1331,7 +1367,7 @@ class Stocks_info:
                     buy_sell_order = "매도 주문"
                 curr_price = self.get_curr_price(stock['pdno'])            
                 self.send_msg(f"{stock['prdt_name']} {buy_sell_order} {stock['ord_unpr']}원 {stock['ord_qty']}주, 현재가 {curr_price}원")
-            time.sleep(API_DELAY_S)
+            # time.sleep(API_DELAY_S)
         self.send_msg(f"=================================\n")
 
     ##############################################################
@@ -1375,7 +1411,7 @@ class Stocks_info:
                     data['손익'].append(gain_loss_money)
                     data['수익률(%)'].append(gain_loss_p)
                     data['현재가'].append(curr_price)
-            time.sleep(API_DELAY_S)
+            # time.sleep(API_DELAY_S)
 
         # PrettyTable 객체 생성 및 데이터 추가
         table = PrettyTable()
@@ -1463,10 +1499,10 @@ class Stocks_info:
 
     ##############################################################
     # 손절가
-    #   2차 매수가 -10%
+    #   2차 매수가 -x%
     ##############################################################
     def get_loss_cut_price(self, code):
-        return int(self.stocks[code]['buy_2_price'] * 0.9)
+        return int(self.stocks[code]['buy_2_price'] * (1 - LOSS_CUT_P))
 
     ##############################################################
     # 손절 처리
@@ -1475,6 +1511,8 @@ class Stocks_info:
     def handle_loss_cut(self):
         for code in self.my_stocks.keys():
             curr_price = self.get_curr_price(code)
+            if curr_price <= 0:
+                continue
             loss_cut_price = self.get_loss_cut_price(code)
             stockholdings = self.stocks[code]['stockholdings']
             if curr_price < loss_cut_price:
@@ -1485,7 +1523,7 @@ class Stocks_info:
                     if self.sell(code, curr_price, stockholdings, ORDER_TYPE_IMMEDIATE_ORDER) == True:
                         self.send_msg(f"손절 주문 성공")
                         self.set_order_done(code, SELL_CODE)
-                time.sleep(API_DELAY_S)
+                # time.sleep(API_DELAY_S)
                 
     ##############################################################
     # 매수 후 여지껏 최고가 업데이트
@@ -1501,14 +1539,17 @@ class Stocks_info:
     def update_buyable_stocks(self):
         self.buyable_stocks.clear()
         for code in self.stocks.keys():
-            if self.is_ok_to_buy(code) == True:
+            if self.is_my_stock(code) or self.is_ok_to_buy(code):
                 curr_price = self.get_curr_price(code)
+                if curr_price <= 0:
+                    continue
                 buy_target_price = self.get_buy_target_price(code)
                 gap_p = int((curr_price - buy_target_price) * 100 / buy_target_price)
                 # 현재가 - 매수가 GAP < 15%
                 if gap_p < 15:
                     temp_stock = copy.deepcopy({code: self.stocks[code]})
                     self.buyable_stocks[code] = temp_stock[code]
+        # time.sleep(API_DELAY_S)
 
     ##############################################################
     # 장종료 시 일부 매수만 된 경우 처리
@@ -1540,18 +1581,18 @@ class Stocks_info:
     def show_buyable_stocks(self):
         temp_stocks = copy.deepcopy(self.buyable_stocks)
         sorted_data = dict(sorted(temp_stocks.items(), key=lambda x: x[1]['undervalue'], reverse=True))
-        data = {'종목명':[], '저평가':[], '목표주가GAP':[], '매수가':[], '현재가':[], '현재가-매수가GAP(%)':[]}
+        data = {'종목명':[], '저평가':[], '목표주가GAP(%)':[], '매수가':[], '현재가':[], '매수가GAP(%)':[]}
         for code in sorted_data.keys():
             curr_price = self.get_curr_price(code)
             buy_target_price = self.get_buy_target_price(code)
             gap_p = int((curr_price - buy_target_price) * 100 / buy_target_price)
             data['종목명'].append(sorted_data[code]['name'])
             data['저평가'].append(sorted_data[code]['undervalue'])
-            data['목표주가GAP'].append(sorted_data[code]['gap_max_sell_target_price_p'])
+            data['목표주가GAP(%)'].append(sorted_data[code]['gap_max_sell_target_price_p'])
             data['매수가'].append(buy_target_price)
             data['현재가'].append(curr_price)
-            data['현재가-매수가GAP(%)'].append(gap_p)
-            time.sleep(API_DELAY_S)
+            data['매수가GAP(%)'].append(gap_p)
+            # time.sleep(API_DELAY_S)
 
         # PrettyTable 객체 생성 및 데이터 추가
         table = PrettyTable()
