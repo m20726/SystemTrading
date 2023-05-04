@@ -11,7 +11,7 @@ def main():
     try:
         stocks_info = Stocks_info()
         stocks_info.initialize()
-
+        
         stocks_info.update_stocks_trade_info()
         stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
         
@@ -50,6 +50,7 @@ def main():
         
         while True:
             t_now = datetime.datetime.now()
+            # if 1: # test
             if t_start <= t_now:
                 if t_exit < t_now:  # PM 03:30 ~ 장 종료
                     stocks_info.send_msg("장 종료")
@@ -79,8 +80,12 @@ def main():
                 
                 # stocks 변경있으면 save stocks_info.json
                 pre_stocks = stocks_info.check_save_stocks_info(pre_stocks)
+                
+                # 주기적으로 출력
+                if (t_now.minute % 30 == 0) and (t_now.second <= 2): 
+                    stocks_info.show_buyable_stocks()
         
-        # 장 종료 후 처리        
+        # 장 종료 후 처리
         stocks_info.update_my_stocks()
         stocks_info.update_buy_qty_after_market_finish()            # 일부만 매수 됐을 때 처리
         stocks_info.show_stocks_by_undervalue()                     # 저평가
