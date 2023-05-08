@@ -21,8 +21,7 @@ def main():
 
         # # stocks_info.json 에 추가
         # for code in stocks_info.stocks.keys():
-        #     stocks_info.stocks[code]['loss_cut_price'] = 0
-        #     stocks_info.stocks[code]['allow_monitoring_buy'] = False
+        #     stocks_info.stocks[code]['take_profit_p'] = 0
         # stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
         
         # # stocks_info.json 에 key 제거
@@ -31,9 +30,9 @@ def main():
         # stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
 
         # # stocks_info.json 변경
-        for code in stocks_info.stocks.keys():
-            stocks_info.stocks[code]['stockholdings'] = 0
-        stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
+        # for code in stocks_info.stocks.keys():
+        #     stocks_info.stocks[code]['stockholdings'] = 0
+        # stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
         
         stocks_info.send_msg("===국내 주식 자동매매 프로그램을 시작===")
         pre_stocks = copy.deepcopy(stocks_info.stocks)

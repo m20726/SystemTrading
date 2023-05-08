@@ -34,6 +34,17 @@ ORDER_TYPE_MARKETABLE_LIMIT_ORDER = "03"    # 최유리지정가
 ORDER_TYPE_IMMEDIATE_ORDER = "04"           # 최우선지정가
 
 # 매수/매도 전략
+# BUY
+#   1 : 매수 목표가 매수
+#   2 : 트레일링스탑 매수
+#   TODO : 손절 후 매수?
+#       손절가 -x% 에 1차 매수?
+#       손절가 상승 돌파 시 매수?
+# SELL
+#   1 : 목표가 전량 매도
+#   2 : 트레일링스탑 전량 매도
+#   3 : 목표가에 반 매도(2전략 트레일링스탑)
+#       나머지는 15:15이후 현재가가 5일선 미만 경우 전량 매도
 BUY_STRATEGY = 2
 SELL_STRATEGY = 2
 
@@ -47,6 +58,10 @@ INVEST_TYPE = "real_invest"                 # sim_invest : 모의 투자, real_i
 INVEST_MONEY_PER_STOCK = 1000000            # 주식 당 투자 금액(원)
 BUY_1_P = 40                                # 1차 매수 40%
 BUY_2_P = 60                                # 2차 매수 60%
+
+SMALL_TAKE_PROFIT_P = -1                    # 작은 익절가 %
+BIG_TAKE_PROFIT_P = -2                      # 큰 익절가 %
+
 ##############################################################
 
 class Stocks_info:
@@ -503,6 +518,8 @@ class Stocks_info:
                 self.stocks[code]['undervalue'] += 2
             elif self.stocks[code]['EPS_E'] * 3 < curr_price:
                 self.stocks[code]['undervalue'] -= 2
+            elif self.stocks[code]['EPS_E'] < 0:
+                self.stocks[code]['undervalue'] -= 10
 
             # ROE_E
             if self.stocks[code]['ROE_E'] < 0 and self.stocks[code]['EPS_E'] < 0:
@@ -521,6 +538,8 @@ class Stocks_info:
                 self.stocks[code]['undervalue'] += int((1 - self.stocks[code]['PER'] / self.stocks[code]['industry_PER']) * 5)
         elif self.stocks[code]['PER'] >= 20:
             self.stocks[code]['undervalue'] -= 5
+        elif self.stocks[code]['PER'] < 0:
+            self.stocks[code]['undervalue'] -= 10
 
         # 영업이익률
         if self.stocks[code]['operating_profit_margin_p'] >= 10:
@@ -587,6 +606,8 @@ class Stocks_info:
             self.stocks[code]['avg_buy_price'] = self.get_avg_buy_price(code)
             # 목표가 = 평단가에서 목표% 수익가
             self.stocks[code]['sell_target_price'] = self.get_sell_target_price(code)
+            # 익절가
+            self.set_take_profit_percent(code)
 
             # 주식 투자 정보 업데이트(시가 총액, 상장 주식 수, 저평가, BPS, PER, EPS)
             self.update_stock_invest_info(code)
@@ -689,8 +710,12 @@ class Stocks_info:
         if (self.stocks[code]['undervalue'] + self.stocks[code]['gap_max_sell_target_price_p']) < SUM_UNDER_VALUE_SELL_TARGET_GAP:
             return False
         
-        # PER < 0 매수 금지
-        if self.stocks[code]['PER'] < 0 or self.stocks[code]['PER_E'] < 0:
+        # PER 매수 금지
+        if self.stocks[code]['PER'] < 0 or self.stocks[code]['PER'] >= 30 or self.stocks[code]['PER_E'] < 0 or self.stocks[code]['PER'] >= self.stocks[code]['industry_PER'] * 2:
+            return False
+        
+        # EPS_E 매수 금지
+        if self.stocks[code]['EPS_E'] < 0:
             return False
 
         # 보유현금에 맞게 종목개수 매수
@@ -1098,6 +1123,8 @@ class Stocks_info:
     # 매도 처리
     #   전략 1 : 목표가에 매도
     #   전략 2 : 현재가 >= 목표가 된적이 있는 상태에서 (현재가 <= 여지껏 고가 - x% or 현재가 <= 목표가 - y%)면 최우선지정가 매도
+    #   TODO 수익 극대화
+    #       RSI 기간20,시그널9, 30/70 => 과열 시작 다음날 매도
     ##############################################################
     def handle_sell_stock(self, order_type:str = ORDER_TYPE_LIMIT_ORDER):
         # # 시장가 매도 처리
@@ -1126,17 +1153,23 @@ class Stocks_info:
                         self.send_msg(f"[{self.stocks[code]['name']}] 매도 감시 시작, 현재가 : {curr_price}, 매도 목표가 : {sell_target_price}")
                         self.stocks[code]['allow_monitoring_sell'] = True
                 else:
-                    # 매수 후 지금껏 최고가
-                    self.update_highest_price_ever(code)
-                    highest_price_ever = self.stocks[code]['highest_price_ever']
-                    # 현재가 <= 고가 - 1%
-                    if (highest_price_ever > 0 and curr_price <= (highest_price_ever * 0.99)) or (curr_price <= sell_target_price * 0.99):
+                    # 익절가 이하 시 매도
+                    take_profit_price = self.get_take_profit_price(code)
+                    if (take_profit_price > 0 and curr_price <= take_profit_price):
                         if self.sell(code, curr_price, self.my_stocks[code]['stockholdings'], ORDER_TYPE_IMMEDIATE_ORDER) == True:
                             self.set_order_done(code, SELL_CODE)
-                            if curr_price <= (highest_price_ever * 0.99):
-                                self.send_msg(f"[{self.stocks[code]['name']}] 매도 주문, 현재가 : {curr_price} <= 최고가 * 0.99 : {highest_price_ever * 0.99}")
-                            elif curr_price <= sell_target_price * 0.99:
-                                self.send_msg(f"[{self.stocks[code]['name']}] 매도 주문, 현재가 : {curr_price} <= 목표가 * 0.99 : {sell_target_price * 0.99}")
+                            self.send_msg(f"[{self.stocks[code]['name']}] 매도 주문, 현재가 : {curr_price} <= take profit : {take_profit_price}")
+                    # # 매수 후 지금껏 최고가
+                    # self.update_highest_price_ever(code)
+                    # highest_price_ever = self.stocks[code]['highest_price_ever']
+                    # # 현재가 <= 고가 - 1%
+                    # if (highest_price_ever > 0 and curr_price <= (highest_price_ever * 0.99)) or (curr_price <= sell_target_price * 0.99):
+                    #     if self.sell(code, curr_price, self.my_stocks[code]['stockholdings'], ORDER_TYPE_IMMEDIATE_ORDER) == True:
+                    #         self.set_order_done(code, SELL_CODE)
+                    #         if curr_price <= (highest_price_ever * 0.99):
+                    #             self.send_msg(f"[{self.stocks[code]['name']}] 매도 주문, 현재가 : {curr_price} <= 최고가 * 0.99 : {highest_price_ever * 0.99}")
+                    #         elif curr_price <= sell_target_price * 0.99:
+                    #             self.send_msg(f"[{self.stocks[code]['name']}] 매도 주문, 현재가 : {curr_price} <= 목표가 * 0.99 : {sell_target_price * 0.99}")
             
     ##############################################################
     # 주문 번호 리턴
@@ -1580,3 +1613,26 @@ class Stocks_info:
         
         self.send_msg("==========매수 가능 종목==========")
         self.send_msg(table)
+        
+    ##############################################################
+    # 익절가 퍼센트
+    #   기준가-x%
+    ##############################################################
+    def set_take_profit_percent(self, code):
+        if self.stocks[code]['sell_target_price'] > self.stocks[code]['yesterday_end_price']:
+            if self.stocks[code]['sell_target_price'] - self.stocks[code]['yesterday_end_price'] <= 1:
+                self.stocks[code]['take_profit_p'] = BIG_TAKE_PROFIT_P
+            else:
+                self.stocks[code]['take_profit_p'] = SMALL_TAKE_PROFIT_P
+        else:
+            if self.stocks[code]['yesterday_end_price'] - self.stocks[code]['sell_target_price'] >= 2:
+                self.stocks[code]['take_profit_p'] = BIG_TAKE_PROFIT_P
+            else:
+                self.stocks[code]['take_profit_p'] = SMALL_TAKE_PROFIT_P
+                
+    ##############################################################
+    # 익절가 리턴
+    ##############################################################
+    def get_take_profit_price(self, code):
+        self.update_highest_price_ever(code)
+        return int(self.stocks[code]['highest_price_ever'] * (1 + self.to_percent(self.stocks[code]['take_profit_p'])))
