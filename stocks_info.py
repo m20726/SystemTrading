@@ -37,8 +37,8 @@ ORDER_TYPE_IMMEDIATE_ORDER = "04"           # 최우선지정가
 # BUY
 #   1 : 매수 목표가 매수
 #   2 : 트레일링스탑 매수
-#   TODO : 손절 후 매수?
-#       손절가 -x% 에 1차 매수?
+#   TODO : 손절 후 매수
+#       손절가 -5% 에 1차 매수
 #       손절가 상승 돌파 시 매수?
 # SELL
 #   1 : 목표가 전량 매도
@@ -299,15 +299,32 @@ class Stocks_info:
     #   매도는 항상 전체 수량 매도 기반
     ##############################################################
     def set_sell_done(self, code):
-        self.stocks[code]['sell_done'] = True
-        # 매도 완료 후 종가 > 20ma 체크위해 false 처리
-        self.stocks[code]['end_price_higher_than_20ma_after_sold'] = False
-        # 보유 종목이 MAX_MY_STOCK_COUNT 인 상태에서 매도가되면 
-        # 매수 가능 상태가 될 수 있기때문에 매수 가능 종목 업데이트
-        if len(self.my_stocks) == MAX_MY_STOCK_COUNT:
-            self.update_buyable_stocks()
-        self.update_my_stocks()
-        self.clear_buy_sell_info(code)
+        if SELL_STRATEGY == 3:
+            if self.stocks[code]['sell_1_done'] == False:
+                # 1차 반 매도 완료 상태
+                self.stocks[code]['sell_1_done'] = True
+                self.update_my_stocks()
+            else:
+                # 전량 매도 완료 상태
+                self.stocks[code]['sell_done'] = True
+                # 매도 완료 후 종가 > 20ma 체크위해 false 처리
+                self.stocks[code]['end_price_higher_than_20ma_after_sold'] = False
+                # 보유 종목이 MAX_MY_STOCK_COUNT 인 상태에서 매도가되면 
+                # 매수 가능 상태가 될 수 있기때문에 매수 가능 종목 업데이트
+                if len(self.my_stocks) == MAX_MY_STOCK_COUNT:
+                    self.update_buyable_stocks()
+                self.update_my_stocks()
+                self.clear_buy_sell_info(code)
+        else:
+            self.stocks[code]['sell_done'] = True
+            # 매도 완료 후 종가 > 20ma 체크위해 false 처리
+            self.stocks[code]['end_price_higher_than_20ma_after_sold'] = False
+            # 보유 종목이 MAX_MY_STOCK_COUNT 인 상태에서 매도가되면 
+            # 매수 가능 상태가 될 수 있기때문에 매수 가능 종목 업데이트
+            if len(self.my_stocks) == MAX_MY_STOCK_COUNT:
+                self.update_buyable_stocks()
+            self.update_my_stocks()
+            self.clear_buy_sell_info(code)
 
     ##############################################################
     # 매도 완료등으로 매수/매도 관려 정보 초기화 시 호출
@@ -329,6 +346,7 @@ class Stocks_info:
         self.stocks[code]['allow_monitoring_buy'] = False
         self.stocks[code]['allow_monitoring_sell'] = False
         self.stocks[code]['highest_price_ever'] = 0
+        self.stocks[code]['sell_1_done'] = False
 
     ##############################################################
     # 평단가 리턴
@@ -579,7 +597,7 @@ class Stocks_info:
                 past_day = 0        # 장마감 후는 금일 기준
             else:
                 past_day = 1        # 어제 기준
-            self.stocks[code]['yesterday_20ma'] = self.get_20ma(code, past_day)
+            self.stocks[code]['yesterday_20ma'] = self.get_ma(code, 20, past_day)
 
             # 1차 매수가
             self.stocks[code]['buy_1_price'] = self.get_buy_1_price(code)
@@ -738,13 +756,15 @@ class Stocks_info:
         return True
 
     ##############################################################
-    # 20일선 가격 리턴
+    # X일선 가격 리턴
     # param :
     #   code            주식 코드
-    #   past_day        20일선 가격 기준
-    #                   ex) 0 : 금일 20일선, 1 : 어제 20일선
+    #   days            X일선
+    #                   ex) 20일선 : 20, 5일선 : 5
+    #   past_day        X일선 가격 기준
+    #                   ex) 0 : 금일 X일선, 1 : 어제 X일선
     ##############################################################
-    def get_20ma(self, code: str, past_day=0):
+    def get_ma(self, code: str, days=20, past_day=0):
         PATH = "uapi/domestic-stock/v1/quotations/inquire-daily-price"
         URL = f"{self.config['URL_BASE']}/{PATH}"
         headers = {"Content-Type": "application/json",
@@ -764,18 +784,57 @@ class Stocks_info:
         }
         res = requests.get(URL, headers=headers, params=params)
 
-        # 20 이평선 구하기 위해 20일간의 종가 구한다
-        days_20_last = past_day + 20
+        # x일 이평선 구하기 위해 x일간의 종가 구한다
+        days_last = past_day + days
         sum_end_price = 0
-        for i in range(past_day, days_20_last):
+        for i in range(past_day, days_last):
             end_price = int(res.json()['output'][i]['stck_clpr'])   # 종가
             # print(f"{i} 종가 : {end_price}")
             sum_end_price = sum_end_price + end_price               # 종가 합
 
-        value_20ma = sum_end_price / 20                             # 20일선 가격
+        value_ma = sum_end_price / days                           # x일선 가격
         time.sleep(API_DELAY_S)
-        return int(value_20ma)
+        return int(value_ma)
+    
+    ##############################################################
+    # 20일선 가격 리턴
+    # param :
+    #   code            주식 코드
+    #   past_day        20일선 가격 기준
+    #                   ex) 0 : 금일 20일선, 1 : 어제 20일선
+    ##############################################################
+    # def get_20ma(self, code: str, past_day=0):
+        # PATH = "uapi/domestic-stock/v1/quotations/inquire-daily-price"
+        # URL = f"{self.config['URL_BASE']}/{PATH}"
+        # headers = {"Content-Type": "application/json",
+        #            "authorization": f"Bearer {self.access_token}",
+        #            "appKey": self.config['APP_KEY'],
+        #            "appSecret": self.config['APP_SECRET'],
+        #            "tr_id": "FHKST01010400"}
+        # params = {
+        #     "fid_cond_mrkt_div_code": "J",
+        #     "fid_input_iscd": code,
+        #     # 0 : 수정주가반영, 1 : 수정주가미반영
+        #     "fid_org_adj_prc": "0",
+        #     # D : (일)최근 30거래일
+        #     # W : (주)최근 30주
+        #     # M : (월)최근 30개월
+        #     "fid_period_div_code": "D"
+        # }
+        # res = requests.get(URL, headers=headers, params=params)
 
+        # # 20 이평선 구하기 위해 20일간의 종가 구한다
+        # days_20_last = past_day + 20
+        # sum_end_price = 0
+        # for i in range(past_day, days_20_last):
+        #     end_price = int(res.json()['output'][i]['stck_clpr'])   # 종가
+        #     # print(f"{i} 종가 : {end_price}")
+        #     sum_end_price = sum_end_price + end_price               # 종가 합
+
+        # value_20ma = sum_end_price / 20                             # 20일선 가격
+        # time.sleep(API_DELAY_S)
+        # return int(value_20ma)
+    
     ##############################################################
     # 종가 리턴
     # param :
@@ -1141,7 +1200,6 @@ class Stocks_info:
                     self.set_order_done(code, SELL_CODE)
         elif SELL_STRATEGY == 2:
             # 전략 2 : 현재가 >= 목표가 된적이 있는 상태에서 (현재가 <= 여지껏 고가 - x% or 현재가 <= 목표가 - y%)면 최우선지정가 매도
-            # self.update_my_stocks()
             for code in self.my_stocks.keys():
                 curr_price = self.get_curr_price(code)
                 if curr_price >= 0:
@@ -1159,18 +1217,41 @@ class Stocks_info:
                         if self.sell(code, curr_price, self.my_stocks[code]['stockholdings'], ORDER_TYPE_IMMEDIATE_ORDER) == True:
                             self.set_order_done(code, SELL_CODE)
                             self.send_msg(f"[{self.stocks[code]['name']}] 매도 주문, 현재가 : {curr_price} <= take profit : {take_profit_price}")
-                    # # 매수 후 지금껏 최고가
-                    # self.update_highest_price_ever(code)
-                    # highest_price_ever = self.stocks[code]['highest_price_ever']
-                    # # 현재가 <= 고가 - 1%
-                    # if (highest_price_ever > 0 and curr_price <= (highest_price_ever * 0.99)) or (curr_price <= sell_target_price * 0.99):
-                    #     if self.sell(code, curr_price, self.my_stocks[code]['stockholdings'], ORDER_TYPE_IMMEDIATE_ORDER) == True:
-                    #         self.set_order_done(code, SELL_CODE)
-                    #         if curr_price <= (highest_price_ever * 0.99):
-                    #             self.send_msg(f"[{self.stocks[code]['name']}] 매도 주문, 현재가 : {curr_price} <= 최고가 * 0.99 : {highest_price_ever * 0.99}")
-                    #         elif curr_price <= sell_target_price * 0.99:
-                    #             self.send_msg(f"[{self.stocks[code]['name']}] 매도 주문, 현재가 : {curr_price} <= 목표가 * 0.99 : {sell_target_price * 0.99}")
-            
+        # 전략 3 : 목표가에 반 매도(2전략 트레일링스탑)
+        #       나머지는 15:15이후 현재가가 5일선 미만 경우 전량 매도                            
+        elif SELL_STRATEGY == 3:
+            for code in self.my_stocks.keys():
+                curr_price = self.get_curr_price(code)
+                if curr_price >= 0:
+                    continue
+                
+                if self.stocks[code]['sell_1_done'] == False:
+                    # 하나도 매도 안된 상태
+                    sell_target_price = self.my_stocks[code]['sell_target_price']
+
+                    if self.stocks[code]['allow_monitoring_sell'] == False:
+                        if curr_price >= sell_target_price:
+                            self.send_msg(f"[{self.stocks[code]['name']}] 매도 감시 시작, 현재가 : {curr_price}, 매도 목표가 : {sell_target_price}")
+                            self.stocks[code]['allow_monitoring_sell'] = True
+                    else:
+                        # 익절가 이하 시 매도
+                        take_profit_price = self.get_take_profit_price(code)
+                        if (take_profit_price > 0 and curr_price <= take_profit_price):
+                            if self.sell(code, curr_price, self.my_stocks[code]['stockholdings'] / 2, ORDER_TYPE_IMMEDIATE_ORDER) == True:
+                                self.set_order_done(code, SELL_CODE)
+                                self.send_msg(f"[{self.stocks[code]['name']}] 매도 주문, 현재가 : {curr_price} <= take profit : {take_profit_price}")
+                else:
+                    # 반 매도된 상태에서 나머지는 15:15이후 현재가가 5일선 미만 경우 전량 매도   
+                    t_now = datetime.datetime.now()
+                    t_sell = t_now.replace(hour=15, minute=15, second=0, microsecond=0)
+                    if t_now >= t_sell:
+                        # 현재가가 5일선 미만 경우 전량 매도
+                        ma_5 = self.get_ma(code, 5)
+                        if curr_price < ma_5:
+                            if self.sell(code, curr_price, self.my_stocks[code]['stockholdings'], ORDER_TYPE_IMMEDIATE_ORDER) == True:
+                                self.set_order_done(code, SELL_CODE)
+                                self.send_msg(f"[{self.stocks[code]['name']}] 매도 주문, 현재가 : {curr_price} < 5일선 : {ma_5}")
+
     ##############################################################
     # 주문 번호 리턴
     #   return : 성공 시 True 주문 번호, 실패 시 False  ""
@@ -1515,7 +1596,7 @@ class Stocks_info:
     #   2차 매수가 -x%
     ##############################################################
     def get_loss_cut_price(self, code):
-        return int(self.stocks[code]['buy_2_price'] * (1 - LOSS_CUT_P))
+        return int(self.stocks[code]['buy_2_price'] * (1 - self.to_percent(LOSS_CUT_P)))
 
     ##############################################################
     # 손절 처리
@@ -1557,8 +1638,8 @@ class Stocks_info:
                     continue
                 buy_target_price = self.get_buy_target_price(code)
                 gap_p = int((curr_price - buy_target_price) * 100 / buy_target_price)
-                # 현재가 - 매수가 GAP < 15%
-                if gap_p < 15:
+                # 현재가 - 매수가 GAP < 10%
+                if gap_p < 10:
                     temp_stock = copy.deepcopy({code: self.stocks[code]})
                     self.buyable_stocks[code] = temp_stock[code]
 
@@ -1632,6 +1713,7 @@ class Stocks_info:
                 
     ##############################################################
     # 익절가 리턴
+    #   여지껏 최고가 - 익절가%
     ##############################################################
     def get_take_profit_price(self, code):
         self.update_highest_price_ever(code)

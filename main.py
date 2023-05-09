@@ -19,10 +19,10 @@ def main():
         stocks_info.update_buyable_stocks()
         stocks_info.show_buyable_stocks()
 
-        # # stocks_info.json 에 추가
-        # for code in stocks_info.stocks.keys():
-        #     stocks_info.stocks[code]['take_profit_p'] = 0
-        # stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
+        # stocks_info.json 에 추가
+        for code in stocks_info.stocks.keys():
+            stocks_info.stocks[code]['sell_1_done'] = False
+        stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
         
         # # stocks_info.json 에 key 제거
         # for code in stocks_info.stocks.keys():
