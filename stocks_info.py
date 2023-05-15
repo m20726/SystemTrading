@@ -38,8 +38,8 @@ def is_simulation():
 BUY_STRATEGY = 2
 SELL_STRATEGY = 3
 
-#INVEST_TYPE = "real_invest"                 # sim_invest : 모의 투자, real_invest : 실전 투자
-INVEST_TYPE = "sim_invest"                  # sim_invest : 모의 투자, real_invest : 실전 투자    #test
+INVEST_TYPE = "real_invest"                 # sim_invest : 모의 투자, real_invest : 실전 투자
+# INVEST_TYPE = "sim_invest"                  # sim_invest : 모의 투자, real_invest : 실전 투자    #test
 BUY_1_P = 40                                # 1차 매수 40%
 BUY_2_P = 60                                # 2차 매수 60%
 
@@ -54,7 +54,7 @@ BIG_TAKE_PROFIT_P = -2                      # 큰 익절가 %
 BUY_MARGIN_P = 1                            # ex) 최저가 + 1% 에서 매수
 
 if is_simulation():
-    MAX_MY_STOCK_COUNT = 15                      # MAX 보유 주식 수
+    MAX_MY_STOCK_COUNT = 10                      # MAX 보유 주식 수
     INVEST_MONEY_PER_STOCK = 2000000            # 주식 당 투자 금액(원)
 else:
     MAX_MY_STOCK_COUNT = 3
@@ -575,11 +575,11 @@ class Stocks_info:
             "fid_input_iscd": code,
         }
         res = requests.get(URL, headers=headers, params=params)
+        total_stock_count = 0
         if self.is_request_ok(res) == True:
             # 현재 PER
             self.stocks[code]['PER'] = float(res.json()['output']['per'])
-            self.stocks[code]['capitalization'] = int(res.json()['output']['hts_avls'])         # 시가 총액(억)
-            self.stocks[code]['total_stock_count'] = int(res.json()['output']['lstn_stcn'])     # 상장 주식 수
+            total_stock_count = int(res.json()['output']['lstn_stcn'])     # 상장 주식 수
         else:
             self.send_msg(f"[update_stock_invest_info failed]{str(res.json())}")
 
@@ -596,8 +596,8 @@ class Stocks_info:
         self.stocks[code]['the_year_before_last_sales_income'] = int(annual_finance[self.the_year_before_last_column_text]['매출액'])       # 재작년 매출액, 억원
         self.stocks[code]['curr_profit'] = int(annual_finance[self.this_year_column_text]['당기순이익'])
         # 목표 주가 = 미래 당기순이익(원) * PER_E / 상장주식수
-        if self.stocks[code]['total_stock_count'] > 0:
-            self.stocks[code]['max_target_price'] = int((self.stocks[code]['curr_profit'] * 100000000) * self.stocks[code]['PER_E'] / self.stocks[code]['total_stock_count'])
+        if total_stock_count > 0:
+            self.stocks[code]['max_target_price'] = int((self.stocks[code]['curr_profit'] * 100000000) * self.stocks[code]['PER_E'] / total_stock_count)
         # 목표 주가 GAP = (목표 주가 - 목표가) / 목표가
         # + : 저평가
         # - : 고평가
@@ -1372,10 +1372,10 @@ class Stocks_info:
                                     self.send_msg(f"[{self.stocks[code]['name']}] 매도 주문, 현재가 : {curr_price} <= 목표가 : {sell_target_price}")
                     else:
                         # 15:15 이전에는 5일선 -1% 이탈 시 매도
-                        if curr_price < ma_5 * 0.98 or curr_price <= sell_target_price:
+                        if curr_price < ma_5 * 0.99 or curr_price <= sell_target_price:
                             if self.sell(code, curr_price, self.my_stocks[code]['stockholdings'], ORDER_TYPE_IMMEDIATE_ORDER) == True:
                                 self.set_order_done(code, SELL_CODE)
-                                if curr_price < ma_5 * 0.98:
+                                if curr_price < ma_5 * 0.99:
                                     self.send_msg(f"[{self.stocks[code]['name']}] 매도 주문, 현재가 : {curr_price} < 5일선 - 1% 이탈 : {ma_5 * 0.99}")
                                 else:
                                     self.send_msg(f"[{self.stocks[code]['name']}] 매도 주문, 현재가 : {curr_price} <= 목표가 : {sell_target_price}")
