@@ -15,23 +15,26 @@ def main():
         stocks_info.update_stocks_trade_info()
         stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
         
+        stocks_info.get_stock_balance()        
         stocks_info.update_my_stocks()            # 보유 주식 업데이트
         stocks_info.update_buyable_stocks()
         stocks_info.show_buyable_stocks()
 
-        # stocks_info.json 에 추가
-        for code in stocks_info.stocks.keys():
-            stocks_info.stocks[code]['sell_1_done'] = False
-        stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
+        # # stocks_info.json 에 추가
+        # for code in stocks_info.stocks.keys():
+        #     stocks_info.stocks[code]['real_avg_buy_price'] = 0
+        #     stocks_info.stocks[code]['loss_cut_order'] = False
+        # stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
         
         # # stocks_info.json 에 key 제거
         # for code in stocks_info.stocks.keys():
-        #     del stocks_info.stocks[code]['allow_monitoring_buy']
+        #     del stocks_info.stocks[code]['tot_buy_price']
         # stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
 
         # # stocks_info.json 변경
         # for code in stocks_info.stocks.keys():
-        #     stocks_info.stocks[code]['stockholdings'] = 0
+        #     stocks_info.stocks[code]['envelope_p'] = 4
+        #     stocks_info.stocks[code]['sell_target_p'] = 4
         # stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
         
         stocks_info.send_msg("===국내 주식 자동매매 프로그램을 시작===")
@@ -44,31 +47,26 @@ def main():
             stocks_info.send_msg("주말이므로 프로그램을 종료")
             return
 
-        sell_order_done = False
-        clear_allow_monitoring_done = False              
+        sell_order_done = False        
         
         while True:
             t_now = datetime.datetime.now()
-            # if 1: # test
             if t_start <= t_now:
                 if t_exit < t_now:  # PM 03:30 ~ 장 종료
                     stocks_info.send_msg("장 종료")
                     break
-                                
-                # 장시작 시 한번만 allow_monitoring_buy, allow_monitoring_sell 초기화
-                #   전날에 조건에 맞았지만 체결안된 경우 다음날 다시 조건 검사부터 한다.            
-                if clear_allow_monitoring_done == False:
-                    for code in stocks_info.stocks.keys():
-                        stocks_info.stocks[code]['allow_monitoring_buy'] = False
-                        stocks_info.stocks[code]['allow_monitoring_sell'] = False
-                    clear_allow_monitoring_done = True
-                    
+            
+                # # test, 시장가 매도
+                # if sell_order_done == False:
+                #     stocks_info.handle_sell_stock(ORDER_TYPE_MARGET_ORDER)
+                #     sell_order_done = True
+
                 if SELL_STRATEGY == 1:
                     # 장 시작 시 보유 종목 매도 주문
                     if sell_order_done == False:
                         stocks_info.handle_sell_stock()
                         sell_order_done = True
-                elif SELL_STRATEGY == 2:
+                else:
                     stocks_info.handle_sell_stock()
                 
                 stocks_info.handle_buy_stock()
@@ -81,8 +79,9 @@ def main():
                 pre_stocks = stocks_info.check_save_stocks_info(pre_stocks)
                 
                 # 주기적으로 출력
-                if (t_now.minute % 30 == 0) and (t_now.second <= 2): 
+                if (t_now.minute % 30 == 0) and (t_now.second <= 2):            
                     stocks_info.show_buyable_stocks()
+                    stocks_info.get_stock_balance()
         
         # 장 종료 후 처리
         stocks_info.update_my_stocks()
@@ -90,7 +89,8 @@ def main():
         stocks_info.show_stocks_by_undervalue()                     # 저평가
         stocks_info.show_trade_done_stocks(BUY_CODE)
         stocks_info.show_trade_done_stocks(SELL_CODE)
-        stocks_info.get_stock_balance()
+        stocks_info.get_stock_balance(True)
+        stocks_info.clear_after_market()
         stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
         
         stocks_info.send_msg("프로그램 종료")
