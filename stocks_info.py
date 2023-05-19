@@ -44,7 +44,7 @@ BUY_1_P = 40                                # 1차 매수 40%
 BUY_2_P = 60                                # 2차 매수 60%
 
 UNDER_VALUE = -2                            # 저평가가 이 값 미만은 매수 금지
-GAP_MAX_SELL_TARGET_PRICE_P = 8             # 목표주가GAP 이 이 값 미만은 매수 금지
+GAP_MAX_SELL_TARGET_PRICE_P = 5             # 목표주가GAP 이 이 값 미만은 매수 금지
 SUM_UNDER_VALUE_SELL_TARGET_GAP = 10        # 저평가 + 목표주가GAP 이 이 값 미만은 매수 금지
 LOSS_CUT_P = 7                              # 2차 매수에서 x% 이탈 시 손절
 
@@ -59,6 +59,8 @@ if is_simulation():
 else:
     MAX_MY_STOCK_COUNT = 3
     INVEST_MONEY_PER_STOCK = 1000000            # 주식 당 투자 금액(원)
+
+BUYABLE_GAP = 8                                 # "현재가 - 매수가 GAP" 가 X% 미만 경우만 매수 가능 종목으로 처리
 
 ##############################################################
 
@@ -347,39 +349,6 @@ class Stocks_info:
                     self.set_loss_cut_done(code)
                 else:
                     self.clear_buy_sell_info(code)
-        # if SELL_STRATEGY == 3:
-        #     # 전량 매도 상태는 보유 종목에 없는 상태
-        #     if self.is_my_stock(code) == False:
-        #         self.stocks[code]['sell_done'] = True
-        #         # 매도 완료 후 종가 > 20ma 체크위해 false 처리
-        #         self.stocks[code]['end_price_higher_than_20ma_after_sold'] = False
-        #         # 보유 종목이 MAX_MY_STOCK_COUNT 인 상태에서 매도가되면 
-        #         # 매수 가능 상태가 될 수 있기때문에 매수 가능 종목 업데이트
-        #         if len(self.my_stocks) == MAX_MY_STOCK_COUNT:
-        #             self.update_buyable_stocks()
-        #         self.update_my_stocks()
-        #         self.clear_buy_sell_info(code)
-        #         if self.stocks[code]['loss_cut_order'] == True:
-        #             self.set_loss_cut_done(code)
-        #     else:
-        #         # 1차 반 매도 완료 상태
-        #         self.stocks[code]['sell_1_done'] = True
-        #         self.update_my_stocks()
-        # else:
-        #     if self.is_my_stock(code) == False:
-        #         self.stocks[code]['sell_done'] = True
-        #         # 매도 완료 후 종가 > 20ma 체크위해 false 처리
-        #         self.stocks[code]['end_price_higher_than_20ma_after_sold'] = False
-        #         # 보유 종목이 MAX_MY_STOCK_COUNT 인 상태에서 매도가되면 
-        #         # 매수 가능 상태가 될 수 있기때문에 매수 가능 종목 업데이트
-        #         if len(self.my_stocks) == MAX_MY_STOCK_COUNT:
-        #             self.update_buyable_stocks()
-        #         self.update_my_stocks()
-        #         self.clear_buy_sell_info(code)
-        #         if self.stocks[code]['loss_cut_order'] == True:
-        #             self.set_loss_cut_done(code)
-        #     else:
-        #         self.send_msg(f"{self.stocks[code]['name']} 일부 매도", True)
 
     ##############################################################
     # 손절 완료 시 호출
@@ -1013,46 +982,6 @@ class Stocks_info:
         self.send_msg(f"총 평가 금액: {evaluation[0]['tot_evlu_amt']}원", send_discode)
         time.sleep(API_DELAY_S)
         return stock_list
-
-    # ##############################################################
-    # # 보유 잔고내의 평단가 리턴
-    # #   return : 성공 시 평단가, 실패 시 0 리턴
-    # #   Parameter :
-    # #       code            종목 코드
-    # ##############################################################
-    # def get_real_avg_buy_price(self, code:str):
-    #     result = 0
-    #     PATH = "uapi/domestic-stock/v1/trading/inquire-balance"
-    #     URL = f"{self.config['URL_BASE']}/{PATH}"
-    #     headers = {"Content-Type": "application/json",
-    #                "authorization": f"Bearer {self.access_token}",
-    #                "appKey": self.config['APP_KEY'],
-    #                "appSecret": self.config['APP_SECRET'],
-    #                "tr_id": self.config['TR_ID_GET_STOCK_BALANCE'],
-    #                "custtype": "P",
-    #                }
-    #     params = {
-    #         "CANO": self.config['CANO'],
-    #         "ACNT_PRDT_CD": self.config['ACNT_PRDT_CD'],
-    #         "AFHR_FLPR_YN": "N",
-    #         "OFL_YN": "",
-    #         "INQR_DVSN": "02",
-    #         "UNPR_DVSN": "01",
-    #         "FUND_STTL_ICLD_YN": "N",
-    #         "FNCG_AMT_AUTO_RDPT_YN": "N",
-    #         "PRCS_DVSN": "01",
-    #         "CTX_AREA_FK100": "",
-    #         "CTX_AREA_NK100": ""
-    #     }
-    #     res = requests.get(URL, headers=headers, params=params)
-    #     stock_list = res.json()['output1']
-    #     for stock in stock_list:
-    #         if stock['pdno'] == code:
-    #             result = int(float(stock['pchs_avg_pric']))
-    #             break
-
-    #     time.sleep(API_DELAY_S)
-    #     return result
     
     ##############################################################
     # 현금 잔고 조회
@@ -1815,8 +1744,8 @@ class Stocks_info:
                 buy_target_price = self.get_buy_target_price(code)
                 if buy_target_price > 0:
                     gap_p = int((curr_price - buy_target_price) * 100 / buy_target_price)
-                    # 현재가 - 매수가 GAP < 10%
-                    if gap_p < 10:
+                    # 현재가 - 매수가 GAP < X%
+                    if gap_p < BUYABLE_GAP:
                         temp_stock = copy.deepcopy({code: self.stocks[code]})
                         self.buyable_stocks[code] = temp_stock[code]
 

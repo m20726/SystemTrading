@@ -1,0 +1,42 @@
+    "000080": {
+        "name": "하이트진로",                                   종목명  
+        "code": "000080",                                       종목 코드
+        "envelope_p": 11,                                       envelope 지지선
+        "sell_target_p": 7,                                     목표가 %
+        "yesterday_20ma": 22655,                                어제 20이평선 가격
+        "yesterday_end_price": 23200,                           어제 종가
+        "buy_1_price": 20021,                                   1차 매수가
+        "buy_2_price": 18018,                                   2차 매수가
+        "buy_1_qty": 19,                                        1차 매수량
+        "buy_2_qty": 33,                                        2차 매수량
+        "buy_1_done": false,                                    1차 매수 완료 여부
+        "buy_2_done": false,                                    2차 매수 완료 여부
+        "avg_buy_price": 20021,                                 평단가(목표가 계산을 위한 이론적 평단가)
+        "sell_target_price": 21422,                             매도 목표가
+        "sell_done": false,                                     매도 완료 여부
+        "max_target_price": 23515,                              목표 주가(미래 당기순이익 * 예상 PER / 상장 주식 수)
+        "gap_max_sell_target_price_p": 9,                       (목표 주가 - 매도 목표가) GAP %, + : 저평가, - : 고평가
+        "end_price_higher_than_20ma_after_sold": false,         매도 완료 후 종가가 20 이평선 넘은지 여부, 넘어야 매수 가능
+        "stockholdings": 0,                                     보유 수량
+        "undervalue": -6,                                       저평가 지수
+        "PER": 19.21,                                           
+        "PER_E": 17.36,                                         컨센서스(E) : 최근 3개월간 증권사에서 발표한 전망치의 평균값
+        "EPS_E": 1337,
+        "BPS_E": 17017,
+        "ROE_E": 8.11,
+        "operating_profit_margin_p": 6.76,                      영업 이익률 %
+        "industry_PER": 18.57,                                  업종 PER
+        "sales_income": 26032,                                  올해 매출액
+        "last_year_sales_income": 24976,                        작년 매출액
+        "the_year_before_last_sales_income": 22029,             재작년 매출액
+        "curr_profit": 950,                                     당기 순이익
+        "allow_monitoring_buy": false,                          매수해도 되는지 여부
+        "allow_monitoring_sell": false,                         매도해도 되는지 여부
+        "highest_price_ever": false,                            매수 후 여지껏 최고가
+        "take_profit_p": -2,                                    익절가 %
+        "sell_1_done": false,                                   1차 매도 완료 여부
+        "real_avg_buy_price": 0,                                실제 매수 평단가
+        "loss_cut_order": false,                                손절 주문 여부
+        "buy_order_done": false,                                매수 주문 여부
+        "sell_order_done": false                                매도 주문 여부
+        }
