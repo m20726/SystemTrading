@@ -1,3 +1,4 @@
+{
     "000080": {
         "name": "하이트진로",                                   종목명  
         "code": "000080",                                       종목 코드
@@ -38,5 +39,9 @@
         "real_avg_buy_price": 0,                                실제 매수 평단가
         "loss_cut_order": false,                                손절 주문 여부
         "buy_order_done": false,                                매수 주문 여부
-        "sell_order_done": false                                매도 주문 여부
-        }
+        "sell_order_done": false,                               매도 주문 여부
+        "long_ma_up": false,                                    장기 이평선 상승 여부
+        "envelope_p_long_ma_up": 10,                            장기 이평선 상승 시 envelope 지지선
+        "sell_target_p_long_ma_up": 10                          장기 이평선 상승 시 목표가 %
+    }
+}

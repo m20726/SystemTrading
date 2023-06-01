@@ -61,6 +61,7 @@ else:
     INVEST_MONEY_PER_STOCK = 1000000            # 주식 당 투자 금액(원)
 
 BUYABLE_GAP = 8                                 # "현재가 - 매수가 GAP" 가 X% 미만 경우만 매수 가능 종목으로 처리
+USE_LONG_MA_UP = True                           # 장기이평선 상승 시 envelop 다르게 사용 여부
 
 ##############################################################
 
@@ -267,7 +268,14 @@ class Stocks_info:
     # 1차 매수가 구하기
     ##############################################################
     def get_buy_1_price(self, code):
-        envelope_p = self.to_percent(self.stocks[code]['envelope_p'])
+        if USE_LONG_MA_UP == True:
+            if self.stocks[code]['long_ma_up'] == True:
+                envelope_p = self.to_percent(self.stocks[code]['envelope_p_long_ma_up'])
+            else:
+                envelope_p = self.to_percent(self.stocks[code]['envelope_p'])
+        else:
+            envelope_p = self.to_percent(self.stocks[code]['envelope_p'])
+        
         envelope_support_line = self.stocks[code]['yesterday_20ma'] * (1 - envelope_p)
         buy_1_price = envelope_support_line * MARGIN_20MA
         return int(buy_1_price)
@@ -405,6 +413,8 @@ class Stocks_info:
         self.stocks[code]['sell_1_done'] = False
         # real_avg_buy_price 은 매도 완료 후 매도 체결 조회 할 수 있기 때문에 초기화하지 않는다
         # self.stocks[code]['real_avg_buy_price'] = 0
+        self.stocks[code]['long_ma_up'] = False
+        self.stocks[code]['envelope_p_long_ma_up'] = False
 
     ##############################################################
     # 평단가 리턴
@@ -431,7 +441,13 @@ class Stocks_info:
     # 목표가 = 평단가 * (1 + 목표%)
     ##############################################################
     def get_sell_target_price(self, code):
-        sell_target_p = self.to_percent(self.stocks[code]['sell_target_p'])
+        if USE_LONG_MA_UP == True:
+            if self.stocks[code]['long_ma_up'] == True:
+                sell_target_p = self.to_percent(self.stocks[code]['sell_target_p_long_ma_up'])
+            else:
+                sell_target_p = self.to_percent(self.stocks[code]['sell_target_p'])
+        else:
+            sell_target_p = self.to_percent(self.stocks[code]['sell_target_p'])        
         return int(self.stocks[code]['avg_buy_price'] * (1 + sell_target_p))
 
     ##############################################################
@@ -611,11 +627,11 @@ class Stocks_info:
         # PER
         if self.stocks[code]['PER'] > 0 and self.stocks[code]['PER'] <= 10:
             if self.stocks[code]['industry_PER'] > 0:
-                self.stocks[code]['undervalue'] += int((1 - self.stocks[code]['PER'] / self.stocks[code]['industry_PER']) * 5)
+                self.stocks[code]['undervalue'] += int((1 - self.stocks[code]['PER'] / self.stocks[code]['industry_PER']) * 4)
             else:
-                self.stocks[code]['undervalue'] += 1
+                self.stocks[code]['undervalue'] += 2
         elif self.stocks[code]['PER'] >= 20:
-            self.stocks[code]['undervalue'] -= 3
+            self.stocks[code]['undervalue'] -= 2
         elif self.stocks[code]['PER'] < 0:
             self.stocks[code]['undervalue'] -= 10
 
@@ -679,6 +695,9 @@ class Stocks_info:
                     # 재매수 가능
                     self.stocks[code]['end_price_higher_than_20ma_after_sold'] = True
                     self.stocks[code]['sell_done'] = False
+            
+            # 150일선 상승 여부(30일치만 가져올 수 있어 7달선으로 대체)
+            self.stocks[code]['long_ma_up'] = self.get_long_ma_up(code)
             
             # 평단가
             self.stocks[code]['avg_buy_price'] = self.get_avg_buy_price(code)
@@ -839,8 +858,9 @@ class Stocks_info:
     #                   ex) 20일선 : 20, 5일선 : 5
     #   past_day        X일선 가격 기준
     #                   ex) 0 : 금일 X일선, 1 : 어제 X일선
+    #   period          D : 일, W : 주, M : 월
     ##############################################################
-    def get_ma(self, code: str, days=20, past_day=0):
+    def get_ma(self, code: str, days=20, past_day=0, period="D"):
         PATH = "uapi/domestic-stock/v1/quotations/inquire-daily-price"
         URL = f"{self.config['URL_BASE']}/{PATH}"
         headers = {"Content-Type": "application/json",
@@ -856,7 +876,7 @@ class Stocks_info:
             # D : (일)최근 30거래일
             # W : (주)최근 30주
             # M : (월)최근 30개월
-            "fid_period_div_code": "D"
+            "fid_period_div_code": period
         }
         res = requests.get(URL, headers=headers, params=params)
 
@@ -1628,12 +1648,13 @@ class Stocks_info:
     def show_stocks_by_undervalue(self):
         temp_stocks = copy.deepcopy(self.stocks)
         sorted_data = dict(sorted(temp_stocks.items(), key=lambda x: x[1]['undervalue'], reverse=True))
-        data = {'종목명':[], '저평가':[], '목표주가GAP':[], 'PER':[]}
+        data = {'종목명':[], '저평가':[], '목표주가GAP':[], 'PER':[], '150일선 상승':[]}
         for code in sorted_data.keys():
             data['종목명'].append(sorted_data[code]['name'])
             data['저평가'].append(sorted_data[code]['undervalue'])
             data['목표주가GAP'].append(sorted_data[code]['gap_max_sell_target_price_p'])
             data['PER'].append(sorted_data[code]['PER'])
+            data['150일선 상승'].append(sorted_data[code]['long_ma_up'])
 
         # PrettyTable 객체 생성 및 데이터 추가
         table = PrettyTable()
@@ -1779,7 +1800,7 @@ class Stocks_info:
     def show_buyable_stocks(self):
         temp_stocks = copy.deepcopy(self.buyable_stocks)
         sorted_data = dict(sorted(temp_stocks.items(), key=lambda x: x[1]['undervalue'], reverse=True))
-        data = {'종목명':[], '저평가':[], '목표주가GAP(%)':[], '매수가':[], '현재가':[], '매수가GAP(%)':[]}
+        data = {'종목명':[], '저평가':[], '목표주가GAP(%)':[], '매수가':[], '현재가':[], '매수가GAP(%)':[], '150일선 상승':[]}
         for code in sorted_data.keys():
             curr_price = self.get_curr_price(code)
             buy_target_price = self.get_buy_target_price(code)
@@ -1793,6 +1814,7 @@ class Stocks_info:
             data['매수가'].append(buy_target_price)
             data['현재가'].append(curr_price)
             data['매수가GAP(%)'].append(gap_p)
+            data['150일선 상승'].append(sorted_data[code]['long_ma_up'])
 
         # PrettyTable 객체 생성 및 데이터 추가
         table = PrettyTable()
@@ -1839,3 +1861,25 @@ class Stocks_info:
             self.stocks[code]['loss_cut_order'] = False
             self.stocks[code]['buy_order_done'] = False
             self.stocks[code]['sell_order_done'] = False
+
+    ##############################################################
+    # 장기 이평선 상승 여부
+    # Return    : 상승 시 True, 아니면 False
+    # Parameter :
+    #       code            종목 코드
+    #       long_ma         X달 이평선, ex) 7달 = 약150일선
+    ##############################################################
+    def get_long_ma_up(self, code, long_ma=7):
+        long_ma_value = list()
+        long_ma_up = False
+        for i in range(5):  # X일 연속 상승/하락 여부로 판단
+            long_ma_value.append(self.get_ma(code, long_ma, i, "M"))
+            
+        for i in range(len(long_ma_value)):
+            if i+1 < len(long_ma_value):
+                if long_ma_value[i] > long_ma_value[i+1]:
+                    long_ma_up = True
+                else:
+                    long_ma_up = False
+                    break
+        return long_ma_up

@@ -10,7 +10,7 @@ SUNDAY = 6
 def main():
     try:
         stocks_info = Stocks_info()
-        stocks_info.initialize()
+        stocks_info.initialize()        
         
         stocks_info.update_stocks_trade_info()
         stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
@@ -19,11 +19,12 @@ def main():
         stocks_info.update_my_stocks()            # 보유 주식 업데이트
         stocks_info.update_buyable_stocks()
         stocks_info.show_buyable_stocks()
+        stocks_info.show_stocks_by_undervalue()
 
         # # stocks_info.json 에 추가
         # for code in stocks_info.stocks.keys():
-        #     stocks_info.stocks[code]['real_avg_buy_price'] = 0
-        #     stocks_info.stocks[code]['loss_cut_order'] = False
+        #     stocks_info.stocks[code]['envelope_p_long_ma_up'] = 20
+        #     stocks_info.stocks[code]['sell_target_p_long_ma_up'] = 10
         # stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
         
         # # stocks_info.json 에 key 제거
@@ -80,9 +81,9 @@ def main():
                 pre_stocks = stocks_info.check_save_stocks_info(pre_stocks)
                 
                 # 주기적으로 출력
-                if (t_now.minute % 30 == 0) and (t_now.second <= 2):            
+                if (t_now.minute % 30 == 0) and (t_now.second == 0):            
                     stocks_info.show_buyable_stocks()
-                    stocks_info.get_stock_balance()
+                    # stocks_info.get_stock_balance()
         
         # 장 종료 후 처리
         stocks_info.update_my_stocks()
