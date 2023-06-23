@@ -43,8 +43,8 @@ INVEST_TYPE = "real_invest"                 # sim_invest : 모의 투자, real_i
 BUY_1_P = 40                                # 1차 매수 40%
 BUY_2_P = 60                                # 2차 매수 60%
 
-UNDER_VALUE = -2                            # 저평가가 이 값 미만은 매수 금지
-GAP_MAX_SELL_TARGET_PRICE_P = 5             # 목표주가GAP 이 이 값 미만은 매수 금지
+UNDER_VALUE = 1                             # 저평가가 이 값 미만은 매수 금지
+GAP_MAX_SELL_TARGET_PRICE_P = 7             # 목표주가GAP 이 이 값 미만은 매수 금지
 SUM_UNDER_VALUE_SELL_TARGET_GAP = 10        # 저평가 + 목표주가GAP 이 이 값 미만은 매수 금지
 LOSS_CUT_P = 7                              # 2차 매수에서 x% 이탈 시 손절
 
@@ -131,6 +131,7 @@ class Stocks_info:
     def send_msg(self, msg, send_discode:bool = False):
         now = datetime.datetime.now()
         if send_discode == True:
+            #print(f"send_discode")
             # message = {"content": f"[{now.strftime('%H:%M:%S')}] {str(msg)}"}
             message = {"content": f"{msg}"}
             requests.post(self.config['DISCORD_WEBHOOK_URL'], data=message)
@@ -952,7 +953,7 @@ class Stocks_info:
     ##############################################################
     # 주식 잔고조회
     ##############################################################
-    def get_stock_balance(self, send_discode:bool=False):
+    def get_stock_balance(self, send_discode:bool = False):
         PATH = "uapi/domestic-stock/v1/trading/inquire-balance"
         URL = f"{self.config['URL_BASE']}/{PATH}"
         headers = {"Content-Type": "application/json",
