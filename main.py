@@ -98,9 +98,9 @@ def main():
         
         stocks_info.send_msg("프로그램 종료")
         
-        # test
-        while True:
-            time.sleep(1)
+        # # test
+        # while True:
+        #     time.sleep(1)
             
     except Exception as e:
         stocks_info.send_msg(f'[exception]{e}')

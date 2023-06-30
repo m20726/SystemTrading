@@ -1047,6 +1047,12 @@ class Stocks_info:
         if self.is_ok_to_buy(code) == False:
             return False
         
+        # 지정가 이외의 주문은 가격을 0으로 해야 주문 실패하지 않는다.
+        # 업체 : 장전 시간외, 장후 시간외, 시장가 등 모든 주문구분의 경우 1주당 가격을 공란으로 비우지 않고
+        # "0"으로 입력 권고드리고 있습니다.
+        if order_type != ORDER_TYPE_LIMIT_ORDER:
+            price = 0
+        
         # 주식 호가 단위로 가격 변경
         price = str(price)
         price = price.replace(',', '')
@@ -1077,7 +1083,7 @@ class Stocks_info:
             self.send_msg(f"[매수 주문 성공] [{self.stocks[code]['name']}] {price}원 {qty}주")
             result = True
         else:
-            self.send_msg(f"[매수 주문 실패] [{self.stocks[code]['name']}] {str(res.json())}")
+            self.send_msg(f"[매수 주문 실패] [{self.stocks[code]['name']}] {price}원 {qty}주 type:{order_type} {str(res.json())}")
             result = False
             
         time.sleep(API_DELAY_S)
