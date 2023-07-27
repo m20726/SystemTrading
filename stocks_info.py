@@ -45,7 +45,7 @@ BUY_2_P = 60                                # 2차 매수 60%
 
 UNDER_VALUE = 1                             # 저평가가 이 값 미만은 매수 금지
 GAP_MAX_SELL_TARGET_PRICE_P = 7             # 목표주가GAP 이 이 값 미만은 매수 금지
-SUM_UNDER_VALUE_SELL_TARGET_GAP = 10        # 저평가 + 목표주가GAP 이 이 값 미만은 매수 금지
+SUM_UNDER_VALUE_SELL_TARGET_GAP = 9         # 저평가 + 목표주가GAP 이 이 값 미만은 매수 금지
 LOSS_CUT_P = 7                              # 2차 매수에서 x% 이탈 시 손절
 
 SMALL_TAKE_PROFIT_P = -1                    # 작은 익절가 %
@@ -60,7 +60,7 @@ else:
     MAX_MY_STOCK_COUNT = 3
     INVEST_MONEY_PER_STOCK = 1000000            # 주식 당 투자 금액(원)
 
-BUYABLE_GAP = 8                                 # "현재가 - 매수가 GAP" 가 X% 미만 경우만 매수 가능 종목으로 처리
+BUYABLE_GAP = 10                                # "현재가 - 매수가 GAP" 가 X% 미만 경우만 매수 가능 종목으로 처리
 USE_LONG_MA_UP = True                           # 장기이평선 상승 시 envelop 다르게 사용 여부
 
 ##############################################################
@@ -748,18 +748,24 @@ class Stocks_info:
             for stock in stocks:
                 if int(stock['hldg_qty']) > 0:
                     code = stock['pdno']
-                    # 보유 수량
-                    self.stocks[code]['stockholdings'] = int(stock['hldg_qty'])
-                    # 평단가
-                    self.stocks[code]['avg_buy_price'] = self.get_avg_buy_price(code)
-                    # 계좌내 실제 평단가
-                    # avg_buy_price 는 목표가 계산을 위한 이론적 평단가
-                    self.stocks[code]['real_avg_buy_price'] = int(float(stock['pchs_avg_pric']))
-                    # 목표가 = 평단가에서 목표% 수익가
-                    self.stocks[code]['sell_target_price'] = self.get_sell_target_price(self.stocks[code]['code'])
-                    # self.my_stocks 업데이트
-                    temp_stock = copy.deepcopy({code: self.stocks[code]})
-                    self.my_stocks[code] = temp_stock[code]
+                    # DB 에 없는 종목 제외 ex) 공모주
+                    if code in self.stocks.keys():
+                        # 보유 수량
+                        self.stocks[code]['stockholdings'] = int(stock['hldg_qty'])
+                        # 평단가
+                        self.stocks[code]['avg_buy_price'] = self.get_avg_buy_price(code)
+                        # 계좌내 실제 평단가
+                        # avg_buy_price 는 목표가 계산을 위한 이론적 평단가
+                        self.stocks[code]['real_avg_buy_price'] = int(float(stock['pchs_avg_pric']))
+                        # 목표가 = 평단가에서 목표% 수익가
+                        self.stocks[code]['sell_target_price'] = self.get_sell_target_price(self.stocks[code]['code'])
+                        # self.my_stocks 업데이트
+                        temp_stock = copy.deepcopy({code: self.stocks[code]})
+                        self.my_stocks[code] = temp_stock[code]
+                    else:
+                        # 보유는 하지만 DB 에 없는 종목
+                        # self.send_msg(f"DB 에 없는 종목({stock['prdt_name']})은 업데이트 skip")
+                        pass
             result = True
         else:
             self.send_msg(f"[계좌 조회 실패]{str(res.json())}")
