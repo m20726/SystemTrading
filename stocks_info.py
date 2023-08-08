@@ -43,9 +43,9 @@ INVEST_TYPE = "real_invest"                 # sim_invest : 모의 투자, real_i
 BUY_1_P = 40                                # 1차 매수 40%
 BUY_2_P = 60                                # 2차 매수 60%
 
-UNDER_VALUE = 1                             # 저평가가 이 값 미만은 매수 금지
+UNDER_VALUE = 3                             # 저평가가 이 값 미만은 매수 금지
 GAP_MAX_SELL_TARGET_PRICE_P = 7             # 목표주가GAP 이 이 값 미만은 매수 금지
-SUM_UNDER_VALUE_SELL_TARGET_GAP = 9         # 저평가 + 목표주가GAP 이 이 값 미만은 매수 금지
+SUM_UNDER_VALUE_SELL_TARGET_GAP = 12        # 저평가 + 목표주가GAP 이 이 값 미만은 매수 금지
 LOSS_CUT_P = 5                              # 2차 매수에서 x% 이탈 시 손절
 
 SMALL_TAKE_PROFIT_P = -1                    # 작은 익절가 %
