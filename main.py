@@ -2,6 +2,7 @@ from stocks_info import *
 from handle_json import *
 import datetime
 import time
+from libs.debug import *
 
 SATURDAY = 5
 SUNDAY = 6
@@ -9,6 +10,7 @@ SUNDAY = 6
 ##############################################################
 def main():
     try:
+        PRINT_INFO('')
         stocks_info = Stocks_info()
         stocks_info.initialize()
         

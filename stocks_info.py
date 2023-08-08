@@ -7,6 +7,7 @@ import requests
 from bs4 import BeautifulSoup
 from prettytable import PrettyTable
 from handle_json import *
+from libs.debug import *
 
 ##############################################################
 # 검증
@@ -127,15 +128,20 @@ class Stocks_info:
     ##############################################################
     # Print and send discode
     ##############################################################
-    def send_msg(self, msg, send_discode:bool = False):
+    def send_msg(self, msg, send_discode:bool = False, err:bool = False):
         now = datetime.datetime.now()
         if send_discode == True:
-            #print(f"send_discode")
             # message = {"content": f"[{now.strftime('%H:%M:%S')}] {str(msg)}"}
             message = {"content": f"{msg}"}
             requests.post(self.config['DISCORD_WEBHOOK_URL'], data=message)
-        print(f"[{now.strftime('%H:%M:%S')}] {str(msg)}")
+        if err == True:
+            PRINT_ERR(f"{str(msg)}")
+        else:
+            PRINT_INFO(f"{str(msg)}")
 
+    def send_msg_err(self, msg):
+        self.send_msg(msg, True, True)
+        
     ##############################################################
     # 네이버 증권 기업실적분석 정보 얻기
     ##############################################################
@@ -241,7 +247,7 @@ class Stocks_info:
         try:
             return self.stocks[code]
         except KeyError:
-            print(f'KeyError : {code} is not found')
+            PRINT_ERR(f'KeyError : {code} is not found')
             return None
 
     ##############################################################
@@ -642,7 +648,7 @@ class Stocks_info:
         t_now = datetime.datetime.now()
         t_exit = t_now.replace(hour=15, minute=30, second=0, microsecond=0)
         for code in self.stocks.keys():
-            print(f"{self.stocks[code]['name']}")
+            PRINT_INFO(f"{self.stocks[code]['name']}")
             # 순서 변경 금지
             # ex) 목표가를 구하기 위해선 평단가가 먼저 있어야한다
             # yesterday 20일선
@@ -741,7 +747,7 @@ class Stocks_info:
                         pass
             result = True
         else:
-            self.send_msg(f"[계좌 조회 실패]{str(res.json())}")
+            self.send_msg_err(f"[계좌 조회 실패]{str(res.json())}")
             result = False
         time.sleep(API_DELAY_S)
         return result
@@ -863,7 +869,7 @@ class Stocks_info:
         sum_end_price = 0
         for i in range(past_day, days_last):
             end_price = int(res.json()['output'][i]['stck_clpr'])   # 종가
-            # print(f"{i} 종가 : {end_price}")
+            PRINT_DEBUG(f"{i} 종가 : {end_price}")
             sum_end_price = sum_end_price + end_price               # 종가 합
 
         value_ma = sum_end_price / days                           # x일선 가격
@@ -1059,8 +1065,8 @@ class Stocks_info:
         if self.is_request_ok(res) == True:
             self.send_msg(f"[매수 주문 성공] [{self.stocks[code]['name']}] {price}원 {qty}주")
             result = True
-        else:
-            self.send_msg(f"[매수 주문 실패] [{self.stocks[code]['name']}] {price}원 {qty}주 type:{order_type} {str(res.json())}")
+        else:            
+            self.send_msg_err(f"[매수 주문 실패] [{self.stocks[code]['name']}] {price}원 {qty}주 type:{order_type} {str(res.json())}")
             result = False
             
         time.sleep(API_DELAY_S)
@@ -1122,7 +1128,7 @@ class Stocks_info:
             self.send_msg(f"[매도 주문 성공] [{self.stocks[code]['name']}] {price}원 {qty}주")
             result = True
         else:
-            self.send_msg(f"[매도 주문 실패] [{self.stocks[code]['name']}] {price}원 {qty}주 {str(res.json())}")
+            self.send_msg_err(f"[매도 주문 실패] [{self.stocks[code]['name']}] {price}원 {qty}주 {str(res.json())}")
             result = False
             
         time.sleep(API_DELAY_S)
@@ -1391,9 +1397,9 @@ class Stocks_info:
                 ret = True
             else:
                 if self.config['TR_ID_MODIFY_CANCEL_ORDER'] == "VTTC0803U":
-                    self.send_msg(f"[주식 주문 전량 취소 주문 실패] [{self.stocks[code]['name']}] 모의 투자 미지원")
+                    self.send_msg_err(f"[주식 주문 전량 취소 주문 실패] [{self.stocks[code]['name']}] 모의 투자 미지원")
                 else:
-                    self.send_msg(f"[주식 주문 전량 취소 주문 실패] [{self.stocks[code]['name']}] {str(res.json())}")
+                    self.send_msg_err(f"[주식 주문 전량 취소 주문 실패] [{self.stocks[code]['name']}] {str(res.json())}")
                 ret = False
         else:
             self.send_msg(f"[cancel_order failed] [{self.stocks[code]['name']}] {buy_sell}")
