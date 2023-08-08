@@ -23,14 +23,12 @@ def main():
 
         # # stocks_info.json 에 추가
         # for code in stocks_info.stocks.keys():
-        #     stocks_info.stocks[code]['envelope_p_long_ma_up'] = 20
         #     stocks_info.stocks[code]['sell_target_p_long_ma_up'] = 10
         # stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
         
         # # stocks_info.json 에 key 제거
         # for code in stocks_info.stocks.keys():
-        #     del stocks_info.stocks[code]['capitalization']
-        #     del stocks_info.stocks[code]['total_stock_count']
+        #     del stocks_info.stocks[code]['long_ma_up']
         # stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
 
         # # stocks_info.json 변경
