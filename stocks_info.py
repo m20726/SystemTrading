@@ -257,14 +257,6 @@ class Stocks_info:
         write_json_file(self.stocks, file_path)
 
     ##############################################################
-    # 모든 주식의 어제 20일선 업데이트
-    # def update_stocks_trade_info_yesterday_20ma(self):
-    #     for key in self.stocks.keys():
-    #         yesterday_20ma = self.get_20ma(self.stocks[key]['code'], 1)
-    #         # print(f"{self.stocks[key]['name']} {yesterday_20ma}")
-    #         self.stocks[key]['yesterday_20ma'] = yesterday_20ma
-
-    ##############################################################
     # 1차 매수가 구하기
     ##############################################################
     def get_buy_1_price(self, code):
@@ -692,7 +684,6 @@ class Stocks_info:
             # 주식 투자 정보 업데이트(시가 총액, 상장 주식 수, 저평가, BPS, PER, EPS)
             self.update_stock_invest_info(code)
             
-        # print(json.dumps(self.stocks, indent=4, ensure_ascii=False))
 
     ##############################################################
     # 보유 주식 정보 업데이트
@@ -771,10 +762,8 @@ class Stocks_info:
     ##############################################################
     def is_my_stock(self, code):
         if code in self.my_stocks.keys():
-            # print(f"{code} is my stock")
             return True
         else:
-            # print(f"{code} is not my stock")
             return False
         
     ##############################################################
@@ -1794,7 +1783,7 @@ class Stocks_info:
     def show_buyable_stocks(self):
         temp_stocks = copy.deepcopy(self.buyable_stocks)
         sorted_data = dict(sorted(temp_stocks.items(), key=lambda x: x[1]['undervalue'], reverse=True))
-        data = {'종목명':[], '저평가':[], '목표주가GAP(%)':[], '매수가':[], '현재가':[], '매수가GAP(%)':[], '150일선 상승':[]}
+        data = {'종목명':[], '저평가':[], '목표주가GAP(%)':[], '매수가':[], '현재가':[], '매수가GAP(%)':[]}
         for code in sorted_data.keys():
             curr_price = self.get_curr_price(code)
             buy_target_price = self.get_buy_target_price(code)
