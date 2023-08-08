@@ -51,7 +51,7 @@ LOSS_CUT_P = 5                              # 2차 매수에서 x% 이탈 시 �
 SMALL_TAKE_PROFIT_P = -1                    # 작은 익절가 %
 BIG_TAKE_PROFIT_P = -2                      # 큰 익절가 %
 
-BUY_MARGIN_P = 1                            # ex) 최저가 + 1% 에서 매수
+BUY_MARGIN_P = 0.5                          # ex) 최저가 + 0.5% 에서 매수
 
 if is_simulation():
     MAX_MY_STOCK_COUNT = 10                      # MAX 보유 주식 수
