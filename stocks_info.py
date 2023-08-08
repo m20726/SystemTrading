@@ -1643,7 +1643,7 @@ class Stocks_info:
     def show_stocks_by_undervalue(self):
         temp_stocks = copy.deepcopy(self.stocks)
         sorted_data = dict(sorted(temp_stocks.items(), key=lambda x: x[1]['undervalue'], reverse=True))
-        data = {'종목명':[], '저평가':[], '목표주가GAP':[], 'PER':[], '150일선 상승':[]}
+        data = {'종목명':[], '저평가':[], '목표주가GAP':[], 'PER':[]}
         for code in sorted_data.keys():
             data['종목명'].append(sorted_data[code]['name'])
             data['저평가'].append(sorted_data[code]['undervalue'])
