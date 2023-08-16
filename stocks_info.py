@@ -44,9 +44,9 @@ INVEST_TYPE = "real_invest"                 # sim_invest : 모의 투자, real_i
 BUY_1_P = 40                                # 1차 매수 40%
 BUY_2_P = 60                                # 2차 매수 60%
 
-UNDER_VALUE = 3                             # 저평가가 이 값 미만은 매수 금지
-GAP_MAX_SELL_TARGET_PRICE_P = 7             # 목표주가GAP 이 이 값 미만은 매수 금지
-SUM_UNDER_VALUE_SELL_TARGET_GAP = 12        # 저평가 + 목표주가GAP 이 이 값 미만은 매수 금지
+UNDER_VALUE = 1                             # 저평가가 이 값 미만은 매수 금지
+GAP_MAX_SELL_TARGET_PRICE_P = 5             # 목표주가GAP 이 이 값 미만은 매수 금지
+SUM_UNDER_VALUE_SELL_TARGET_GAP = 8         # 저평가 + 목표주가GAP 이 이 값 미만은 매수 금지
 LOSS_CUT_P = 5                              # 2차 매수에서 x% 이탈 시 손절
 
 SMALL_TAKE_PROFIT_P = -1                    # 작은 익절가 %
@@ -277,7 +277,11 @@ class Stocks_info:
     def get_buy_1_qty(self, code):
         result = 0
         if self.stocks[code]['buy_1_price'] > 0:
-          result = int(self.buy_1_invest_money / self.stocks[code]['buy_1_price'])        
+            # 중심선에서부터 떨어진 경우 1차 매수에 1주만 매수
+            if self.is_buy_1_stocks_lowest(code) == False:
+                result = int(self.buy_1_invest_money / self.stocks[code]['buy_1_price'])
+            else:
+                result = 1
         return result
 
     ##############################################################
@@ -869,7 +873,6 @@ class Stocks_info:
         sum_end_price = 0
         for i in range(past_day, days_last):
             end_price = int(res.json()['output'][i]['stck_clpr'])   # 종가
-            PRINT_DEBUG(f"{i} 종가 : {end_price}")
             sum_end_price = sum_end_price + end_price               # 종가 합
 
         value_ma = sum_end_price / days                           # x일선 가격
@@ -884,6 +887,10 @@ class Stocks_info:
     #                   ex) 0 : 금일 종가, 1 : 어제 종가
     ##############################################################
     def get_end_price(self, code: str, past_day=0):
+        if past_day > 30:
+            PRINT_INFO(f'can read 30 datas. make {past_day} to 30')
+            past_day = 30
+            
         PATH = "uapi/domestic-stock/v1/quotations/inquire-daily-price"
         URL = f"{self.config['URL_BASE']}/{PATH}"
         headers = {"Content-Type": "application/json",
@@ -1849,3 +1856,34 @@ class Stocks_info:
             self.stocks[code]['loss_cut_order'] = False
             self.stocks[code]['buy_order_done'] = False
             self.stocks[code]['sell_order_done'] = False
+            
+    ##############################################################
+    # 금일 기준 X 일 내 최고 종가 리턴
+    # param :
+    #   code        종목 코드
+    #   days        X 일. ex) 21 -> 금일 기준 21일 내(영업일 기준 약 한 달)
+    #               MAX : 30
+    ##############################################################
+    def get_highest_end_pirce(self, code, days):
+        highest_end_price = 0
+        for past_day in range(days + 1):
+            end_price = self.get_end_price(code, past_day)
+            if highest_end_price < end_price:
+                highest_end_price = end_price
+        return highest_end_price
+    
+    ##############################################################
+    # 1차 매수를 최소 수량만 매수할 지 여부 체크
+    #   "한 달 내 최고 종가 < (1+1.7*엔벨지지)*엔벨지지가" 경우
+    #   retun True 아니면 False
+    # param :
+    #   code        종목 코드
+    ##############################################################
+    def is_buy_1_stocks_lowest(self, code):        
+        # 한 달은 약 21일
+        highest_end_price = self.get_highest_end_pirce(code, 21)
+        envelope_p = self.stocks[code]['envelope_p']
+        envelope_price = self.stocks[code]['buy_1_price']
+        if highest_end_price < (1 + 1.7 * self.to_percent(envelope_p)) * envelope_price:
+            return True
+        return False
