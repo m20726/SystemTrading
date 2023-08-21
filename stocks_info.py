@@ -45,9 +45,10 @@ BUY_1_P = 40                                # 1차 매수 40%
 BUY_2_P = 60                                # 2차 매수 60%
 
 UNDER_VALUE = 1                             # 저평가가 이 값 미만은 매수 금지
-GAP_MAX_SELL_TARGET_PRICE_P = 5             # 목표주가GAP 이 이 값 미만은 매수 금지
-SUM_UNDER_VALUE_SELL_TARGET_GAP = 8         # 저평가 + 목표주가GAP 이 이 값 미만은 매수 금지
+GAP_MAX_SELL_TARGET_PRICE_P = 3             # 목표주가GAP 이 이 값 미만은 매수 금지
+SUM_UNDER_VALUE_SELL_TARGET_GAP = 5         # 저평가 + 목표주가GAP 이 이 값 미만은 매수 금지
 LOSS_CUT_P = 5                              # 2차 매수에서 x% 이탈 시 손절
+MAX_PER = 30                                # PER가 이 값 이상이면 매수 금지
 
 SMALL_TAKE_PROFIT_P = -1                    # 작은 익절가 %
 BIG_TAKE_PROFIT_P = -2                      # 큰 익절가 %
@@ -812,7 +813,7 @@ class Stocks_info:
             return False
         
         # PER 매수 금지
-        if self.stocks[code]['PER'] < 0 or self.stocks[code]['PER'] >= 30 or self.stocks[code]['PER_E'] < 0 or self.stocks[code]['PER'] >= self.stocks[code]['industry_PER'] * 2:
+        if self.stocks[code]['PER'] < 0 or self.stocks[code]['PER'] >= MAX_PER or self.stocks[code]['PER_E'] < 0 or self.stocks[code]['PER'] >= self.stocks[code]['industry_PER'] * 2:
             return False
         
         # EPS_E 매수 금지
