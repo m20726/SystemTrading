@@ -267,9 +267,14 @@ class Stocks_info:
     # 1차 매수가 구하기
     ##############################################################
     def get_buy_1_price(self, code):
-        envelope_p = self.to_percent(self.stocks[code]['envelope_p'])
-        envelope_support_line = self.stocks[code]['yesterday_20ma'] * (1 - envelope_p)
-        buy_1_price = envelope_support_line * MARGIN_20MA
+        buy_1_price = 0
+        # 손절한 경우 1차 매수가는 set_loss_cut_done 에서 이미 구했다.
+        if self.stocks[code]['loss_cut_done'] == True:
+            buy_1_price = self.stocks[code]['buy_1_price']
+        else:
+            envelope_p = self.to_percent(self.stocks[code]['envelope_p'])
+            envelope_support_line = self.stocks[code]['yesterday_20ma'] * (1 - envelope_p)
+            buy_1_price = envelope_support_line * MARGIN_20MA
         return int(buy_1_price)
 
     ##############################################################
@@ -363,6 +368,7 @@ class Stocks_info:
     #       code            종목 코드
     ##############################################################
     def set_loss_cut_done(self, code):
+        self.stocks[code]['loss_cut_done'] = True
         self.stocks[code]['loss_cut_order'] = False
         # 손절 처리 경우 20일선 위로 올라오는거 체크하지 않는다
         self.stocks[code]['sell_done'] = False
@@ -386,7 +392,7 @@ class Stocks_info:
         self.stocks[code]['sell_target_price'] = self.get_sell_target_price(code)
         # 어제 종가
         self.stocks[code]['yesterday_end_price'] = self.get_end_price(code, 0)
-        # 익절가
+        # 익절가%
         self.set_take_profit_percent(code)
                     
     ##############################################################
@@ -410,6 +416,7 @@ class Stocks_info:
         # real_avg_buy_price 은 매도 완료 후 매도 체결 조회 할 수 있기 때문에 초기화하지 않는다
         # self.stocks[code]['real_avg_buy_price'] = 0
         self.stocks[code]['envelope_p_long_ma_up'] = False
+        self.stocks[code]['loss_cut_done'] = False
 
     ##############################################################
     # 평단가 리턴

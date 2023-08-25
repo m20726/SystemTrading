@@ -25,7 +25,7 @@ def main():
 
         # # stocks_info.json 에 추가
         # for code in stocks_info.stocks.keys():
-        #     stocks_info.stocks[code]['sell_target_p_long_ma_up'] = 10
+        #     stocks_info.stocks[code]['loss_cut_done'] = False
         # stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
         
         # # stocks_info.json 에 key 제거
@@ -103,7 +103,7 @@ def main():
         #     time.sleep(1)
             
     except Exception as e:
-        stocks_info.send_msg(f'[exception]{e}')
+        stocks_info.send_msg_err(f'[exception]{e}')
         time.sleep(1)
 
 if __name__ == "__main__":
