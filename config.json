@@ -1,0 +1,28 @@
+{
+    "sim_invest" : {
+        "APP_KEY": "PSZ7q3J30kCQdbrLPngDCW6oahoKB5iD0jI5",
+        "APP_SECRET": "rVix2WKh2aN5kCkjRwtMSWPX4QL4UsfikGsraO9xyKGQD0rWK7lLokAqLKepeUAHpoat/qft1utS2FDFRsZGnYd8/bSFSZAvGj+2cwSQLNu3MvLH2Gsfa6nT7tqoC07B1uPD91XlGkufgFXvypqjeWJMjVI38m1OOvyFEQsW7wkxMeMSukQ=",
+        "CANO": "63713109",
+        "ACNT_PRDT_CD": "01",
+        "URL_BASE": "https://openapivts.koreainvestment.com:29443",
+        "TR_ID_BUY": "VTTC0802U",
+        "TR_ID_SELL": "VTTC0801U",
+        "TR_ID_CHECK_TRADE_DONE": "VTTC8001R",
+        "TR_ID_GET_STOCK_BALANCE": "VTTC8434R",
+        "TR_ID_GET_BALANCE": "VTTC8908R ",
+        "DISCORD_WEBHOOK_URL": "https://discord.com/api/webhooks/1098467865335705630/WNTj9IjNkrNkJJqQ7KuhU5WVR4-qIU_kE8mBIDPdbTbJbSLBmbZ7NZwIYzgMwQfYW44a"
+    },
+    "real_invest" : {
+        "APP_KEY": "",
+        "APP_SECRET": "",
+        "CANO": "63713109",
+        "ACNT_PRDT_CD": "01",
+        "URL_BASE": "https://openapi.koreainvestment.com:9443",
+        "TR_ID_BUY": "TTTC0802U",
+        "TR_ID_SELL": "TTTC0801U",
+        "TR_ID_CHECK_TRADE_DONE": "TTTC8001R",
+        "TR_ID_GET_STOCK_BALANCE": "TTTC8434R",
+        "TR_ID_GET_BALANCE": "TTTC8908R",
+        "DISCORD_WEBHOOK_URL": "https://discord.com/api/webhooks/1098467865335705630/WNTj9IjNkrNkJJqQ7KuhU5WVR4-qIU_kE8mBIDPdbTbJbSLBmbZ7NZwIYzgMwQfYW44a"
+    }
+}
