@@ -33,8 +33,8 @@ if not os.path.exists(LOG_FOLDER):
     os.mkdir(LOG_FOLDER)
 
 # RotatingFileHandler 생성
-max_bytes = 5120    # 각 로그 파일의 최대 크기 (바이트 단위)
-backup_count = 5    # 유지할 백업 로그 파일의 개수
+max_bytes = 1048576     # 각 로그 파일의 최대 크기 (바이트 단위)
+backup_count = 5        # 유지할 백업 로그 파일의 개수
 fileHandler = RotatingFileHandler(LOG_FILE, maxBytes=max_bytes, backupCount=backup_count, mode='a')
 fileHandler.setFormatter(formatter)
 
