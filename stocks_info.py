@@ -57,10 +57,10 @@ BUY_MARGIN_P = 0.5                          # ex) 최저가 + 0.5% 에서 매수
 
 if is_simulation():
     MAX_MY_STOCK_COUNT = 10                      # MAX 보유 주식 수
-    INVEST_MONEY_PER_STOCK = 2000000            # 주식 당 투자 금액(원)
+    INVEST_MONEY_PER_STOCK = 2000000            # 종목 당 투자 금액(원)
 else:
     MAX_MY_STOCK_COUNT = 3
-    INVEST_MONEY_PER_STOCK = 1000000            # 주식 당 투자 금액(원)
+    INVEST_MONEY_PER_STOCK = 300000            # 종목 당 투자 금액(원)
 
 BUYABLE_GAP = 10                                # "현재가 - 매수가 GAP" 가 X% 미만 경우만 매수 가능 종목으로 처리
 
@@ -140,7 +140,7 @@ class Stocks_info:
     ##############################################################
     def send_msg(self, msg, send_discode:bool = False, err:bool = False):
         result = True
-        msg = ""
+        ex_msg = ""
         try:        
             now = datetime.datetime.now()
             if send_discode == True:
@@ -153,10 +153,10 @@ class Stocks_info:
                 PRINT_INFO(f"{str(msg)}")
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            ex_msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)
+                PRINT_ERR(ex_msg)
 
     def send_msg_err(self, msg):
         self.send_msg(msg, True, True)
@@ -870,7 +870,6 @@ class Stocks_info:
                 else:
                     past_day = 1        # 어제 기준
                 self.stocks[code]['yesterday_20ma'] = self.get_ma(code, 20, past_day)
-                
                 # 1차 매수가
                 self.stocks[code]['buy_1_price'] = self.get_buy_1_price(code)
                 # 1차 매수 수량
@@ -883,7 +882,7 @@ class Stocks_info:
                 # self.stocks[code]['loss_cut_price'] = self.get_loss_cut_price(code)
                 # 어제 종가
                 self.stocks[code]['yesterday_end_price'] = self.get_end_price(code, past_day)
-                
+
                 # 어제 종가 > 어제 20ma 인가
                 if self.stocks[code]['sell_done'] == True:
                     # 어제 종가 > 어제 20ma
@@ -2235,7 +2234,7 @@ class Stocks_info:
     def update_buyable_stocks(self):
         result = True
         msg = ""
-        try:                
+        try: 
             self.buyable_stocks.clear()
             for code in self.stocks.keys():
                 if (self.is_my_stock(code) and self.stocks[code]['buy_2_done'] == False) or self.is_ok_to_buy(code):
