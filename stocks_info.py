@@ -1,5 +1,4 @@
 import copy
-import datetime
 import time
 import numpy as np
 import pandas as pd
@@ -8,6 +7,7 @@ from bs4 import BeautifulSoup
 from prettytable import PrettyTable
 from handle_json import *
 from libs.debug import *
+import datetime
 
 ##############################################################
 # 검증
@@ -147,32 +147,41 @@ class Stocks_info:
     # 네이버 증권 기업실적분석 정보 얻기
     ##############################################################
     def crawl_naver_finance(self, code):
-        req = requests.get('https://finance.naver.com/item/main.nhn?code=' + code)
-        page_soup = BeautifulSoup(req.text, 'lxml')
-        finance_html = page_soup.select_one('div.cop_analysis')
-        th_data = [item.get_text().strip()
-                   for item in finance_html.select('thead th')]
-        # 2023 기준
-        # ['2020.12', '2021.12', '2022.12', '2023.12(E)']
-        annual_date = th_data[3:7]
-        quarter_date = th_data[7:13]
-        # ['주요재무정보', '최근 연간 실적', '최근 분기 실적', '매출액', '영업이익', '당기순이익', '영업이익률', '순이익률', 'ROE(지배주주)', '부채비율', '당좌비율', '유보율', 'EPS(원)', 'PER(배)', 'BPS(원)', 'PBR(배)', '주당배당금(원)', '시가배당률(%)', '배당성향(%)']
-        finance_index = [item.get_text().strip() for item in finance_html.select('th.h_th2')][3:]
-        finance_data = [item.get_text().strip() for item in finance_html.select('td')]
-        # 숫자에 , 를 없애야 int() 처리 가능
-        for i in range(len(finance_data)):
-            # 공백 데이터는 '0'으로 처리
-            if finance_data[i] == '':
-                finance_data[i] = '0'
-            else:
-                finance_data[i] = finance_data[i].replace(',', '')
-        finance_data = np.array(finance_data)
-        finance_data.resize(len(finance_index), 10)
-        finance_date = annual_date + quarter_date
-        finance = pd.DataFrame(data=finance_data[0:, 0:], index=finance_index, columns=finance_date)
-        annual_finance = finance.iloc[:, :4]
-        return annual_finance
-
+        result = True
+        msg = ""
+        try:         
+            req = requests.get('https://finance.naver.com/item/main.nhn?code=' + code)
+            page_soup = BeautifulSoup(req.text, 'lxml')
+            finance_html = page_soup.select_one('div.cop_analysis')
+            th_data = [item.get_text().strip()
+                    for item in finance_html.select('thead th')]
+            # 2023 기준
+            # ['2020.12', '2021.12', '2022.12', '2023.12(E)']
+            annual_date = th_data[3:7]
+            quarter_date = th_data[7:13]
+            # ['주요재무정보', '최근 연간 실적', '최근 분기 실적', '매출액', '영업이익', '당기순이익', '영업이익률', '순이익률', 'ROE(지배주주)', '부채비율', '당좌비율', '유보율', 'EPS(원)', 'PER(배)', 'BPS(원)', 'PBR(배)', '주당배당금(원)', '시가배당률(%)', '배당성향(%)']
+            finance_index = [item.get_text().strip() for item in finance_html.select('th.h_th2')][3:]
+            finance_data = [item.get_text().strip() for item in finance_html.select('td')]
+            # 숫자에 , 를 없애야 int() 처리 가능
+            for i in range(len(finance_data)):
+                # 공백 데이터는 '0'으로 처리
+                if finance_data[i] == '':
+                    finance_data[i] = '0'
+                else:
+                    finance_data[i] = finance_data[i].replace(',', '')
+            finance_data = np.array(finance_data)
+            finance_data.resize(len(finance_index), 10)
+            finance_date = annual_date + quarter_date
+            finance = pd.DataFrame(data=finance_data[0:, 0:], index=finance_index, columns=finance_date)
+            annual_finance = finance.iloc[:, :4]
+            return annual_finance
+        except Exception as ex:
+            result = False
+            msg = "Exception {}".format(ex)
+        finally:
+            if result == False:
+                PRINT_ERR(msg)
+                
     ##############################################################
     # 네이버 증권 기업실적분석 년도 텍스트 초기화
     ##############################################################

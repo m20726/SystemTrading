@@ -1,8 +1,8 @@
 from stocks_info import *
 from handle_json import *
-import datetime
 import time
 from libs.debug import *
+import datetime
 
 SATURDAY = 5
 SUNDAY = 6
