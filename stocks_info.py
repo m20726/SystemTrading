@@ -359,10 +359,13 @@ class Stocks_info:
             ret = 0
             if self.stocks[code]['buy_1_price'] > 0:
                 # 중심선에서부터 떨어진 경우 1차 매수에 1주만 매수
+                qty = int(self.buy_1_invest_money / self.stocks[code]['buy_1_price'])
                 if self.is_buy_1_stocks_lowest(code) == False:
-                    ret = int(self.buy_1_invest_money / self.stocks[code]['buy_1_price'])
+                    ret = qty
                 else:
-                    ret = 1
+                    # "한 주당 매수 가격 < 1차 매수가격" 경우 qty 는 0 이므로 매수 안한다
+                    # 그 외 중심선에서부터 떨어진 경우라서 1차 매수에 1주만 매수
+                    ret = min(1, qty)
             return ret
         except Exception as ex:
             result = False
@@ -1254,7 +1257,7 @@ class Stocks_info:
             res = requests.get(URL, headers=headers, params=params)
             stock_list = res.json()['output1']
             evaluation = res.json()['output2']
-            data = {'종목명':[], '수량':[], '수익률(%)':[], '평가금액':[], '손익금액':[], '평단가':[], '현재가':[]}
+            data = {'종목명':[], '수량':[], '수익률(%)':[], '평가금액':[], '손익금액':[], '평단가':[], '현재가':[], '목표가':[], '손절가':[]}
             self.send_msg(f"==========주식 보유잔고==========", send_discode)
             for stock in stock_list:
                 if int(stock['hldg_qty']) > 0:
@@ -1265,6 +1268,8 @@ class Stocks_info:
                     data['손익금액'].append(stock['evlu_pfls_amt'])
                     data['평단가'].append(int(float(stock['pchs_avg_pric'])))
                     data['현재가'].append(int(stock['prpr']))
+                    data['목표가'].append(int(self.stocks[stock['pdno']]['sell_target_price']))
+                    data['손절가'].append(int(self.get_loss_cut_price(stock['pdno'])))
 
             # PrettyTable 객체 생성 및 데이터 추가
             table = PrettyTable()
