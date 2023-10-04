@@ -81,7 +81,7 @@ def main():
                 pre_stocks = stocks_info.check_save_stocks_info(pre_stocks)
                 
                 # 주기적으로 출력
-                if (t_now.minute % 31 == 0) and (t_now.second == 0):            
+                if (t_now.minute % 31 == 0) and (t_now.second < 3):            
                     stocks_info.show_buyable_stocks()
                     # stocks_info.get_stock_balance()
                     time.sleep(1)

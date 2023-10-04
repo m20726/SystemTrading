@@ -45,8 +45,8 @@ BUY_1_P = 40                                # 1차 매수 40%
 BUY_2_P = 60                                # 2차 매수 60%
 
 UNDER_VALUE = 1                             # 저평가가 이 값 미만은 매수 금지
-GAP_MAX_SELL_TARGET_PRICE_P = 3             # 목표주가GAP 이 이 값 미만은 매수 금지
-SUM_UNDER_VALUE_SELL_TARGET_GAP = 5         # 저평가 + 목표주가GAP 이 이 값 미만은 매수 금지
+GAP_MAX_SELL_TARGET_PRICE_P = 1             # 목표주가GAP 이 이 값 미만은 매수 금지
+SUM_UNDER_VALUE_SELL_TARGET_GAP = 3         # 저평가 + 목표주가GAP 이 이 값 미만은 매수 금지
 LOSS_CUT_P = 5                              # 2차 매수에서 x% 이탈 시 손절
 MAX_PER = 30                                # PER가 이 값 이상이면 매수 금지
 
@@ -1866,11 +1866,9 @@ class Stocks_info:
                     pass
             return result
         except Exception as ex:
-            result = False
             msg = "Exception {}".format(ex)
-        finally:
-            if result == False:
-                PRINT_ERR(msg)
+            PRINT_ERR(msg)
+            return False
 
     ##############################################################
     # 체결 여부 체크
