@@ -1268,8 +1268,14 @@ class Stocks_info:
                     data['손익금액'].append(stock['evlu_pfls_amt'])
                     data['평단가'].append(int(float(stock['pchs_avg_pric'])))
                     data['현재가'].append(int(stock['prpr']))
-                    data['목표가'].append(int(self.stocks[stock['pdno']]['sell_target_price']))
-                    data['손절가'].append(int(self.get_loss_cut_price(stock['pdno'])))
+                    # DB 에 없는 종목 제외 ex) 공모주
+                    code = stock['pdno']
+                    if code in self.stocks.keys():
+                        data['목표가'].append(int(self.stocks[code]['sell_target_price']))
+                        data['손절가'].append(int(self.get_loss_cut_price(code)))
+                    else:
+                        data['목표가'].append(0)
+                        data['손절가'].append(0)       
 
             # PrettyTable 객체 생성 및 데이터 추가
             table = PrettyTable()
