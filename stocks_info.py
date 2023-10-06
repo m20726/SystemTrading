@@ -59,7 +59,7 @@ if is_simulation():
     MAX_MY_STOCK_COUNT = 10                      # MAX 보유 주식 수
     INVEST_MONEY_PER_STOCK = 2000000            # 종목 당 투자 금액(원)
 else:
-    MAX_MY_STOCK_COUNT = 3
+    MAX_MY_STOCK_COUNT = 4                      # temp, 두산로보틱스
     INVEST_MONEY_PER_STOCK = 300000            # 종목 당 투자 금액(원)
 
 BUYABLE_GAP = 10                                # "현재가 - 매수가 GAP" 가 X% 미만 경우만 매수 가능 종목으로 처리
@@ -1414,6 +1414,12 @@ class Stocks_info:
         try:            
             ret = False
             
+            # 지정가 이외의 주문은 가격을 0으로 해야 주문 실패하지 않는다.
+            # 업체 : 장전 시간외, 장후 시간외, 시장가 등 모든 주문구분의 경우 1주당 가격을 공란으로 비우지 않고
+            # "0"으로 입력 권고드리고 있습니다.
+            if order_type != ORDER_TYPE_LIMIT_ORDER:
+                price = 0
+                            
             # 시장가 주문은 조건 안따진다
             if order_type != ORDER_TYPE_MARGET_ORDER:
                 # 오늘 주문 완료 시 금지
