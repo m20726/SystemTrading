@@ -363,9 +363,8 @@ class Stocks_info:
                 if self.is_buy_1_stocks_lowest(code) == False:
                     ret = qty
                 else:
-                    # "한 주당 매수 가격 < 1차 매수가격" 경우 qty 는 0 이므로 매수 안한다
-                    # 그 외 중심선에서부터 떨어진 경우라서 1차 매수에 1주만 매수
-                    ret = min(1, qty)
+                    # "한 주당 매수 가격 < 1차 매수가격" 경우 1차 매수에 1주만 매수
+                    ret = 1
             return ret
         except Exception as ex:
             result = False
@@ -1850,10 +1849,10 @@ class Stocks_info:
                             # 전량 체결 완료
                             if stock['sll_buy_dvsn_cd'] == SELL_CODE:
                                 # 매도 체결 완료 시, 손익, 수익률 표시
-                                gain_loss_money = (int(stock['ord_unpr']) - self.stocks[code]['real_avg_buy_price']) * int(stock['tot_ccld_qty'])
+                                gain_loss_money = (int(stock['avg_prvs']) - self.stocks[code]['real_avg_buy_price']) * int(stock['tot_ccld_qty'])
                                 if self.stocks[code]['real_avg_buy_price'] > 0:
-                                    gain_loss_p = round(float((int(stock['ord_unpr']) - self.stocks[code]['real_avg_buy_price']) / self.stocks[code]['real_avg_buy_price']) * 100, 2)     # 소스 3째 자리에서 반올림                  
-                                    self.send_msg(f"[{stock['prdt_name']}] {stock['ord_unpr']}원 {tot_trade_qty}/{order_qty}주 {buy_sell_order} 전량 체결 완료, 손익:{gain_loss_money} {gain_loss_p}%", True)
+                                    gain_loss_p = round(float((int(stock['avg_prvs']) - self.stocks[code]['real_avg_buy_price']) / self.stocks[code]['real_avg_buy_price']) * 100, 2)     # 소스 3째 자리에서 반올림                  
+                                    self.send_msg(f"[{stock['prdt_name']}] {stock['avg_prvs']}원 {tot_trade_qty}/{order_qty}주 {buy_sell_order} 전량 체결 완료, 손익:{gain_loss_money} {gain_loss_p}%", True)
                             else:
                                 # # 1차 매수 완료된 상태에서 프로그램 재실행 시 2차 매수로 처리되는 문제
                                 # # 1차 매수 완료 상태에서 주문 단가 <= 2차 매수 예정가
@@ -1865,7 +1864,7 @@ class Stocks_info:
                                     nth_buy = 1
                                 elif self.stocks[code]['buy_2_done'] == False:
                                     nth_buy = 2
-                                self.send_msg(f"[{stock['prdt_name']}] {stock['ord_unpr']}원 {tot_trade_qty}/{order_qty}주 {nth_buy}차 {buy_sell_order} 전량 체결 완료", True)
+                                self.send_msg(f"[{stock['prdt_name']}] {stock['avg_prvs']}원 {tot_trade_qty}/{order_qty}주 {nth_buy}차 {buy_sell_order} 전량 체결 완료", True)
                             # 체결 완료 체크한 주문은 다시 체크하지 않는다
                             # while loop 에서 반복적으로 체크하는거 방지
                             self.trade_done_order_list.append(stock['odno'])
@@ -1876,7 +1875,7 @@ class Stocks_info:
                         elif order_qty > tot_trade_qty:
                             # 일부 체결
                             if self.stocks[code]['stockholdings'] < tot_trade_qty:
-                                self.send_msg(f"[{stock['prdt_name']}] {stock['ord_unpr']}원 {tot_trade_qty}/{order_qty}주 {buy_sell_order} 체결", True)
+                                self.send_msg(f"[{stock['prdt_name']}] {stock['avg_prvs']}원 {tot_trade_qty}/{order_qty}주 {buy_sell_order} 체결", True)
                             return False
                 else:
                     # 해당 종목 아님
@@ -2023,9 +2022,9 @@ class Stocks_info:
                     if buy_sell == stock['sll_buy_dvsn_cd']:
                         gain_loss_p = 0
                         if buy_sell == SELL_CODE:
-                            gain_loss_money = (int(stock['ord_unpr']) - self.stocks[code]['real_avg_buy_price']) * int(stock['tot_ccld_qty'])
+                            gain_loss_money = (int(stock['avg_prvs']) - self.stocks[code]['real_avg_buy_price']) * int(stock['tot_ccld_qty'])
                             if self.stocks[code]['real_avg_buy_price'] > 0:
-                                gain_loss_p = round(float((int(stock['ord_unpr']) - self.stocks[code]['real_avg_buy_price']) / self.stocks[code]['real_avg_buy_price']) * 100, 2)     # 소스 3째 자리에서 반올림                  
+                                gain_loss_p = round(float((int(stock['avg_prvs']) - self.stocks[code]['real_avg_buy_price']) / self.stocks[code]['real_avg_buy_price']) * 100, 2)     # 소스 3째 자리에서 반올림                  
                         
                         curr_price = self.get_curr_price(code)
                         
