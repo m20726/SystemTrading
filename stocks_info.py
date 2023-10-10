@@ -355,15 +355,16 @@ class Stocks_info:
     def get_buy_1_qty(self, code):
         result = True
         msg = ""
-        try:        
+        try:
             ret = 0
             if self.stocks[code]['buy_1_price'] > 0:
                 # 중심선에서부터 떨어진 경우 1차 매수에 1주만 매수
                 qty = int(self.buy_1_invest_money / self.stocks[code]['buy_1_price'])
                 if self.is_buy_1_stocks_lowest(code) == False:
-                    ret = qty
-                else:
                     # "한 주당 매수 가격 < 1차 매수가격" 경우 1차 매수에 1주만 매수
+                    ret = max(1, qty)
+                else:
+                    # 최소 수량 매수
                     ret = 1
             return ret
         except Exception as ex:
