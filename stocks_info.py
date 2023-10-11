@@ -641,14 +641,14 @@ class Stocks_info:
                 price = int(float(res.json()['output'][type]))
             else:
                 self.send_msg(f"[get_price failed]{str(res.json())}")
-            time.sleep(API_DELAY_S)
+            time.sleep(API_DELAY_S * 2) # * 2 to fix max retries exceeded
             return price
         except Exception as ex:
             result = False
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)    
+                PRINT_ERR(msg)
 
     ##############################################################
     # 매수가 리턴
@@ -919,7 +919,6 @@ class Stocks_info:
         result = True
         msg = ""
         try:
-            result = False
             PATH = "uapi/domestic-stock/v1/trading/inquire-balance"
             URL = f"{self.config['URL_BASE']}/{PATH}"
             headers = {"Content-Type": "application/json",
@@ -1346,8 +1345,6 @@ class Stocks_info:
         result = True
         msg = ""
         try:            
-            result = False
-            
             if self.is_ok_to_buy(code) == False:
                 return False
             
@@ -1386,10 +1383,10 @@ class Stocks_info:
             if self.is_request_ok(res) == True:
                 self.send_msg(f"[매수 주문 성공] [{self.stocks[code]['name']}] {price}원 {qty}주")
                 result = True
-            else:            
+            else:
                 self.send_msg_err(f"[매수 주문 실패] [{self.stocks[code]['name']}] {price}원 {qty}주 type:{order_type} {str(res.json())}")
                 result = False
-                
+
             time.sleep(API_DELAY_S)
             return result
         except Exception as ex:
@@ -1824,7 +1821,6 @@ class Stocks_info:
             # else:
             #     return False
             
-            result = False
             order_list = self.get_order_list()
             for stock in order_list:
                 if stock['pdno'] == code:
