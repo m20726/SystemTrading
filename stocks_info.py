@@ -334,8 +334,11 @@ class Stocks_info:
         msg = ""
         try:
             buy_1_price = 0
+            # 1차 매수 완료된 경우 현재가 기준으로 다시 계산하면 2차 매수가 오류 발생하여 계산하지 않는다.
+            if self.stocks[code]['buy_1_done'] == True:
+                buy_1_price = int(self.stocks[code]['buy_1_price'])
             # 손절한 경우 1차 매수가는 set_loss_cut_done 에서 이미 구했다.
-            if self.stocks[code]['loss_cut_done'] == True:
+            elif self.stocks[code]['loss_cut_done'] == True:
                 buy_1_price = self.stocks[code]['buy_1_price']
             else:
                 envelope_p = self.to_percent(self.stocks[code]['envelope_p'])
@@ -357,7 +360,10 @@ class Stocks_info:
         msg = ""
         try:
             ret = 0
-            if self.stocks[code]['buy_1_price'] > 0:
+            # 1차 매수 완료된 경우 현재가 기준으로 다시 계산하면 2차 매수가 오류 발생하여 계산하지 않는다.
+            if self.stocks[code]['buy_1_done'] == True:
+                ret = int(self.stocks[code]['buy_1_qty'])
+            elif self.stocks[code]['buy_1_price'] > 0:
                 # 중심선에서부터 떨어진 경우 1차 매수에 1주만 매수
                 qty = int(self.buy_1_invest_money / self.stocks[code]['buy_1_price'])
                 if self.is_buy_1_stocks_lowest(code) == False:
@@ -378,7 +384,13 @@ class Stocks_info:
     # 2차 매수가 = 1차 매수가 - 10%
     ##############################################################
     def get_buy_2_price(self, code):
-        return int(self.stocks[code]['buy_1_price'] * 0.9)
+        ret = 0
+        # 2차 매수 완료된 경우 다시 계산할 필요 없다.
+        if self.stocks[code]['buy_2_done'] == True:
+            ret = int(self.stocks[code]['buy_2_price'])
+        else:
+            ret = int(self.stocks[code]['buy_1_price'] * 0.9)     
+        return ret
 
     ##############################################################
     # 2차 매수 수량 = 2차 매수 금액 / 매수가
@@ -388,7 +400,10 @@ class Stocks_info:
         msg = ""
         try:
             ret = 0
-            if self.stocks[code]['buy_2_price'] > 0:
+            # 2차 매수 완료된 경우 다시 계산할 필요 없다.
+            if self.stocks[code]['buy_2_done'] == True:
+                ret = int(self.stocks[code]['buy_2_qty'])            
+            elif self.stocks[code]['buy_2_price'] > 0:
                 ret = int(self.buy_2_invest_money / self.stocks[code]['buy_2_price'])        
             return ret
         except Exception as ex:
