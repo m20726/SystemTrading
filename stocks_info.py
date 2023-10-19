@@ -2271,8 +2271,8 @@ class Stocks_info:
                     if buy_target_price > 0:
                         gap_p = int((curr_price - buy_target_price) * 100 / buy_target_price)
                         # 현재가 - 매수가 GAP < X%
-                        # 1차 매수 종목 중에 하루에 BUYABLE_GAP 이상 떨어지는 경우 2차 매수안되는 문제 수정
-                        if gap_p < BUYABLE_GAP or self.stocks[code]['buy_1_done'] == True:
+                        # 1차 매수 후 2차 매수 안된 종목은 무조건 매수 가능 종목으로 편입
+                        if gap_p < BUYABLE_GAP or (self.stocks[code]['buy_1_done'] == True and self.stocks[code]['buy_2_done'] == False):
                             temp_stock = copy.deepcopy({code: self.stocks[code]})
                             self.buyable_stocks[code] = temp_stock[code]
         except Exception as ex:
