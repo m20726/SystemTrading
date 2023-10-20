@@ -728,8 +728,7 @@ class Stocks_info:
             url = f"https://finance.naver.com/item/main.naver?code={code}"
             html = requests.get(url).text
             soup = BeautifulSoup(html, "html5lib")
-            result = soup.select_one(selector).text
-            return result
+            return soup.select_one(selector).text
         except Exception as ex:
             result = False
             msg = "Exception {}".format(ex)
@@ -981,12 +980,12 @@ class Stocks_info:
                             # 보유는 하지만 DB 에 없는 종목
                             # self.send_msg(f"DB 에 없는 종목({stock['prdt_name']})은 업데이트 skip")
                             pass
-                result = True
+                ret = True
             else:
                 self.send_msg_err(f"[계좌 조회 실패]{str(res.json())}")
-                result = False
+                ret = False
             time.sleep(API_DELAY_S)
-            return result
+            return ret
         except Exception as ex:
             result = False
             msg = "Exception {}".format(ex)
@@ -1003,10 +1002,10 @@ class Stocks_info:
         result = True
         msg = ""
         try:
-            result = 0
+            ret = 0
             if INVEST_MONEY_PER_STOCK > 0:
-                result = int(self.my_cash / INVEST_MONEY_PER_STOCK)
-            return result
+                ret = int(self.my_cash / INVEST_MONEY_PER_STOCK)
+            return ret
         except Exception as ex:
             result = False
             msg = "Exception {}".format(ex)
@@ -1359,7 +1358,8 @@ class Stocks_info:
     def buy(self, code: str, price: str, qty: str, order_type:str = ORDER_TYPE_LIMIT_ORDER):
         result = True
         msg = ""
-        try:            
+        try:
+            ret = False
             if self.is_ok_to_buy(code) == False:
                 return False
             
@@ -1397,13 +1397,13 @@ class Stocks_info:
             res = requests.post(URL, headers=headers, data=json.dumps(data))
             if self.is_request_ok(res) == True:
                 self.send_msg(f"[매수 주문 성공] [{self.stocks[code]['name']}] {price}원 {qty}주")
-                result = True
+                ret = True
             else:
                 self.send_msg_err(f"[매수 주문 실패] [{self.stocks[code]['name']}] {price}원 {qty}주 type:{order_type} {str(res.json())}")
-                result = False
+                ret = False
 
             time.sleep(API_DELAY_S)
-            return result
+            return ret
         except Exception as ex:
             result = False
             msg = "Exception {}".format(ex)
@@ -1892,7 +1892,7 @@ class Stocks_info:
                 else:
                     # 해당 종목 아님
                     pass
-            return result
+            return True
         except Exception as ex:
             msg = "Exception {}".format(ex)
             PRINT_ERR(msg)
