@@ -44,9 +44,9 @@ INVEST_TYPE = "real_invest"                 # sim_invest : 모의 투자, real_i
 BUY_1_P = 40                                # 1차 매수 40%
 BUY_2_P = 60                                # 2차 매수 60%
 
-UNDER_VALUE = 1                             # 저평가가 이 값 미만은 매수 금지
-GAP_MAX_SELL_TARGET_PRICE_P = 1             # 목표주가GAP 이 이 값 미만은 매수 금지
-SUM_UNDER_VALUE_SELL_TARGET_GAP = 3         # 저평가 + 목표주가GAP 이 이 값 미만은 매수 금지
+UNDER_VALUE = 3                             # 저평가가 이 값 미만은 매수 금지
+GAP_MAX_SELL_TARGET_PRICE_P = 3             # 목표주가GAP 이 이 값 미만은 매수 금지
+SUM_UNDER_VALUE_SELL_TARGET_GAP = 7         # 저평가 + 목표주가GAP 이 이 값 미만은 매수 금지
 LOSS_CUT_P = 5                              # 2차 매수에서 x% 이탈 시 손절
 MAX_PER = 30                                # PER가 이 값 이상이면 매수 금지
 
@@ -87,7 +87,7 @@ ORDER_TYPE_MARGET_ORDER = "01"              # 시장가
 ORDER_TYPE_MARKETABLE_LIMIT_ORDER = "03"    # 최유리지정가
 ORDER_TYPE_IMMEDIATE_ORDER = "04"           # 최우선지정가
 
-API_DELAY_S = 0.05                          # 초당 API 20회 제한
+API_DELAY_S = 0.10                          # 초당 API 20회 제한
 
 # 체결 미체결 구분 코드
 TRADE_ANY_CODE = "00"           # 체결 미체결 전체
