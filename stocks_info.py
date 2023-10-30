@@ -34,7 +34,7 @@ def is_simulation():
 # SELL
 #   1 : 목표가 전량 매도
 #   2 : 트레일링스탑 전량 매도
-#   3 : 목표가에 반 매도(2전략 트레일링스탑). 단, 매도가가 5일선 이하면 전량 매도
+#   3 : 목표가에 반 매도(트레일링스탑). 단, 매도가가 5일선 이하면 전량 매도
 #       나머지는 15:15이후 현재가가 5일선 or 목표가 이탈 시 매도
 BUY_STRATEGY = 2
 SELL_STRATEGY = 3
@@ -131,12 +131,37 @@ class Stocks_info:
             self.access_token = self.get_access_token()
             self.my_cash = self.get_my_cash()       # 보유 현금 세팅
             self.init_trade_done_order_list()
+            self.print_strategy()
         except Exception as ex:
             result = False
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
                 PRINT_ERR(msg)
+
+    ##############################################################
+    # 전략 출력
+    ##############################################################
+    def print_strategy(self):
+        PRINT_INFO('===============================')
+        if BUY_STRATEGY == 1:
+            buy_strategy_msg = "매수 목표가에 매수"
+        elif BUY_STRATEGY == 2:
+            buy_strategy_msg = "트레일링스탑 매수"
+
+        if SELL_STRATEGY == 1:
+            sell_strategy_msg = "목표가에 전량 매도"
+        elif SELL_STRATEGY == 2:
+            sell_strategy_msg = "트레일링스탑 전량 매도"
+        elif SELL_STRATEGY == 3:
+            sell_strategy_msg = "목표가에 반 매도(트레일링스탑). 단, 매도가가 5일선 이하면 전량 매도\n\t나머지는 15:15이후 현재가가 5일선 or 목표가 이탈 시 매도"
+
+        PRINT_INFO(f'매수 전략 : {buy_strategy_msg}')
+        PRINT_INFO(f'매도 전략 : {sell_strategy_msg}')
+
+        if BUY_1_QTY_1 == True:
+            PRINT_INFO('1차 매수에 1주만 매수')
+        PRINT_INFO('===============================')
 
     ##############################################################
     # Print and send discode
