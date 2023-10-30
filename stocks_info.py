@@ -39,13 +39,16 @@ def is_simulation():
 BUY_STRATEGY = 2
 SELL_STRATEGY = 3
 
+# 1차 매수량 1주만 매수 여부
+BUY_1_QTY_1 = True
+
 INVEST_TYPE = "real_invest"                 # sim_invest : 모의 투자, real_invest : 실전 투자
-# INVEST_TYPE = "sim_invest"                  # sim_invest : 모의 투자, real_invest : 실전 투자    #test
+# INVEST_TYPE = "sim_invest"
 BUY_1_P = 40                                # 1차 매수 40%
 BUY_2_P = 60                                # 2차 매수 60%
 
-UNDER_VALUE = 3                             # 저평가가 이 값 미만은 매수 금지
-GAP_MAX_SELL_TARGET_PRICE_P = 3             # 목표주가GAP 이 이 값 미만은 매수 금지
+UNDER_VALUE = 0                             # 저평가가 이 값 미만은 매수 금지
+GAP_MAX_SELL_TARGET_PRICE_P = 5             # 목표주가GAP 이 이 값 미만은 매수 금지
 SUM_UNDER_VALUE_SELL_TARGET_GAP = 7         # 저평가 + 목표주가GAP 이 이 값 미만은 매수 금지
 LOSS_CUT_P = 5                              # 2차 매수에서 x% 이탈 시 손절
 MAX_PER = 30                                # PER가 이 값 이상이면 매수 금지
@@ -59,7 +62,7 @@ if is_simulation():
     MAX_MY_STOCK_COUNT = 10                      # MAX 보유 주식 수
     INVEST_MONEY_PER_STOCK = 2000000            # 종목 당 투자 금액(원)
 else:
-    MAX_MY_STOCK_COUNT = 4                      # temp, 두산로보틱스
+    MAX_MY_STOCK_COUNT = 4
     INVEST_MONEY_PER_STOCK = 300000            # 종목 당 투자 금액(원)
 
 BUYABLE_GAP = 10                                # "현재가 - 매수가 GAP" 가 X% 미만 경우만 매수 가능 종목으로 처리
@@ -87,7 +90,7 @@ ORDER_TYPE_MARGET_ORDER = "01"              # 시장가
 ORDER_TYPE_MARKETABLE_LIMIT_ORDER = "03"    # 최유리지정가
 ORDER_TYPE_IMMEDIATE_ORDER = "04"           # 최우선지정가
 
-API_DELAY_S = 0.10                          # 초당 API 20회 제한
+API_DELAY_S = 0.05                          # 초당 API 20회 제한
 
 # 체결 미체결 구분 코드
 TRADE_ANY_CODE = "00"           # 체결 미체결 전체
@@ -142,7 +145,7 @@ class Stocks_info:
         result = True
         ex_msg = ""
         try:        
-            now = datetime.datetime.now()
+            # now = datetime.datetime.now()
             if send_discode == True:
                 # message = {"content": f"[{now.strftime('%H:%M:%S')}] {str(msg)}"}
                 message = {"content": f"{msg}"}
@@ -360,25 +363,29 @@ class Stocks_info:
         msg = ""
         try:
             ret = 0
-            # 1차 매수 완료된 경우 현재가 기준으로 다시 계산하면 2차 매수가 오류 발생하여 계산하지 않는다.
-            if self.stocks[code]['buy_1_done'] == True:
-                ret = int(self.stocks[code]['buy_1_qty'])
-            elif self.stocks[code]['buy_1_price'] > 0:
-                # 중심선에서부터 떨어진 경우 1차 매수에 1주만 매수
-                qty = int(self.buy_1_invest_money / self.stocks[code]['buy_1_price'])
-                if self.is_buy_1_stocks_lowest(code) == False:
-                    # "한 주당 매수 가격 < 1차 매수가격" 경우 1차 매수에 1주만 매수
-                    ret = max(1, qty)
-                else:
-                    # 최소 수량 매수
-                    ret = 1
-            return ret
+            if BUY_1_QTY_1 == True:
+            # 1차 매수량은 항상 1주만
+                ret = 1
+            else:
+                # 1차 매수 완료된 경우 현재가 기준으로 다시 계산하면 2차 매수가 오류 발생하여 계산하지 않는다.
+                if self.stocks[code]['buy_1_done'] == True:
+                    ret = int(self.stocks[code]['buy_1_qty'])
+                elif self.stocks[code]['buy_1_price'] > 0:
+                    # 중심선에서부터 떨어진 경우 1차 매수에 1주만 매수
+                    qty = int(self.buy_1_invest_money / self.stocks[code]['buy_1_price'])
+                    if self.is_buy_1_stocks_lowest(code) == False:
+                        ret = qty
+                    else:
+                        # 최소 수량 매수
+                        ret = 1
+            # 최소 1주 매수
+            return max(1, ret)
         except Exception as ex:
             result = False
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg) 
+                PRINT_ERR(msg)
                 
     ##############################################################
     # 2차 매수가 = 1차 매수가 - 10%
@@ -404,8 +411,9 @@ class Stocks_info:
             if self.stocks[code]['buy_2_done'] == True:
                 ret = int(self.stocks[code]['buy_2_qty'])            
             elif self.stocks[code]['buy_2_price'] > 0:
-                ret = int(self.buy_2_invest_money / self.stocks[code]['buy_2_price'])        
-            return ret
+                ret = int(self.buy_2_invest_money / self.stocks[code]['buy_2_price'])
+            # 최소 1주
+            return max(1, ret)
         except Exception as ex:
             result = False
             msg = "Exception {}".format(ex)
@@ -1037,21 +1045,6 @@ class Stocks_info:
         result = True
         msg = ""
         try:
-            # # 오늘 주문 완료 시 금지
-            # if self.already_ordered(code, BUY_CODE) == True:
-            #     return False
-
-            # # 2차 매수까지 완료 시 금지
-            # if self.stocks[code]['buy_2_done'] == True:
-            #     return False
-
-            # # 보유현금에 맞게 종목개수 매수
-            # #   ex) 총 보유금액이 300만원이고 종목당 총 100만원 매수 시 총 2종목 매수
-            # if (self.get_available_buy_stock_count() == 0 or len(self.my_stocks) >= MAX_MY_STOCK_COUNT) and self.is_my_stock(code) == False:
-            #     return False
-            
-            # return True    # test
-        
             # 2차 매수까지 완료 시 금지
             if self.stocks[code]['buy_2_done'] == True:
                 return False
@@ -1552,9 +1545,10 @@ class Stocks_info:
     #       (현재가 >= 저가+x% or 현재가 >= 매수가 + y%)면 최우선지정가 매수
     ##############################################################
     def handle_buy_stock(self):
+        # PRINT_INFO('')
         result = True
         msg = ""
-        try:            
+        try:
             if BUY_STRATEGY == 1:
                 # 전략 1 : 현재가 <= 매수가면 매수
                 # 매수 가능 종목내에서만 매수
@@ -1577,20 +1571,23 @@ class Stocks_info:
                     if curr_price == 0:
                         continue
 
+                    buy_target_price = self.get_buy_target_price(code)
                     if self.stocks[code]['allow_monitoring_buy'] == False:
                         # 목표가 왔다 -> 매수 감시 시작
-                        buy_target_price = self.get_buy_target_price(code)
                         if curr_price < buy_target_price:
                             self.send_msg(f"[{self.stocks[code]['name']}] 매수 감시 시작, 현재가 : {curr_price}, 매수 목표가 : {buy_target_price}")
                             self.stocks[code]['allow_monitoring_buy'] = True                        
                     else:
-                        # 현재가 >= 저가 or 목표가 + BUY_MARGIN_P% 에서 매수
+                        # 현재가 >= 저가 + BUY_MARGIN_P% 에서 매수
                         lowest_price = self.get_lowest_price(code)
                         buy_margin = 1 + self.to_percent(BUY_MARGIN_P)
-                        if (lowest_price > 0) and curr_price >= (lowest_price * buy_margin):
+
+                        # or buy 모니터링 중 15:20 까지 매수 안됐고 현재가가 매수가 아래면 매수
+                        t_now = datetime.datetime.now()
+                        t_buy = t_now.replace(hour=15, minute=20, second=0, microsecond=0)
+                        if ((lowest_price > 0) and curr_price >= (lowest_price * buy_margin)) or (t_now >= t_buy and curr_price <= buy_target_price):
                             # 1차 매수 상태에서 allow_monitoring_buy 가 false 안된 상태에서 2차 매수 들어갈 때
                             # 1차 매수 반복되는 문제 수정
-                            buy_target_price = self.get_buy_target_price(code)
                             if lowest_price <= buy_target_price:
                                 buy_target_qty = self.get_buy_target_qty(code)
                                 if self.buy(code, curr_price, buy_target_qty, ORDER_TYPE_IMMEDIATE_ORDER) == True:
@@ -2199,9 +2196,10 @@ class Stocks_info:
     #   현재가 < 손절가 면 손절 처리
     ##############################################################
     def handle_loss_cut(self):
+        # PRINT_INFO('')
         result = True
         msg = ""
-        try:                
+        try:
             for code in self.my_stocks.keys():
                 curr_price = self.get_curr_price(code)
                 if curr_price == 0:
