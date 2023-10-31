@@ -2052,8 +2052,11 @@ class Stocks_info:
                 buy_sell_order = "매도"
                 data = {'종목명':[], '매수/매도':[], '체결평균가':[], '평단가':[], '손익':[], '수익률(%)':[], '수량':[], '현재가':[]}
 
-            self.send_msg(f"========={buy_sell_order} 체결 조회=========")
             order_list = self.get_order_list()
+            if len(order_list) == 0:
+                return None
+
+            self.send_msg(f"========={buy_sell_order} 체결 조회=========")
             for stock in order_list:
                 if int(stock['tot_ccld_qty']) > 0:
                     code = stock['pdno']
