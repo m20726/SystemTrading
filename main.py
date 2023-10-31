@@ -102,11 +102,6 @@ def main():
         stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
         
         stocks_info.send_msg("프로그램 종료")
-        
-        # # test
-        # while True:
-        #     time.sleep(1)
-            
     except Exception as e:
         stocks_info.send_msg_err(f'[exception]{e}')
         time.sleep(1)

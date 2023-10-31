@@ -137,7 +137,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)
+                self.send_msg_err(msg)
 
     ##############################################################
     # 전략 출력
@@ -185,6 +185,8 @@ class Stocks_info:
         finally:
             if result == False:
                 PRINT_ERR(ex_msg)
+                message = {"content": f"{ex_msg}"}
+                requests.post(self.config['DISCORD_WEBHOOK_URL'], data=message)                
 
     def send_msg_err(self, msg):
         self.send_msg(msg, True, True)
@@ -226,7 +228,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)
+                self.send_msg_err(msg)
 
     ##############################################################
     # 네이버 증권 기업실적분석 년도 텍스트 초기화
@@ -256,7 +258,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)
+                self.send_msg_err(msg)
 
     ##############################################################
     # requests 성공 여부
@@ -312,7 +314,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)        
+                self.send_msg_err(msg)        
 
     ##############################################################
     # stocks 에서 code 에 해당하는 stock 리턴
@@ -321,7 +323,7 @@ class Stocks_info:
         try:
             return self.stocks[code]
         except KeyError:
-            PRINT_ERR(f'KeyError : {code} is not found')
+            self.send_msg_err(f'KeyError : {code} is not found')
             return None
 
     ##############################################################
@@ -337,7 +339,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)
+                self.send_msg_err(msg)
 
     ##############################################################
     # stocks 정보를 stocks file 에 저장
@@ -352,7 +354,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)
+                self.send_msg_err(msg)
 
     ##############################################################
     # 1차 매수가 구하기
@@ -378,7 +380,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)    
+                self.send_msg_err(msg)    
 
     ##############################################################
     # 1차 매수 수량 = 1차 매수 금액 / 매수가
@@ -410,7 +412,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)
+                self.send_msg_err(msg)
                 
     ##############################################################
     # 2차 매수가 = 1차 매수가 - 10%
@@ -444,7 +446,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)
+                self.send_msg_err(msg)
     ##############################################################
     # 매수 완료 시 호출
     # Return    : None
@@ -479,7 +481,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg) 
+                self.send_msg_err(msg) 
 
     ##############################################################
     # 매도 완료 시 호출
@@ -515,7 +517,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg) 
+                self.send_msg_err(msg) 
 
     ##############################################################
     # 손절 완료 시 호출
@@ -560,7 +562,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg) 
+                self.send_msg_err(msg) 
 
     ##############################################################
     # 매도 완료등으로 매수/매도 관려 정보 초기화 시 호출
@@ -592,7 +594,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)
+                self.send_msg_err(msg)
 
     ##############################################################
     # 평단가 리턴
@@ -622,7 +624,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)
+                self.send_msg_err(msg)
 
     ##############################################################
     # 목표가 = 평단가 * (1 + 목표%)
@@ -638,7 +640,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)
+                self.send_msg_err(msg)
 
     ##############################################################
     # 현재가 리턴
@@ -696,7 +698,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)
+                self.send_msg_err(msg)
 
     ##############################################################
     # 매수가 리턴
@@ -722,7 +724,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)
+                self.send_msg_err(msg)
 
     ##############################################################
     # 매수 수량 리턴
@@ -748,7 +750,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)
+                self.send_msg_err(msg)
 
     ##############################################################
     # 네이버 증권에서 특정 값 얻기
@@ -767,7 +769,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)
+                self.send_msg_err(msg)
 
     ##############################################################
     # 주식 투자 정보 업데이트(시가 총액, 상장 주식 수, 저평가, BPS, PER, EPS)
@@ -823,7 +825,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)
+                self.send_msg_err(msg)
 
     ##############################################################
     # 저평가 계산
@@ -897,7 +899,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)
+                self.send_msg_err(msg)
 
     ##############################################################
     # 매수/매도 위한 주식 정보 업데이트
@@ -955,7 +957,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)
+                self.send_msg_err(msg)
 
     ##############################################################
     # 보유 주식 정보 업데이트
@@ -1024,7 +1026,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)
+                self.send_msg_err(msg)
 
     ##############################################################
     # 매수가능 주식 수 리턴
@@ -1044,7 +1046,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)
+                self.send_msg_err(msg)
     ##############################################################
     # 보유 주식인지 체크
     ##############################################################
@@ -1061,7 +1063,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)
+                self.send_msg_err(msg)
 
     ##############################################################
     # 매수 여부 판단
@@ -1117,7 +1119,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)
+                self.send_msg_err(msg)
 
     ##############################################################
     # X일선 가격 리턴
@@ -1167,7 +1169,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)
+                self.send_msg_err(msg)
 
     ##############################################################
     # 종가 리턴
@@ -1209,7 +1211,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)
+                self.send_msg_err(msg)
 
     ##############################################################
     # 토큰 발급
@@ -1231,7 +1233,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)
+                self.send_msg_err(msg)
 
     ##############################################################
     # 암호화
@@ -1255,7 +1257,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)
+                self.send_msg_err(msg)
     ##############################################################
     # 주식 잔고조회
     ##############################################################
@@ -1325,7 +1327,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)
+                self.send_msg_err(msg)
 
     ##############################################################
     # 현금 잔고 조회
@@ -1362,7 +1364,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)
+                self.send_msg_err(msg)
 
     ##############################################################
     # 매수
@@ -1427,7 +1429,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)
+                self.send_msg_err(msg)
 
     ##############################################################
     # 매도
@@ -1504,7 +1506,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)
+                self.send_msg_err(msg)
 
     ##############################################################
     # 주문 성공 후 처리
@@ -1527,7 +1529,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)
+                self.send_msg_err(msg)
 
     ##############################################################
     # 금일 매수 주식 매도 주문
@@ -1558,7 +1560,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)
+                self.send_msg_err(msg)
 
     ##############################################################
     # 매수 처리
@@ -1623,7 +1625,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)
+                self.send_msg_err(msg)
 
     ##############################################################
     # 매도 처리
@@ -1729,7 +1731,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)
+                self.send_msg_err(msg)
 
     ##############################################################
     # 주문 번호 리턴
@@ -1771,7 +1773,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)
+                self.send_msg_err(msg)
 
     ##############################################################
     # 주식 주문 전량 취소
@@ -1836,7 +1838,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)
+                self.send_msg_err(msg)
 
     ##############################################################
     # 매수/매도 체결 여부 체크
@@ -1917,7 +1919,7 @@ class Stocks_info:
             return True
         except Exception as ex:
             msg = "Exception {}".format(ex)
-            PRINT_ERR(msg)
+            self.send_msg_err(msg)
             return False
 
     ##############################################################
@@ -1950,7 +1952,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)
+                self.send_msg_err(msg)
 
     ##############################################################
     # 주식 일별 주문 체결 조회 종목 정보 리턴
@@ -1998,7 +2000,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)
+                self.send_msg_err(msg)
 
     ##############################################################
     # 주문 조회
@@ -2029,7 +2031,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)
+                self.send_msg_err(msg)
 
     ##############################################################
     # 체결 조회
@@ -2085,7 +2087,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)
+                self.send_msg_err(msg)
 
     ##############################################################
     # 이미 주문한 종목인지 체크
@@ -2111,7 +2113,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)
+                self.send_msg_err(msg)
 
     ##############################################################
     # 저평가 높은 순으로 출력
@@ -2142,7 +2144,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)
+                self.send_msg_err(msg)
 
     ##############################################################
     # stocks 변경있으면 save stocks_info.json
@@ -2165,7 +2167,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)
+                self.send_msg_err(msg)
 
     ##############################################################
     # 금일 매수/매도 체결 완료된 주문번호로 trade_done_order_list 초기화
@@ -2189,7 +2191,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)
+                self.send_msg_err(msg)
 
     # ##############################################################
     # # 금일 매수/매도 주문 order_num_list 초기화
@@ -2214,7 +2216,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)
+                self.send_msg_err(msg)
 
     ##############################################################
     # 손절 처리
@@ -2257,7 +2259,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)
+                self.send_msg_err(msg)
 
     ##############################################################
     # 매수 후 여지껏 최고가 업데이트
@@ -2273,7 +2275,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)
+                self.send_msg_err(msg)
 
     ##############################################################
     # 매수 가능 종목 업데이트
@@ -2303,7 +2305,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)
+                self.send_msg_err(msg)
 
     ##############################################################
     # 장종료 시 일부 매수만 된 경우 처리
@@ -2336,7 +2338,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)
+                self.send_msg_err(msg)
 
     ##############################################################
     # 매수 가능 종목 출력
@@ -2376,7 +2378,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)
+                self.send_msg_err(msg)
 
     ##############################################################
     # 익절가 퍼센트
@@ -2401,7 +2403,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)
+                self.send_msg_err(msg)
 
     ##############################################################
     # 익절가 리턴
@@ -2418,7 +2420,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)
+                self.send_msg_err(msg)
 
     ##############################################################
     # 장 종료 후 clear
@@ -2439,7 +2441,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)
+                self.send_msg_err(msg)
  
     ##############################################################
     # 금일 기준 X 일 내 최고 종가 리턴
@@ -2463,7 +2465,7 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)
+                self.send_msg_err(msg)
 
     ##############################################################
     # 1차 매수를 최소 수량만 매수할 지 여부 체크
@@ -2488,5 +2490,5 @@ class Stocks_info:
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
-                PRINT_ERR(msg)
+                self.send_msg_err(msg)
     
