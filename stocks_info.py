@@ -796,7 +796,7 @@ class Stocks_info:
                 self.stocks[code]['PER'] = float(res.json()['output']['per'])
                 total_stock_count = int(res.json()['output']['lstn_stcn'])     # 상장 주식 수
             else:
-                self.send_msg(f"[update_stock_invest_info failed]{str(res.json())}")
+                self.send_msg_err(f"[update_stock_invest_info failed]{str(res.json())}")
 
             annual_finance = self.crawl_naver_finance(code)
             # PER_E, EPS, BPS, ROE 는 2013.12(E) 기준
@@ -911,16 +911,17 @@ class Stocks_info:
         try:            
             t_now = datetime.datetime.now()
             t_exit = t_now.replace(hour=15, minute=30, second=0, microsecond=0)
+            # 15:30 장마감 후는 금일기준으로 20일선 구한다
+            if t_exit < t_now:
+                past_day = 0        # 장마감 후는 금일 기준
+            else:
+                past_day = 1        # 어제 기준
+
             for code in self.stocks.keys():
                 PRINT_INFO(f"{self.stocks[code]['name']}")
                 # 순서 변경 금지
                 # ex) 목표가를 구하기 위해선 평단가가 먼저 있어야한다
                 # yesterday 20일선
-                # 15:30 장마감 후는 금일기준으로 20일선 구한다
-                if t_exit < t_now:
-                    past_day = 0        # 장마감 후는 금일 기준
-                else:
-                    past_day = 1        # 어제 기준
                 self.stocks[code]['yesterday_20ma'] = self.get_ma(code, 20, past_day)
                 # 1차 매수가
                 self.stocks[code]['buy_1_price'] = self.get_buy_1_price(code)
@@ -1227,6 +1228,7 @@ class Stocks_info:
             PATH = "oauth2/tokenP"
             URL = f"{self.config['URL_BASE']}/{PATH}"
             res = requests.post(URL, headers=headers, data=json.dumps(body))
+            time.sleep(API_DELAY_S)
             return res.json()["access_token"]
         except Exception as ex:
             result = False
@@ -1542,7 +1544,7 @@ class Stocks_info:
     def handle_today_buy_today_sell(self, code):
         result = True
         msg = ""
-        try:            
+        try:
             if SELL_STRATEGY == 1:
                 # 보유수량, 목표가 업데이트
                 self.update_my_stocks()
@@ -1593,6 +1595,8 @@ class Stocks_info:
             elif BUY_STRATEGY == 2:
                 # 전략 2 : 현재가 < 매수가 된적이 있는 상태에서 (현재가 >= 저가+x% or 현재가 >= 매수가 + y%)면 최우선지정가 매수
                 # 매수 가능 종목내에서만 매수
+                t_now = datetime.datetime.now()
+                t_buy = t_now.replace(hour=15, minute=20, second=0, microsecond=0)                
                 for code in self.buyable_stocks.keys():
                     curr_price = self.get_curr_price(code)
                     if curr_price == 0:
@@ -1610,8 +1614,6 @@ class Stocks_info:
                         buy_margin = 1 + self.to_percent(BUY_MARGIN_P)
 
                         # or buy 모니터링 중 15:20 까지 매수 안됐고 현재가가 매수가 아래면 매수
-                        t_now = datetime.datetime.now()
-                        t_buy = t_now.replace(hour=15, minute=20, second=0, microsecond=0)
                         if ((lowest_price > 0) and curr_price >= (lowest_price * buy_margin)) or (t_now >= t_buy and curr_price <= buy_target_price):
                             # 1차 매수 상태에서 allow_monitoring_buy 가 false 안된 상태에서 2차 매수 들어갈 때
                             # 1차 매수 반복되는 문제 수정
@@ -1828,7 +1830,7 @@ class Stocks_info:
                         self.send_msg_err(f"[주식 주문 전량 취소 주문 실패] [{self.stocks[code]['name']}] {str(res.json())}")
                     ret = False
             else:
-                self.send_msg(f"[cancel_order failed] [{self.stocks[code]['name']}] {buy_sell}")
+                self.send_msg_err(f"[cancel_order failed] [{self.stocks[code]['name']}] {buy_sell}")
                 ret = False
                 
             time.sleep(API_DELAY_S)
