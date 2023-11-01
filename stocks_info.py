@@ -42,6 +42,10 @@ SELL_STRATEGY = 3
 # 1차 매수량 1주만 매수 여부
 BUY_1_QTY_1 = True
 
+# 손절 후 종가가 20일선 위로 올라와야 매수 여부
+CHECK_END_PRICE_HIGHER_THAN_20MA_AFTER_LOSS_CUT = True
+
+
 INVEST_TYPE = "real_invest"                 # sim_invest : 모의 투자, real_invest : 실전 투자
 # INVEST_TYPE = "sim_invest"
 BUY_1_P = 40                                # 1차 매수 40%
@@ -368,7 +372,7 @@ class Stocks_info:
             if self.stocks[code]['buy_1_done'] == True:
                 buy_1_price = int(self.stocks[code]['buy_1_price'])
             # 손절한 경우 1차 매수가는 set_loss_cut_done 에서 이미 구했다.
-            elif self.stocks[code]['loss_cut_done'] == True:
+            elif CHECK_END_PRICE_HIGHER_THAN_20MA_AFTER_LOSS_CUT == True and self.stocks[code]['loss_cut_done'] == True:
                 buy_1_price = self.stocks[code]['buy_1_price']
             else:
                 envelope_p = self.to_percent(self.stocks[code]['envelope_p'])
@@ -476,6 +480,7 @@ class Stocks_info:
             # 당일 매수 당일 매도 주문, 매도 전략 1 일 때만 쓴다
             self.handle_today_buy_today_sell(code)
             self.my_cash = self.get_my_cash()
+            self.stocks[code]['loss_cut_done'] = False
         except Exception as ex:
             result = False
             msg = "Exception {}".format(ex)
@@ -533,17 +538,20 @@ class Stocks_info:
         try:                
             self.stocks[code]['loss_cut_done'] = True
             self.stocks[code]['loss_cut_order'] = False
-            # 손절 처리 경우 20일선 위로 올라오는거 체크하지 않는다
-            self.stocks[code]['sell_done'] = False
-            
-            # 1차 매수가 = 손절가 -5% 에 1차 매수
-            self.stocks[code]['buy_1_price'] = int(self.get_loss_cut_price(code) * 0.95)
-            # 1차 매수 수량
-            self.stocks[code]['buy_1_qty'] = self.get_buy_1_qty(code)
-            # 2차 매수가
-            self.stocks[code]['buy_2_price'] = self.get_buy_2_price(code)
-            # 2차 매수 수량
-            self.stocks[code]['buy_2_qty'] = self.get_buy_2_qty(code)
+            if CHECK_END_PRICE_HIGHER_THAN_20MA_AFTER_LOSS_CUT == False:
+                # 손절 처리 경우 20일선 위로 올라오는거 체크하지 않는다
+                self.stocks[code]['sell_done'] = False
+                # 1차 매수가 = 손절가 -5% 에 1차 매수
+                self.stocks[code]['buy_1_price'] = int(self.get_loss_cut_price(code) * 0.95)
+                # 1차 매수 수량
+                self.stocks[code]['buy_1_qty'] = self.get_buy_1_qty(code)
+                # 2차 매수가
+                self.stocks[code]['buy_2_price'] = self.get_buy_2_price(code)
+                # 2차 매수 수량
+                self.stocks[code]['buy_2_qty'] = self.get_buy_2_qty(code)                
+            else:
+                self.stocks[code]['sell_done'] = True
+
             self.stocks[code]['allow_monitoring_buy'] = False
             self.stocks[code]['allow_monitoring_sell'] = False
             self.stocks[code]['sell_1_done'] = False
