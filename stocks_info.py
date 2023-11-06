@@ -699,7 +699,7 @@ class Stocks_info:
                 price = int(float(res.json()['output'][type]))
             else:
                 self.send_msg(f"[get_price failed]{str(res.json())}")
-            time.sleep(API_DELAY_S * 2) # * 2 to fix max retries exceeded
+            time.sleep(API_DELAY_S * 3) # * 3 to fix max retries exceeded
             return price
         except Exception as ex:
             result = False
@@ -1711,7 +1711,7 @@ class Stocks_info:
                                         qty = int(self.my_stocks[code]['stockholdings'] / 2)
                                 if self.sell(code, curr_price, qty, ORDER_TYPE_IMMEDIATE_ORDER) == True:
                                     self.set_order_done(code, SELL_CODE)
-                                    self.send_msg(f"[{self.stocks[code]['name']}] 매도 주문, 현재가 : {curr_price} <= take profit : {take_profit_price}")
+                                    self.send_msg(f"[{self.stocks[code]['name']}] 매도 주문, 현재가 : {curr_price} <= take profit : {take_profit_price}, highest_price_ever : {self.stocks[code]['highest_price_ever']}")
                     else:
                         # 반 매도된 상태에서 나머지는 15:15 이후 현재가가 5일선 미만 경우 전량 매도   
                         t_now = datetime.datetime.now()
