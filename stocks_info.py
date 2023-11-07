@@ -9,12 +9,6 @@ from handle_json import *
 from libs.debug import *
 import datetime
 
-##############################################################
-# 검증
-#   1차 매수 후 당일 2차 매수 : OK
-#   1차 매도 후 당일 2차 매도 : OK
-#   손절 후 당일 매수 주문 : OK
-##############################################################
 
 def is_simulation():
     if INVEST_TYPE == "sim_invest":
@@ -55,7 +49,7 @@ UNDER_VALUE = 0                             # 저평가가 이 값 미만은 매
 GAP_MAX_SELL_TARGET_PRICE_P = 5             # 목표주가GAP 이 이 값 미만은 매수 금지
 SUM_UNDER_VALUE_SELL_TARGET_GAP = 7         # 저평가 + 목표주가GAP 이 이 값 미만은 매수 금지
 LOSS_CUT_P = 5                              # 2차 매수에서 x% 이탈 시 손절
-MAX_PER = 30                                # PER가 이 값 이상이면 매수 금지
+MAX_PER = 40                                # PER가 이 값 이상이면 매수 금지
 
 SMALL_TAKE_PROFIT_P = -1                    # 작은 익절가 %
 BIG_TAKE_PROFIT_P = -2                      # 큰 익절가 %
@@ -372,7 +366,7 @@ class Stocks_info:
             if self.stocks[code]['buy_1_done'] == True:
                 buy_1_price = int(self.stocks[code]['buy_1_price'])
             # 손절한 경우 1차 매수가는 set_loss_cut_done 에서 이미 구했다.
-            elif CHECK_END_PRICE_HIGHER_THAN_20MA_AFTER_LOSS_CUT == True and self.stocks[code]['loss_cut_done'] == True:
+            elif CHECK_END_PRICE_HIGHER_THAN_20MA_AFTER_LOSS_CUT == False and self.stocks[code]['loss_cut_done'] == True:
                 buy_1_price = self.stocks[code]['buy_1_price']
             else:
                 envelope_p = self.to_percent(self.stocks[code]['envelope_p'])
@@ -2151,7 +2145,7 @@ class Stocks_info:
             for row in zip(*data.values()):
                 table.add_row(row)
             
-            self.send_msg(table)
+            self.send_msg(table, True)
         except Exception as ex:
             result = False
             msg = "Exception {}".format(ex)
