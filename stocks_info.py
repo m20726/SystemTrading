@@ -94,7 +94,9 @@ API_DELAY_S = 0.05                          # 초당 API 20회 제한
 TRADE_ANY_CODE = "00"           # 체결 미체결 전체
 TRADE_DONE_CODE = "01"          # 체결
 TRADE_NOT_DONE_CODE = "02"      # 미체결
-    
+
+REQUESTS_POST_MAX_SIZE = 2000
+
 ##############################################################
 
 class Stocks_info:
@@ -170,12 +172,19 @@ class Stocks_info:
         try:        
             # now = datetime.datetime.now()
             if send_discode == True:
-                # message = {"content": f"[{now.strftime('%H:%M:%S')}] {str(msg)}"}
-                message = {"content": f"{msg}"}
-                response = requests.post(self.config['DISCORD_WEBHOOK_URL'], data=message)
-                # 에러 처리 ex) message length 가 2000 보다 크면 에러
-                if response.status_code < 200 or response.status_code > 204:
-                    PRINT_ERR(f'requests.post err {response.status_code}')         
+                msg = str(msg)
+                # 데이터를 REQUESTS_POST_MAX_SIZE 바이트씩 나누기
+                # ex) post message length 가 2000 보다 크면 에러
+                chunks = [msg[i:i + REQUESTS_POST_MAX_SIZE] for i in range(0, len(msg), REQUESTS_POST_MAX_SIZE)]
+
+                # 나눈 데이터를 순회하면서 POST 요청 보내기
+                for chunk in chunks:
+                    message = {"content": f"{chunk}"}
+                    response = requests.post(self.config['DISCORD_WEBHOOK_URL'], data=message)
+                    # 에러 처리 ex) message length 가 2000 보다 크면 에러
+                    if response.status_code < 200 or response.status_code > 204:
+                        PRINT_ERR(f'requests.post err {response.status_code}')
+
             if err == True:
                 PRINT_ERR(f"{str(msg)}")
             else:
@@ -2148,7 +2157,7 @@ class Stocks_info:
             for row in zip(*data.values()):
                 table.add_row(row)
             
-            self.send_msg(table)
+            self.send_msg(table, True)
         except Exception as ex:
             result = False
             msg = "Exception {}".format(ex)
