@@ -172,7 +172,10 @@ class Stocks_info:
             if send_discode == True:
                 # message = {"content": f"[{now.strftime('%H:%M:%S')}] {str(msg)}"}
                 message = {"content": f"{msg}"}
-                requests.post(self.config['DISCORD_WEBHOOK_URL'], data=message)
+                response = requests.post(self.config['DISCORD_WEBHOOK_URL'], data=message)
+                # 에러 처리 ex) message length 가 2000 보다 크면 에러
+                if response.status_code < 200 or response.status_code > 204:
+                    PRINT_ERR(f'requests.post err {response.status_code}')         
             if err == True:
                 PRINT_ERR(f"{str(msg)}")
             else:
@@ -2145,7 +2148,7 @@ class Stocks_info:
             for row in zip(*data.values()):
                 table.add_row(row)
             
-            self.send_msg(table, True)
+            self.send_msg(table)
         except Exception as ex:
             result = False
             msg = "Exception {}".format(ex)
