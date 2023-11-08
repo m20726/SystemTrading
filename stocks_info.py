@@ -798,23 +798,23 @@ class Stocks_info:
             total_stock_count = 0
             if self.is_request_ok(res) == True:
                 # 현재 PER
-                self.stocks[code]['PER'] = float(res.json()['output']['per'])
+                self.stocks[code]['PER'] = float(res.json()['output']['per'].replace(",",""))
                 total_stock_count = int(res.json()['output']['lstn_stcn'])     # 상장 주식 수
             else:
                 self.send_msg_err(f"[update_stock_invest_info failed]{str(res.json())}")
 
             annual_finance = self.crawl_naver_finance(code)
             # PER_E, EPS, BPS, ROE 는 2013.12(E) 기준
-            self.stocks[code]['PER_E'] = float(annual_finance[self.this_year_column_text]['PER(배)'])
-            self.stocks[code]['EPS_E'] = int(annual_finance[self.this_year_column_text]['EPS(원)'])
-            self.stocks[code]['BPS_E'] = int(annual_finance[self.this_year_column_text]['BPS(원)'])
-            self.stocks[code]['ROE_E'] = float(annual_finance[self.this_year_column_text]['ROE(지배주주)'])
-            self.stocks[code]['industry_PER'] = float(self.crawl_naver_finance_by_selector(code, "#tab_con1 > div:nth-child(6) > table > tbody > tr.strong > td > em"))
+            self.stocks[code]['PER_E'] = float(annual_finance[self.this_year_column_text]['PER(배)'].replace(",",""))
+            self.stocks[code]['EPS_E'] = int(annual_finance[self.this_year_column_text]['EPS(원)'].replace(",",""))
+            self.stocks[code]['BPS_E'] = int(annual_finance[self.this_year_column_text]['BPS(원)'].replace(",",""))
+            self.stocks[code]['ROE_E'] = float(annual_finance[self.this_year_column_text]['ROE(지배주주)'].replace(",",""))
+            self.stocks[code]['industry_PER'] = float(self.crawl_naver_finance_by_selector(code, "#tab_con1 > div:nth-child(6) > table > tbody > tr.strong > td > em").replace(",",""))
             self.stocks[code]['operating_profit_margin_p'] = float(annual_finance[self.this_year_column_text]['영업이익률'])
-            self.stocks[code]['sales_income'] = int(annual_finance[self.this_year_column_text]['매출액'])                   # 올해 예상 매출액, 억원
-            self.stocks[code]['last_year_sales_income'] = int(annual_finance[self.last_year_column_text]['매출액'])         # 작년 매출액, 억원
-            self.stocks[code]['the_year_before_last_sales_income'] = int(annual_finance[self.the_year_before_last_column_text]['매출액'])       # 재작년 매출액, 억원
-            self.stocks[code]['curr_profit'] = int(annual_finance[self.this_year_column_text]['당기순이익'])
+            self.stocks[code]['sales_income'] = int(annual_finance[self.this_year_column_text]['매출액'].replace(",",""))                   # 올해 예상 매출액, 억원
+            self.stocks[code]['last_year_sales_income'] = int(annual_finance[self.last_year_column_text]['매출액'].replace(",",""))         # 작년 매출액, 억원
+            self.stocks[code]['the_year_before_last_sales_income'] = int(annual_finance[self.the_year_before_last_column_text]['매출액'].replace(",",""))       # 재작년 매출액, 억원
+            self.stocks[code]['curr_profit'] = int(annual_finance[self.this_year_column_text]['당기순이익'].replace(",",""))
             # 목표 주가 = 미래 당기순이익(원) * PER_E / 상장주식수
             if total_stock_count > 0:
                 self.stocks[code]['max_target_price'] = int((self.stocks[code]['curr_profit'] * 100000000) * self.stocks[code]['PER_E'] / total_stock_count)
@@ -1303,15 +1303,15 @@ class Stocks_info:
                 if int(stock['hldg_qty']) > 0:
                     data['종목명'].append(stock['prdt_name'])
                     data['수량'].append(stock['hldg_qty'])
-                    data['수익률(%)'].append(float(stock['evlu_pfls_rt']))
-                    data['평가금액'].append(int(stock['evlu_amt']))
-                    data['손익금액'].append(stock['evlu_pfls_amt'])
-                    data['평단가'].append(int(float(stock['pchs_avg_pric'])))
-                    data['현재가'].append(int(stock['prpr']))
+                    data['수익률(%)'].append(float(stock['evlu_pfls_rt']).replace(",",""))
+                    data['평가금액'].append(int(stock['evlu_amt'].replace(",","")))
+                    data['손익금액'].append(stock['evlu_pfls_amt'].replace(",",""))
+                    data['평단가'].append(int(float(stock['pchs_avg_pric'].replace(",",""))))
+                    data['현재가'].append(int(stock['prpr'].replace(",","")))
                     # DB 에 없는 종목 제외 ex) 공모주
                     code = stock['pdno']
                     if code in self.stocks.keys():
-                        data['목표가'].append(int(self.stocks[code]['sell_target_price']))
+                        data['목표가'].append(int(self.stocks[code]['sell_target_price'].replace(",","")))
                         data['손절가'].append(int(self.get_loss_cut_price(code)))
                     else:
                         data['목표가'].append(0)
