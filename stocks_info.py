@@ -1312,15 +1312,15 @@ class Stocks_info:
                 if int(stock['hldg_qty']) > 0:
                     data['종목명'].append(stock['prdt_name'])
                     data['수량'].append(stock['hldg_qty'])
-                    data['수익률(%)'].append(float(stock['evlu_pfls_rt']).replace(",",""))
+                    data['수익률(%)'].append(float(stock['evlu_pfls_rt'].replace(",","")))
                     data['평가금액'].append(int(stock['evlu_amt'].replace(",","")))
-                    data['손익금액'].append(stock['evlu_pfls_amt'].replace(",",""))
+                    data['손익금액'].append(stock['evlu_pfls_amt'])
                     data['평단가'].append(int(float(stock['pchs_avg_pric'].replace(",",""))))
                     data['현재가'].append(int(stock['prpr'].replace(",","")))
                     # DB 에 없는 종목 제외 ex) 공모주
                     code = stock['pdno']
                     if code in self.stocks.keys():
-                        data['목표가'].append(int(self.stocks[code]['sell_target_price'].replace(",","")))
+                        data['목표가'].append(int(self.stocks[code]['sell_target_price']))
                         data['손절가'].append(int(self.get_loss_cut_price(code)))
                     else:
                         data['목표가'].append(0)
