@@ -2260,7 +2260,7 @@ class Stocks_info:
                 #         self.set_order_done(code, SELL_CODE)
                 #         self.stocks[code]['loss_cut_order'] = True
 
-                if curr_price < loss_cut_price:
+                if curr_price < loss_cut_price and self.stocks[code]['loss_cut_order'] == False:
                     if self.already_ordered(code, SELL_CODE):
                         # 기존 매도 주문 취소
                         if self.cancel_order(code, SELL_CODE) == False:
