@@ -2003,6 +2003,7 @@ class Stocks_info:
                 "CTX_AREA_FK100": "",
                 "CTX_AREA_NK100": ""
             }
+            time.sleep(API_DELAY_S)     # Max retries exceeded with
             res = requests.get(URL, headers=headers, params=params)
             if self.is_request_ok(res) == True:
                 order_list = res.json()['output1']
