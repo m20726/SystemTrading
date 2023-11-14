@@ -840,6 +840,7 @@ class Stocks_info:
         finally:
             if result == False:
                 self.send_msg_err(msg)
+            return result
 
     ##############################################################
     # 저평가 계산
@@ -966,7 +967,7 @@ class Stocks_info:
                 self.set_take_profit_percent(code)
 
                 # 주식 투자 정보 업데이트(시가 총액, 상장 주식 수, 저평가, BPS, PER, EPS)
-                self.update_stock_invest_info(code)
+                self.stocks[code]['stock_invest_info_valid'] = self.update_stock_invest_info(code)
         except Exception as ex:
             result = False
             msg = "Exception {}".format(ex)
@@ -1087,6 +1088,10 @@ class Stocks_info:
         result = True
         msg = ""
         try:
+            # 주식 투자 정보가 valid 하지 않으면 매수 금지
+            if self.stocks[code]['stock_invest_info_valid'] == False:
+                return False
+            
             # 2차 매수까지 완료 시 금지
             if self.stocks[code]['buy_2_done'] == True:
                 return False
@@ -2003,7 +2008,7 @@ class Stocks_info:
                 "CTX_AREA_FK100": "",
                 "CTX_AREA_NK100": ""
             }
-            time.sleep(API_DELAY_S)     # Max retries exceeded with
+            time.sleep(API_DELAY_S * 10)     # Max retries exceeded with
             res = requests.get(URL, headers=headers, params=params)
             if self.is_request_ok(res) == True:
                 order_list = res.json()['output1']

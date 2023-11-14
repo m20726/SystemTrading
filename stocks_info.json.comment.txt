@@ -43,6 +43,8 @@
         "real_avg_buy_price": 0,                                실제 매수 평단가
         "loss_cut_order": false,                                손절 주문 여부
         "buy_order_done": false,                                매수 주문 여부
-        "sell_order_done": false                                매도 주문 여부
+        "sell_order_done": false,                               매도 주문 여부
+        "loss_cut_done": false,                                 손절 처리 여부
+        "stock_invest_info_valid": true                         주식 투자 정보가 valid 한지 여부, ex) update_stock_invest_info 실행 시 exception 발생 시 false
     }
 }
