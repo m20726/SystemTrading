@@ -700,19 +700,20 @@ class Stocks_info:
                 "fid_cond_mrkt_div_code": "J",
                 "fid_input_iscd": code,
             }
+            time.sleep(API_DELAY_S * 2) # to fix max retries exceeded
             res = requests.get(URL, headers=headers, params=params)
             if self.is_request_ok(res) == True:
                 price = int(float(res.json()['output'][type]))
             else:
                 self.send_msg(f"[get_price failed]{str(res.json())}")
-            time.sleep(API_DELAY_S * 3) # * 3 to fix max retries exceeded
-            return price
         except Exception as ex:
             result = False
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
                 self.send_msg_err(msg)
+                PRINT_ERR(f"{self.stocks[code]['name']}")
+            return price
 
     ##############################################################
     # 매수가 리턴
@@ -803,6 +804,7 @@ class Stocks_info:
                 "fid_cond_mrkt_div_code": "J",
                 "fid_input_iscd": code,
             }
+            time.sleep(API_DELAY_S)
             res = requests.get(URL, headers=headers, params=params)
             total_stock_count = 0
             if self.is_request_ok(res) == True:
@@ -832,8 +834,7 @@ class Stocks_info:
             # - : 고평가
             if self.stocks[code]['sell_target_price'] > 0:
                 self.stocks[code]['gap_max_sell_target_price_p'] = int(100 * (self.stocks[code]['max_target_price'] - self.stocks[code]['sell_target_price']) / self.stocks[code]['sell_target_price'])
-            self.set_stock_undervalue(code)
-            time.sleep(API_DELAY_S)
+            self.set_stock_undervalue(code)            
         except Exception as ex:
             result = False
             msg = "Exception {}".format(ex)
@@ -1006,6 +1007,7 @@ class Stocks_info:
                 "CTX_AREA_FK100": "",
                 "CTX_AREA_NK100": ""
             }
+            time.sleep(API_DELAY_S)
             res = requests.get(URL, headers=headers, params=params)
             if self.is_request_ok(res) == True:
                 stocks = res.json()['output1']
@@ -1035,7 +1037,6 @@ class Stocks_info:
             else:
                 self.send_msg_err(f"[계좌 조회 실패]{str(res.json())}")
                 ret = False
-            time.sleep(API_DELAY_S)
             return ret
         except Exception as ex:
             result = False
@@ -1172,6 +1173,7 @@ class Stocks_info:
                 # M : (월)최근 30개월
                 "fid_period_div_code": period
             }
+            time.sleep(API_DELAY_S)
             res = requests.get(URL, headers=headers, params=params)
 
             # x일 이평선 구하기 위해 x일간의 종가 구한다
@@ -1182,7 +1184,6 @@ class Stocks_info:
                 sum_end_price = sum_end_price + end_price               # 종가 합
 
             value_ma = sum_end_price / days                           # x일선 가격
-            time.sleep(API_DELAY_S)
             return int(value_ma)
         except Exception as ex:
             result = False
@@ -1223,8 +1224,8 @@ class Stocks_info:
                 # M : (월)최근 30개월
                 "fid_period_div_code": "D"
             }
-            res = requests.get(URL, headers=headers, params=params)
             time.sleep(API_DELAY_S)
+            res = requests.get(URL, headers=headers, params=params)
             return int(res.json()['output'][past_day]['stck_clpr'])   # 종가
         except Exception as ex:
             result = False
@@ -1246,8 +1247,8 @@ class Stocks_info:
                     "appsecret": self.config['APP_SECRET']}
             PATH = "oauth2/tokenP"
             URL = f"{self.config['URL_BASE']}/{PATH}"
-            res = requests.post(URL, headers=headers, data=json.dumps(body))
             time.sleep(API_DELAY_S)
+            res = requests.post(URL, headers=headers, data=json.dumps(body))
             return res.json()["access_token"]
         except Exception as ex:
             result = False
@@ -1270,6 +1271,7 @@ class Stocks_info:
                 'appKey': self.config['APP_KEY'],
                 'appSecret': self.config['APP_SECRET'],
             }
+            time.sleep(API_DELAY_S)
             res = requests.post(URL, headers=headers, data=json.dumps(datas))
             hashkey = res.json()["HASH"]
             return hashkey
@@ -1308,6 +1310,7 @@ class Stocks_info:
                 "CTX_AREA_FK100": "",
                 "CTX_AREA_NK100": ""
             }
+            time.sleep(API_DELAY_S)
             res = requests.get(URL, headers=headers, params=params)
             stock_list = res.json()['output1']
             evaluation = res.json()['output2']
@@ -1340,8 +1343,7 @@ class Stocks_info:
             self.send_msg(f"{table}", send_discode)
             self.send_msg(f"주식 평가 금액: {evaluation[0]['scts_evlu_amt']}원", send_discode)
             self.send_msg(f"평가 손익 합계: {evaluation[0]['evlu_pfls_smtl_amt']}원", send_discode)
-            self.send_msg(f"총 평가 금액: {evaluation[0]['tot_evlu_amt']}원", send_discode)
-            time.sleep(API_DELAY_S)
+            self.send_msg(f"총 평가 금액: {evaluation[0]['tot_evlu_amt']}원", send_discode)            
             return stock_list
         except Exception as ex:
             result = False
@@ -1375,10 +1377,10 @@ class Stocks_info:
                 "CMA_EVLU_AMT_ICLD_YN": "Y",
                 "OVRS_ICLD_YN": "Y"
             }
+            time.sleep(API_DELAY_S)
             res = requests.get(URL, headers=headers, params=params)
             cash = res.json()['output']['ord_psbl_cash']
             # self.send_msg(f"주문 가능 현금 잔고: {cash}원")
-            time.sleep(API_DELAY_S)
             return int(cash)
         except Exception as ex:
             result = False
@@ -1435,6 +1437,7 @@ class Stocks_info:
                     "custtype": "P",
                     "hashkey": self.hashkey(data)
                     }
+            time.sleep(API_DELAY_S)
             res = requests.post(URL, headers=headers, data=json.dumps(data))
             if self.is_request_ok(res) == True:
                 self.send_msg(f"[매수 주문 성공] [{self.stocks[code]['name']}] {price}원 {qty}주")
@@ -1442,8 +1445,6 @@ class Stocks_info:
             else:
                 self.send_msg_err(f"[매수 주문 실패] [{self.stocks[code]['name']}] {price}원 {qty}주 type:{order_type} {str(res.json())}")
                 ret = False
-
-            time.sleep(API_DELAY_S)
             return ret
         except Exception as ex:
             result = False
@@ -1512,6 +1513,7 @@ class Stocks_info:
                     "custtype": "P",
                     "hashkey": self.hashkey(data)
                     }
+            time.sleep(API_DELAY_S)
             res = requests.post(URL, headers=headers, data=json.dumps(data))
             if self.is_request_ok(res) == True:
                 self.send_msg(f"[매도 주문 성공] [{self.stocks[code]['name']}] {price}원 {qty}주")
@@ -1519,8 +1521,6 @@ class Stocks_info:
             else:
                 self.send_msg_err(f"[매도 주문 실패] [{self.stocks[code]['name']}] {price}원 {qty}주 {str(res.json())}")
                 ret = False
-                
-            time.sleep(API_DELAY_S)
             return ret
         except Exception as ex:
             result = False
@@ -1590,7 +1590,7 @@ class Stocks_info:
     #       단, 현재가 - 1% <= 매수가 매수가에 미리 매수 주문
     #   전략 2 :
     #       현재가 < 매수가 된적이 있는 상태에서 
-    #       (현재가 >= 저가+x% or 현재가 >= 매수가 + y%)면 최우선지정가 매수
+    #       (현재가 >= 저가+x% or 현재가 <= 매수가 - y% 에서 매수)면 최우선지정가 매수
     ##############################################################
     def handle_buy_stock(self):
         # PRINT_INFO('')
@@ -1633,7 +1633,9 @@ class Stocks_info:
                         buy_margin = 1 + self.to_percent(BUY_MARGIN_P)
 
                         # or buy 모니터링 중 15:20 까지 매수 안됐고 현재가가 매수가 아래면 매수
-                        if ((lowest_price > 0) and curr_price >= (lowest_price * buy_margin)) or (t_now >= t_buy and curr_price <= buy_target_price):
+                        if ((lowest_price > 0) and curr_price >= (lowest_price * buy_margin)) \
+                            or (t_now >= t_buy and curr_price <= buy_target_price) \
+                            or (curr_price <= buy_target_price * 0.99):     # 현재가 <= 매수가 - 1% 에서 매수
                             # 1차 매수 상태에서 allow_monitoring_buy 가 false 안된 상태에서 2차 매수 들어갈 때
                             # 1차 매수 반복되는 문제 수정
                             if lowest_price <= buy_target_price:
@@ -1651,7 +1653,11 @@ class Stocks_info:
     ##############################################################
     # 매도 처리
     #   전략 1 : 목표가에 매도
-    #   전략 2 : 현재가 >= 목표가 된적이 있는 상태에서 (현재가 <= 여지껏 고가 - x% or 현재가 <= 목표가 - y%)면 최우선지정가 매도
+    #   전략 2 : 현재가 >= 목표가 된적이 있는 상태에서 
+    #       현재가 <= 여지껏 고가 - x% or 
+    #       현재가 <= 목표가 - y% or
+    #       현재가 >= 목표가 + z% 면
+    #       최우선지정가 매도
     #   TODO 수익 극대화
     #       RSI 기간20,시그널9, 30/70 => 과열 시작 다음날 매도
     ##############################################################
@@ -1710,7 +1716,8 @@ class Stocks_info:
                         else:
                             # 익절가 이하 시 매도
                             take_profit_price = self.get_take_profit_price(code)
-                            if (take_profit_price > 0 and curr_price <= take_profit_price):
+                            if (take_profit_price > 0 and curr_price <= take_profit_price) \
+                                or (curr_price >= (sell_target_price * 1.02)):      # 현재가 >= 목표가 + 2% 면 매도
                                 # 매도가가 5일선 이하면 전량 매도
                                 ma_5 = self.get_ma(code, 5)
                                 if curr_price <= ma_5:
@@ -1834,6 +1841,7 @@ class Stocks_info:
                     "ORD_UNPR": "",
                     "QTY_ALL_ORD_YN": "Y"
                 }
+                time.sleep(API_DELAY_S)
                 res = requests.post(URL, headers=headers, params=params)
                 if self.is_request_ok(res) == True:
                     self.send_msg(f"[주식 주문 전량 취소 주문 성공]")
@@ -1850,9 +1858,7 @@ class Stocks_info:
                     ret = False
             else:
                 self.send_msg_err(f"[cancel_order failed] [{self.stocks[code]['name']}] {buy_sell}")
-                ret = False
-                
-            time.sleep(API_DELAY_S)
+                ret = False            
             return ret
         except Exception as ex:
             result = False
@@ -2007,22 +2013,21 @@ class Stocks_info:
                 "INQR_DVSN_1": "",
                 "CTX_AREA_FK100": "",
                 "CTX_AREA_NK100": ""
-            }
-            time.sleep(API_DELAY_S * 10)     # Max retries exceeded with
+            }            
+            # time.sleep(API_DELAY_S * 10)     # Max retries exceeded with
+            time.sleep(API_DELAY_S)
             res = requests.get(URL, headers=headers, params=params)
             if self.is_request_ok(res) == True:
                 order_list = res.json()['output1']
             else:
-                self.send_msg(f"[update_order_list failed]{str(res.json())}")
-                
-            time.sleep(API_DELAY_S)
-            return order_list
+                self.send_msg(f"[update_order_list failed]{str(res.json())}")                        
         except Exception as ex:
             result = False
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
                 self.send_msg_err(msg)
+            return order_list
 
     ##############################################################
     # 주문 조회
@@ -2143,7 +2148,7 @@ class Stocks_info:
     ##############################################################
     # 저평가 높은 순으로 출력
     ##############################################################
-    def show_stocks_by_undervalue(self):
+    def show_stocks_by_undervalue(self, send_discode = False):
         result = True
         msg = ""
         try:                
@@ -2163,7 +2168,7 @@ class Stocks_info:
             for row in zip(*data.values()):
                 table.add_row(row)
             
-            self.send_msg(table, True)
+            self.send_msg(table, send_discode)
         except Exception as ex:
             result = False
             msg = "Exception {}".format(ex)
@@ -2200,7 +2205,7 @@ class Stocks_info:
     def init_trade_done_order_list(self):
         result = True
         msg = ""
-        try:                
+        try:
             self.trade_done_order_list.clear()
             order_list = self.get_order_list()
             for stock in order_list:

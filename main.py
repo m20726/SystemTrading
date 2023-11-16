@@ -94,7 +94,7 @@ def main():
         # 장 종료 후 처리
         stocks_info.update_my_stocks()
         stocks_info.update_buy_qty_after_market_finish()            # 일부만 매수 됐을 때 처리
-        stocks_info.show_stocks_by_undervalue()                     # 저평가
+        stocks_info.show_stocks_by_undervalue(True)                 # 저평가
         stocks_info.show_trade_done_stocks(BUY_CODE)
         stocks_info.show_trade_done_stocks(SELL_CODE)
         stocks_info.get_stock_balance(True)
