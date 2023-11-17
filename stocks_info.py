@@ -63,7 +63,8 @@ else:
     MAX_MY_STOCK_COUNT = 4
     INVEST_MONEY_PER_STOCK = 300000            # 종목 당 투자 금액(원)
 
-BUYABLE_GAP = 10                                # "현재가 - 매수가 GAP" 가 X% 미만 경우만 매수 가능 종목으로 처리
+BUYABLE_GAP = 8                                 # "현재가 - 매수가 GAP" 가 X% 미만 경우만 매수 가능 종목으로 처리
+                                                # GAP 이 클수록 종목이 많아 실시간 처리가 느려진다
 
 ##############################################################
 
@@ -817,6 +818,11 @@ class Stocks_info:
             annual_finance = self.crawl_naver_finance(code)
             # PER_E, EPS, BPS, ROE 는 2013.12(E) 기준
             self.stocks[code]['PER_E'] = float(annual_finance[self.this_year_column_text]['PER(배)'].replace(",",""))
+            if self.stocks[code]['PER_E'] == 0:
+                # PER_E == 0 는 네이버 금융에서 정보가 없는 경우다, not valid 처리
+                PRINT_ERR(f"PER_E from naver finace of {self.stocks[code]['name']} is 0")
+                return False
+
             self.stocks[code]['EPS_E'] = int(annual_finance[self.this_year_column_text]['EPS(원)'].replace(",",""))
             self.stocks[code]['BPS_E'] = int(annual_finance[self.this_year_column_text]['BPS(원)'].replace(",",""))
             self.stocks[code]['ROE_E'] = float(annual_finance[self.this_year_column_text]['ROE(지배주주)'].replace(",",""))
@@ -834,14 +840,14 @@ class Stocks_info:
             # - : 고평가
             if self.stocks[code]['sell_target_price'] > 0:
                 self.stocks[code]['gap_max_sell_target_price_p'] = int(100 * (self.stocks[code]['max_target_price'] - self.stocks[code]['sell_target_price']) / self.stocks[code]['sell_target_price'])
-            self.set_stock_undervalue(code)            
+            self.set_stock_undervalue(code)
+            return True
         except Exception as ex:
             result = False
             msg = "Exception {}".format(ex)
         finally:
             if result == False:
                 self.send_msg_err(msg)
-            return result
 
     ##############################################################
     # 저평가 계산
