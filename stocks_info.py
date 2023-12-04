@@ -954,6 +954,7 @@ class Stocks_info:
                 past_day = 1        # 어제 기준
 
             for code in self.stocks.keys():
+                #TODO envelope 20 종목은 제외?
                 PRINT_INFO(f"{self.stocks[code]['name']}")
                 # 순서 변경 금지
                 # ex) 목표가를 구하기 위해선 평단가가 먼저 있어야한다
@@ -1616,7 +1617,10 @@ class Stocks_info:
         # PRINT_INFO('')
         result = True
         msg = ""
-        try:
+        try:    
+            #TODO 추매
+            # 1차 매수 후 2~2.5% 오르면 추가 매수
+            # 1차 매수가 이탈 시 추가 매수량만 손절        
             if BUY_STRATEGY == 1:
                 # 전략 1 : 현재가 <= 매수가면 매수
                 # 매수 가능 종목내에서만 매수
