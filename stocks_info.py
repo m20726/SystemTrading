@@ -8,6 +8,7 @@ from prettytable import PrettyTable
 from handle_json import *
 from libs.debug import *
 import datetime
+import traceback
 
 
 def is_simulation():
@@ -59,9 +60,9 @@ INVEST_TYPE = "real_invest"                 # sim_invest : 모의 투자, real_i
 BUY_1_P = 40                                # 1차 매수 40%
 BUY_2_P = 60                                # 2차 매수 60%
 
-UNDER_VALUE = -2                            # 저평가가 이 값 미만은 매수 금지
-GAP_MAX_SELL_TARGET_PRICE_P = 3             # 목표주가GAP 이 이 값 미만은 매수 금지
-SUM_UNDER_VALUE_SELL_TARGET_GAP = 5         # 저평가 + 목표주가GAP 이 이 값 미만은 매수 금지
+UNDER_VALUE = -4                            # 저평가가 이 값 미만은 매수 금지
+GAP_MAX_SELL_TARGET_PRICE_P = -3             # 목표주가GAP 이 이 값 미만은 매수 금지
+SUM_UNDER_VALUE_SELL_TARGET_GAP = -5         # 저평가 + 목표주가GAP 이 이 값 미만은 매수 금지
 LOSS_CUT_P = 5                              # 2차 매수에서 x% 이탈 시 손절
 MAX_PER = 40                                # PER가 이 값 이상이면 매수 금지
 
@@ -149,7 +150,7 @@ class Stocks_info:
             self.print_strategy()
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
@@ -206,7 +207,7 @@ class Stocks_info:
                 PRINT_INFO(f"{str(msg)}")
         except Exception as ex:
             result = False
-            ex_msg = "Exception {}".format(ex)
+            ex_msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 PRINT_ERR(ex_msg)
@@ -250,7 +251,7 @@ class Stocks_info:
             return annual_finance
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
@@ -280,7 +281,7 @@ class Stocks_info:
                     pass
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
@@ -336,7 +337,7 @@ class Stocks_info:
             self.config = configs[INVEST_TYPE]
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)        
@@ -361,7 +362,7 @@ class Stocks_info:
             self.stocks = read_json_file(file_path)
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
@@ -376,7 +377,7 @@ class Stocks_info:
             write_json_file(self.stocks, file_path)
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
@@ -402,7 +403,7 @@ class Stocks_info:
             return int(buy_1_price)
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)    
@@ -434,7 +435,7 @@ class Stocks_info:
             return max(1, ret)
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
@@ -468,7 +469,7 @@ class Stocks_info:
             return max(1, ret)
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
@@ -504,7 +505,7 @@ class Stocks_info:
             self.stocks[code]['loss_cut_done'] = False
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg) 
@@ -540,7 +541,7 @@ class Stocks_info:
                         self.clear_buy_sell_info(code)
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg) 
@@ -588,7 +589,7 @@ class Stocks_info:
             self.set_take_profit_percent(code)
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg) 
@@ -620,7 +621,7 @@ class Stocks_info:
             self.stocks[code]['loss_cut_done'] = False
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
@@ -650,7 +651,7 @@ class Stocks_info:
             return avg_buy_price
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
@@ -666,7 +667,7 @@ class Stocks_info:
             return int(self.stocks[code]['avg_buy_price'] * (1 + sell_target_p))
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
@@ -723,7 +724,7 @@ class Stocks_info:
                 self.send_msg(f"[get_price failed]{str(res.json())}")
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
@@ -751,7 +752,7 @@ class Stocks_info:
             return buy_target_price
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
@@ -777,7 +778,7 @@ class Stocks_info:
             return buy_target_qty
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
@@ -796,7 +797,7 @@ class Stocks_info:
             return soup.select_one(selector).text
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
@@ -858,7 +859,7 @@ class Stocks_info:
             return True
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
@@ -932,7 +933,7 @@ class Stocks_info:
             self.stocks[code]['undervalue'] = int(self.stocks[code]['undervalue'])
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
@@ -954,7 +955,6 @@ class Stocks_info:
                 past_day = 1        # 어제 기준
 
             for code in self.stocks.keys():
-                #TODO envelope 20 종목은 제외?
                 PRINT_INFO(f"{self.stocks[code]['name']}")
                 # 순서 변경 금지
                 # ex) 목표가를 구하기 위해선 평단가가 먼저 있어야한다
@@ -992,7 +992,7 @@ class Stocks_info:
                 self.stocks[code]['stock_invest_info_valid'] = self.update_stock_invest_info(code)
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
@@ -1061,7 +1061,7 @@ class Stocks_info:
             return ret
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
@@ -1081,7 +1081,7 @@ class Stocks_info:
             return ret
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
@@ -1098,7 +1098,7 @@ class Stocks_info:
                 return False
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
@@ -1158,7 +1158,7 @@ class Stocks_info:
             return True
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
@@ -1208,7 +1208,7 @@ class Stocks_info:
             return int(value_ma)
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
@@ -1250,7 +1250,7 @@ class Stocks_info:
             return int(res.json()['output'][past_day]['stck_clpr'])   # 종가
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
@@ -1273,7 +1273,7 @@ class Stocks_info:
             return res.json()["access_token"]
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
@@ -1298,7 +1298,7 @@ class Stocks_info:
             return hashkey
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
@@ -1368,7 +1368,7 @@ class Stocks_info:
             return stock_list
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
@@ -1405,7 +1405,7 @@ class Stocks_info:
             return int(cash)
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
@@ -1469,7 +1469,7 @@ class Stocks_info:
             return ret
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
@@ -1545,7 +1545,7 @@ class Stocks_info:
             return ret
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
@@ -1568,7 +1568,7 @@ class Stocks_info:
             self.show_order_list()
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
@@ -1599,7 +1599,7 @@ class Stocks_info:
                             self.set_order_done(code, SELL_CODE)
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
@@ -1669,7 +1669,7 @@ class Stocks_info:
                                     self.send_msg(f"[{self.stocks[code]['name']}] 매수 주문, 현재가 : {curr_price} >= {lowest_price * buy_margin}(저가 : {lowest_price} * {buy_margin})")
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
@@ -1780,7 +1780,7 @@ class Stocks_info:
                                         self.send_msg(f"[{self.stocks[code]['name']}] 매도 주문, 현재가 : {curr_price} <= 목표가 : {sell_target_price}")
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
@@ -1822,7 +1822,7 @@ class Stocks_info:
             return False, ""
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
@@ -1886,7 +1886,7 @@ class Stocks_info:
             return ret
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
@@ -1969,7 +1969,7 @@ class Stocks_info:
                     pass
             return True
         except Exception as ex:
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
             self.send_msg_err(msg)
             return False
 
@@ -2000,7 +2000,7 @@ class Stocks_info:
                 self.get_stock_balance()
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
@@ -2047,7 +2047,7 @@ class Stocks_info:
                 self.send_msg(f"[update_order_list failed]{str(res.json())}")                        
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
@@ -2079,7 +2079,7 @@ class Stocks_info:
             self.send_msg(f"=================================\n")
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
@@ -2138,7 +2138,7 @@ class Stocks_info:
             return None
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
@@ -2164,7 +2164,7 @@ class Stocks_info:
             return ret    
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
@@ -2196,7 +2196,7 @@ class Stocks_info:
             self.send_msg(table, send_discode)
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
@@ -2219,7 +2219,7 @@ class Stocks_info:
             return pre_stocks
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
@@ -2243,7 +2243,7 @@ class Stocks_info:
                     self.trade_done_order_list.append(stock['odno'])
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
@@ -2268,7 +2268,7 @@ class Stocks_info:
             return int(self.stocks[code]['buy_2_price'] * (1 - self.to_percent(LOSS_CUT_P)))
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
@@ -2311,7 +2311,7 @@ class Stocks_info:
                         self.stocks[code]['loss_cut_order'] = True
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
@@ -2327,7 +2327,7 @@ class Stocks_info:
             self.stocks[code]['highest_price_ever'] = max(self.stocks[code]['highest_price_ever'], highest_price)
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
@@ -2357,7 +2357,7 @@ class Stocks_info:
                             self.buyable_stocks[code] = temp_stock[code]
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
@@ -2390,7 +2390,7 @@ class Stocks_info:
                                 self.stocks[code]['buy_2_qty'] -= (self.stocks[code]['stockholdings'] - self.stocks[code]['buy_1_qty'])
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
@@ -2430,7 +2430,7 @@ class Stocks_info:
             self.send_msg(table)
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
@@ -2455,7 +2455,7 @@ class Stocks_info:
                     self.stocks[code]['take_profit_p'] = SMALL_TAKE_PROFIT_P
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
@@ -2472,7 +2472,7 @@ class Stocks_info:
             return int(self.stocks[code]['highest_price_ever'] * (1 + self.to_percent(self.stocks[code]['take_profit_p'])))
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
@@ -2493,7 +2493,7 @@ class Stocks_info:
                 self.stocks[code]['sell_order_done'] = False
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
@@ -2517,7 +2517,7 @@ class Stocks_info:
             return highest_end_price
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
@@ -2542,7 +2542,7 @@ class Stocks_info:
             return False
         except Exception as ex:
             result = False
-            msg = "Exception {}".format(ex)
+            msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
