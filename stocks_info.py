@@ -60,9 +60,9 @@ INVEST_TYPE = "real_invest"                 # sim_invest : 모의 투자, real_i
 BUY_1_P = 40                                # 1차 매수 40%
 BUY_2_P = 60                                # 2차 매수 60%
 
-UNDER_VALUE = -4                            # 저평가가 이 값 미만은 매수 금지
-GAP_MAX_SELL_TARGET_PRICE_P = -3             # 목표주가GAP 이 이 값 미만은 매수 금지
-SUM_UNDER_VALUE_SELL_TARGET_GAP = -5         # 저평가 + 목표주가GAP 이 이 값 미만은 매수 금지
+UNDER_VALUE = -10                           # 저평가가 이 값 미만은 매수 금지
+GAP_MAX_SELL_TARGET_PRICE_P = -10           # 목표주가GAP 이 이 값 미만은 매수 금지
+SUM_UNDER_VALUE_SELL_TARGET_GAP = -100      # 저평가 + 목표주가GAP 이 이 값 미만은 매수 금지
 LOSS_CUT_P = 5                              # 2차 매수에서 x% 이탈 시 손절
 MAX_PER = 40                                # PER가 이 값 이상이면 매수 금지
 
@@ -72,14 +72,15 @@ BIG_TAKE_PROFIT_P = -2                      # 큰 익절가 %
 BUY_MARGIN_P = 0.5                          # ex) 최저가 + 0.5% 에서 매수
 
 if is_simulation():
-    MAX_MY_STOCK_COUNT = 10                      # MAX 보유 주식 수
-    INVEST_MONEY_PER_STOCK = 2000000            # 종목 당 투자 금액(원)
+    MAX_MY_STOCK_COUNT = 10                 # MAX 보유 주식 수
+    INVEST_MONEY_PER_STOCK = 2000000        # 종목 당 투자 금액(원)
 else:
     MAX_MY_STOCK_COUNT = 4
-    INVEST_MONEY_PER_STOCK = 300000            # 종목 당 투자 금액(원)
+    INVEST_MONEY_PER_STOCK = 300000         # 종목 당 투자 금액(원)
 
-BUYABLE_GAP = 8                                 # "현재가 - 매수가 GAP" 가 X% 미만 경우만 매수 가능 종목으로 처리
-                                                # GAP 이 클수록 종목이 많아 실시간 처리가 느려진다
+BUYABLE_GAP = 10                            # "현재가 - 매수가 GAP" 가 X% 미만 경우만 매수 가능 종목으로 처리
+                                            # GAP 이 클수록 종목이 많아 실시간 처리가 느려진다
+BUYABLE_COUNT = 8                           # 상위 몇개 종목까지 매수 가능 종목으로 유지
 
 ##############################################################
 
@@ -2355,6 +2356,10 @@ class Stocks_info:
                         if gap_p < BUYABLE_GAP or (self.stocks[code]['buy_1_done'] == True and self.stocks[code]['buy_2_done'] == False):
                             temp_stock = copy.deepcopy({code: self.stocks[code]})
                             self.buyable_stocks[code] = temp_stock[code]
+            
+            # '저평가'값이 큰 순으로 최대 8개 까지만 유지하고 나머지는 제외
+            buyable_count = min(BUYABLE_COUNT, len(self.buyable_stocks))
+            self.buyable_stocks = dict(sorted(self.buyable_stocks.items(), key=lambda x: x[1]['undervalue'], reverse=True)[:buyable_count])
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
