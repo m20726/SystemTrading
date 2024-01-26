@@ -60,8 +60,8 @@ INVEST_TYPE = "real_invest"                 # sim_invest : 모의 투자, real_i
 BUY_1_P = 40                                # 1차 매수 40%
 BUY_2_P = 60                                # 2차 매수 60%
 
-UNDER_VALUE = -5                            # 저평가가 이 값 미만은 매수 금지
-GAP_MAX_SELL_TARGET_PRICE_P = -10           # 목표주가GAP 이 이 값 미만은 매수 금지
+UNDER_VALUE = 0                             # 저평가가 이 값 미만은 매수 금지
+GAP_MAX_SELL_TARGET_PRICE_P = -5            # 목표주가GAP 이 이 값 미만은 매수 금지
 SUM_UNDER_VALUE_SELL_TARGET_GAP = -5        # 저평가 + 목표주가GAP 이 이 값 미만은 매수 금지
 LOSS_CUT_P = 5                              # 2차 매수에서 x% 이탈 시 손절
 MAX_PER = 40                                # PER가 이 값 이상이면 매수 금지
@@ -69,14 +69,14 @@ MAX_PER = 40                                # PER가 이 값 이상이면 매수
 SMALL_TAKE_PROFIT_P = -1                    # 작은 익절가 %
 BIG_TAKE_PROFIT_P = -2                      # 큰 익절가 %
 
-BUY_MARGIN_P = 0.5                          # ex) 최저가 + 0.5% 에서 매수
+BUY_MARGIN_P = 0.3                          # ex) 최저가 + 0.3% 에서 매수
 
 if is_simulation():
     MAX_MY_STOCK_COUNT = 10                 # MAX 보유 주식 수
     INVEST_MONEY_PER_STOCK = 2000000        # 종목 당 투자 금액(원)
 else:
-    MAX_MY_STOCK_COUNT = 4
-    INVEST_MONEY_PER_STOCK = 300000         # 종목 당 투자 금액(원)
+    MAX_MY_STOCK_COUNT = 3
+    INVEST_MONEY_PER_STOCK = 200000         # 종목 당 투자 금액(원)
 
 BUYABLE_GAP = 8                             # "현재가 - 매수가 GAP" 가 X% 미만 경우만 매수 가능 종목으로 처리
                                             # GAP 이 클수록 종목이 많아 실시간 처리가 느려진다
@@ -105,7 +105,7 @@ ORDER_TYPE_MARGET_ORDER = "01"              # 시장가
 ORDER_TYPE_MARKETABLE_LIMIT_ORDER = "03"    # 최유리지정가
 ORDER_TYPE_IMMEDIATE_ORDER = "04"           # 최우선지정가
 
-API_DELAY_S = 0.05                          # 초당 API 20회 제한
+API_DELAY_S = 0.06                          # 초당 API 20회 제한
 
 # 체결 미체결 구분 코드
 TRADE_ANY_CODE = "00"           # 체결 미체결 전체
@@ -1637,7 +1637,7 @@ class Stocks_info:
                                 self.set_order_done(code, BUY_CODE)
                                 self.show_order_list()
             elif BUY_STRATEGY == 2:
-                # 전략 2 : 현재가 < 매수가 된적이 있는 상태에서 (현재가 >= 저가+x% or 현재가 >= 매수가 + y%)면 최우선지정가 매수
+                # 전략 2 : 현재가 < 매수가 된적이 있는 상태에서 (현재가 >= 저가+x% or 현재가 >= 매수가 + y%)면 매수
                 # 매수 가능 종목내에서만 매수
                 t_now = datetime.datetime.now()
                 t_buy = t_now.replace(hour=15, minute=20, second=0, microsecond=0)                
@@ -1665,7 +1665,8 @@ class Stocks_info:
                             # 1차 매수 반복되는 문제 수정
                             if lowest_price <= buy_target_price:
                                 buy_target_qty = self.get_buy_target_qty(code)
-                                if self.buy(code, curr_price, buy_target_qty, ORDER_TYPE_IMMEDIATE_ORDER) == True:
+                                # 시장가 매수
+                                if self.buy(code, curr_price, buy_target_qty, ORDER_TYPE_MARGET_ORDER) == True:
                                     self.set_order_done(code, BUY_CODE)
                                     self.send_msg(f"[{self.stocks[code]['name']}] 매수 주문, 현재가 : {curr_price} >= {lowest_price * buy_margin}(저가 : {lowest_price} * {buy_margin})")
         except Exception as ex:
