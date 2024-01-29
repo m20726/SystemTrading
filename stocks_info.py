@@ -105,7 +105,7 @@ ORDER_TYPE_MARGET_ORDER = "01"              # 시장가
 ORDER_TYPE_MARKETABLE_LIMIT_ORDER = "03"    # 최유리지정가
 ORDER_TYPE_IMMEDIATE_ORDER = "04"           # 최우선지정가
 
-API_DELAY_S = 0.06                          # 초당 API 20회 제한
+API_DELAY_S = 0.07                          # 초당 API 20회 제한
 
 # 체결 미체결 구분 코드
 TRADE_ANY_CODE = "00"           # 체결 미체결 전체
@@ -1755,7 +1755,10 @@ class Stocks_info:
                                         qty = int(self.my_stocks[code]['stockholdings'] / 2)
                                 if self.sell(code, curr_price, qty, ORDER_TYPE_IMMEDIATE_ORDER) == True:
                                     self.set_order_done(code, SELL_CODE)
-                                    self.send_msg(f"[{self.stocks[code]['name']}] 매도 주문, 현재가 : {curr_price} <= take profit : {take_profit_price}, highest_price_ever : {self.stocks[code]['highest_price_ever']}")
+                                    if curr_price >= (sell_target_price * 1.02):
+                                        self.send_msg(f"[{self.stocks[code]['name']}] 매도 주문, 현재가 : {curr_price} >= 목표가 + 2% : {sell_target_price * 1.02}")
+                                    else:    
+                                        self.send_msg(f"[{self.stocks[code]['name']}] 매도 주문, 현재가 : {curr_price} <= take profit : {take_profit_price}, highest_price_ever : {self.stocks[code]['highest_price_ever']}")
                     else:
                         # 반 매도된 상태에서 나머지는 15:15 이후 현재가가 5일선 미만 경우 전량 매도   
                         t_now = datetime.datetime.now()
