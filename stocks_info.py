@@ -2365,9 +2365,8 @@ class Stocks_info:
             buyable_count = min(BUYABLE_COUNT, len(self.buyable_stocks))
             # 단, '저평가'값이 0 이상이면 buyable_stocks 에 포함
             sorted_list = sorted(self.buyable_stocks.items(), key=lambda x: x[1]['undervalue'], reverse=True)
-            if buyable_count < len(self.buyable_stocks):
-                while sorted_list[buyable_count][1]['undervalue'] > 0:
-                    buyable_count = buyable_count + 1
+            while buyable_count < len(self.buyable_stocks) and sorted_list[buyable_count][1]['undervalue'] > 0:
+                buyable_count = buyable_count + 1
             self.buyable_stocks = dict(sorted_list[:buyable_count])
         except Exception as ex:
             result = False
