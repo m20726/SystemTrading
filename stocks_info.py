@@ -69,7 +69,8 @@ MAX_PER = 40                                # PER가 이 값 이상이면 매수
 SMALL_TAKE_PROFIT_P = -1                    # 작은 익절가 %
 BIG_TAKE_PROFIT_P = -2                      # 큰 익절가 %
 
-BUY_MARGIN_P = 0.3                          # ex) 최저가 + 0.3% 에서 매수
+BUY_MARGIN_P = 0.2                          # ex) 최저가 + 0.2% 에서 매수
+SELL_MARGIN_P = 0.2                          # ex) 목표가 + 0.2% 에서 매도
 
 if is_simulation():
     MAX_MY_STOCK_COUNT = 10                 # MAX 보유 주식 수
@@ -1725,6 +1726,7 @@ class Stocks_info:
             # 전략 3 : 목표가에 반 매도(2전략 트레일링스탑). 단, 매도가가 5일선 이하면 전량 매도
             #       나머지는 15:15이후 현재가가 5일선 or 목표가 이탈 시 매도                        
             elif SELL_STRATEGY == 3:
+                sell_margin = 1 + self.to_percent(SELL_MARGIN_P)
                 for code in self.my_stocks.keys():
                     curr_price = self.get_curr_price(code)
                     if curr_price == 0:
@@ -1743,7 +1745,7 @@ class Stocks_info:
                             # 익절가 이하 시 매도
                             take_profit_price = self.get_take_profit_price(code)
                             if (take_profit_price > 0 and curr_price <= take_profit_price) \
-                                or (curr_price >= (sell_target_price * 1.02)):      # 현재가 >= 목표가 + 2% 면 매도
+                                or (curr_price >= (sell_target_price * sell_margin)):      # 현재가 >= 목표가 + 2% 면 매도
                                 # 매도가가 5일선 이하면 전량 매도
                                 ma_5 = self.get_ma(code, 5)
                                 if curr_price <= ma_5:
@@ -1755,8 +1757,8 @@ class Stocks_info:
                                         qty = int(self.my_stocks[code]['stockholdings'] / 2)
                                 if self.sell(code, curr_price, qty, ORDER_TYPE_IMMEDIATE_ORDER) == True:
                                     self.set_order_done(code, SELL_CODE)
-                                    if curr_price >= (sell_target_price * 1.02):
-                                        self.send_msg(f"[{self.stocks[code]['name']}] 매도 주문, 현재가 : {curr_price} >= 목표가 + 2% : {sell_target_price * 1.02}")
+                                    if curr_price >= (sell_target_price * sell_margin):
+                                        self.send_msg(f"[{self.stocks[code]['name']}] 매도 주문, 현재가 : {curr_price} >= 목표가 + 2% : {sell_target_price * sell_margin}")
                                     else:    
                                         self.send_msg(f"[{self.stocks[code]['name']}] 매도 주문, 현재가 : {curr_price} <= take profit : {take_profit_price}, highest_price_ever : {self.stocks[code]['highest_price_ever']}")
                     else:
