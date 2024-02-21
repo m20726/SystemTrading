@@ -21,7 +21,8 @@ def is_simulation():
 ##############################################################
 # Dynamic Envelope, 3달 내 수익, 장중 2차 매수 -5% 미만 손절
 #   2달 내, 5% 손절 시 기회 너무 적다
-#   stocks_info.json 에서 envelope 20 은 14에서도 매매금지 되는 종목들
+#   손절 1개 이하 envelope_p(최대15), sell_target_p(최소5) 구한다
+#   단, 2008 금융위기, 2020 코로나 제외
 # YesTrader 에서 envelope, 목표가 구하는 법 우선 순위
 #   1. '시스템 성능 보고서'에서 거래 횟수 많고
 #   2. '시스템 최적화 보고서'에서 손절 횟수가 적고 
@@ -127,14 +128,8 @@ class Stocks_info:
         self.my_cash = 0                                            # 주문 가능 현금 잔고
         self.buy_1_invest_money = int(INVEST_MONEY_PER_STOCK * (BUY_1_P / 100))        # 1차 매수 금액
         self.buy_2_invest_money = int(INVEST_MONEY_PER_STOCK * (BUY_2_P / 100))        # 2차 매수 금액
-        # 네이버 증권의 기업실적분석표
-        self.this_year_column_text = ""                             # 2023년 기준 2023.12(E)
-        self.last_year_column_text = ""                             # 2023년 기준 2022.12, 작년 데이터 얻기
-        self.the_year_before_last_column_text = ""                  # 2023년 기준 2021.12, 재작년 데이터 얻기
-        self.init_naver_finance_year_column_texts()
         self.trade_done_order_list = list()                         # 체결 완료 주문 list
-        # self.order_num_list = list()                                # 매수/매도 주문번호 list
-        # self.order_list = list()                                    # 주식 일별 주문 체결 조회 정보
+        self.this_year = datetime.datetime.now().year
 
 
     ##############################################################
@@ -259,28 +254,37 @@ class Stocks_info:
                 self.send_msg_err(msg)
 
     ##############################################################
-    # 네이버 증권 기업실적분석 년도 텍스트 초기화
+    # 네이버 증권 기업실적분석 년도 가져오기
+    #   2024년이지만 2024.02 현재 2024.12(E) 데이터 없는 경우 많다. 2023.12(E) 까지만 있다
+    #   따라서 최근 data, index 3 의 데이터를 기준으로 한다
+    #   2023년 기준 2023.12(E)
+    #   2023년 기준 2022.12, 작년 데이터 얻기
+    #   2023년 기준 2021.12, 재작년 데이터 얻기                
     ##############################################################
-    def init_naver_finance_year_column_texts(self):
+    def get_naver_finance_year_column_texts(self, code):
         result = True
         msg = ""
-        try:        
-            annual_finance = self.crawl_naver_finance("005930")
-            # 2023 기준 2023.12(E) 의 column index
-            this_year_index = 3
+        try:
+            recent_year_column_text = ""
+            last_year_column_text = ""
+            the_year_before_last_column_text = ""
+
+            annual_finance = self.crawl_naver_finance(code)
+            recent_year_index = 3
             for i, key in enumerate(annual_finance.columns):
-                if i == this_year_index:
-                    self.this_year_column_text = key
+                if i == recent_year_index:
+                    recent_year_column_text = key
                     break
                 # 매출액 1년 전, 2년 전 구하기 위함
-                elif i == (this_year_index - 1):
+                elif i == (recent_year_index - 1):
                     # 1년 전 ex) 2023 기준 2022.12
-                    self.last_year_column_text = key
-                elif i == (this_year_index - 2):
+                    last_year_column_text = key
+                elif i == (recent_year_index - 2):
                     # 2년 전 ex) 2023 기준 2021.12
-                    self.the_year_before_last_column_text = key
+                    the_year_before_last_column_text = key
                 else:
                     pass
+            return recent_year_column_text, last_year_column_text, the_year_before_last_column_text
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -619,7 +623,6 @@ class Stocks_info:
             self.stocks[code]['sell_1_done'] = False
             # real_avg_buy_price 은 매도 완료 후 매도 체결 조회 할 수 있기 때문에 초기화하지 않는다
             # self.stocks[code]['real_avg_buy_price'] = 0
-            self.stocks[code]['envelope_p_long_ma_up'] = False
             self.stocks[code]['loss_cut_done'] = False
         except Exception as ex:
             result = False
@@ -834,21 +837,22 @@ class Stocks_info:
 
             annual_finance = self.crawl_naver_finance(code)
             # PER_E, EPS, BPS, ROE 는 2013.12(E) 기준
-            self.stocks[code]['PER_E'] = float(annual_finance[self.this_year_column_text]['PER(배)'].replace(",",""))
+            recent_year_column_text, last_year_column_text, the_year_before_last_column_text = self.get_naver_finance_year_column_texts(code)
+            self.stocks[code]['PER_E'] = float(annual_finance[recent_year_column_text]['PER(배)'].replace(",",""))
             if self.stocks[code]['PER_E'] == 0:
                 # PER_E == 0 는 네이버 금융에서 정보가 없는 경우다, not valid 처리
                 PRINT_ERR(f"PER_E from naver finace of {self.stocks[code]['name']} is 0")
                 return False
 
-            self.stocks[code]['EPS_E'] = int(annual_finance[self.this_year_column_text]['EPS(원)'].replace(",",""))
-            self.stocks[code]['BPS_E'] = int(annual_finance[self.this_year_column_text]['BPS(원)'].replace(",",""))
-            self.stocks[code]['ROE_E'] = float(annual_finance[self.this_year_column_text]['ROE(지배주주)'].replace(",",""))
+            self.stocks[code]['EPS_E'] = int(annual_finance[recent_year_column_text]['EPS(원)'].replace(",",""))
+            self.stocks[code]['BPS_E'] = int(annual_finance[recent_year_column_text]['BPS(원)'].replace(",",""))
+            self.stocks[code]['ROE_E'] = float(annual_finance[recent_year_column_text]['ROE(지배주주)'].replace(",",""))
             self.stocks[code]['industry_PER'] = float(self.crawl_naver_finance_by_selector(code, "#tab_con1 > div:nth-child(6) > table > tbody > tr.strong > td > em").replace(",",""))
-            self.stocks[code]['operating_profit_margin_p'] = float(annual_finance[self.this_year_column_text]['영업이익률'])
-            self.stocks[code]['sales_income'] = int(annual_finance[self.this_year_column_text]['매출액'].replace(",",""))                   # 올해 예상 매출액, 억원
-            self.stocks[code]['last_year_sales_income'] = int(annual_finance[self.last_year_column_text]['매출액'].replace(",",""))         # 작년 매출액, 억원
-            self.stocks[code]['the_year_before_last_sales_income'] = int(annual_finance[self.the_year_before_last_column_text]['매출액'].replace(",",""))       # 재작년 매출액, 억원
-            self.stocks[code]['curr_profit'] = int(annual_finance[self.this_year_column_text]['당기순이익'].replace(",",""))
+            self.stocks[code]['operating_profit_margin_p'] = float(annual_finance[recent_year_column_text]['영업이익률'])
+            self.stocks[code]['sales_income'] = int(annual_finance[recent_year_column_text]['매출액'].replace(",",""))                   # 올해 예상 매출액, 억원
+            self.stocks[code]['last_year_sales_income'] = int(annual_finance[last_year_column_text]['매출액'].replace(",",""))         # 작년 매출액, 억원
+            self.stocks[code]['the_year_before_last_sales_income'] = int(annual_finance[the_year_before_last_column_text]['매출액'].replace(",",""))       # 재작년 매출액, 억원
+            self.stocks[code]['curr_profit'] = int(annual_finance[recent_year_column_text]['당기순이익'].replace(",",""))
             # 목표 주가 = 미래 당기순이익(원) * PER_E / 상장주식수
             if total_stock_count > 0:
                 self.stocks[code]['max_target_price'] = int((self.stocks[code]['curr_profit'] * 100000000) * self.stocks[code]['PER_E'] / total_stock_count)
@@ -2209,6 +2213,37 @@ class Stocks_info:
                 self.send_msg_err(msg)
 
     ##############################################################
+    # 저평가 높은 순으로 출력
+    ##############################################################
+    def show_envelope(self, send_discode = False):
+        result = True
+        msg = ""
+        try:                
+            temp_stocks = copy.deepcopy(self.stocks)
+            sorted_data = dict(sorted(temp_stocks.items(), key=lambda x: x[1]['undervalue'], reverse=True))
+            data = {'종목명':[], 'code':[], 'envelope_p':[], 'sell_target_p':[]}
+            for code in sorted_data.keys():
+                data['종목명'].append(sorted_data[code]['name'])
+                data['code'].append(sorted_data[code]['code'])
+                data['envelope_p'].append(sorted_data[code]['envelope_p'])
+                data['sell_target_p'].append(sorted_data[code]['sell_target_p'])
+
+            # PrettyTable 객체 생성 및 데이터 추가
+            table = PrettyTable()
+            table.field_names = list(data.keys())
+            table.align = 'c'  # 가운데 정렬
+            for row in zip(*data.values()):
+                table.add_row(row)
+            
+            self.send_msg(table, send_discode)
+        except Exception as ex:
+            result = False
+            msg = "{}".format(traceback.format_exc())
+        finally:
+            if result == False:
+                self.send_msg_err(msg)
+
+    ##############################################################
     # stocks 변경있으면 save stocks_info.json
     # Return    : 현재 stocks 정보
     # Parameter :
@@ -2254,15 +2289,6 @@ class Stocks_info:
         finally:
             if result == False:
                 self.send_msg_err(msg)
-
-    # ##############################################################
-    # # 금일 매수/매도 주문 order_num_list 초기화
-    # ##############################################################    
-    # def init_order_num_list(self):
-    #     self.order_num_list.clear()
-    #     for stock in self.order_list:
-    #         # 주문 번호
-    #         self.order_num_list.append(stock['odno'])        
 
     ##############################################################
     # 손절가
