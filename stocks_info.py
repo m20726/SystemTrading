@@ -836,6 +836,14 @@ class Stocks_info:
                 self.send_msg_err(f"[update_stock_invest_info failed]{str(res.json())}")
 
             annual_finance = self.crawl_naver_finance(code)
+            # 값이 '-' 만 있는 경우 '-' 제거
+            # 안그러면 아래 코드 float(annual_finance[...])에서 exception 발생
+            # ex) ROD(%) 값이 - 로만 되어있는 경우 있다
+            for i, row in annual_finance.iterrows():
+                for column in annual_finance.columns:
+                    if row[column] == '-':
+                        row[column] = ''
+
             # PER_E, EPS, BPS, ROE 는 2013.12(E) 기준
             recent_year_column_text, last_year_column_text, the_year_before_last_column_text = self.get_naver_finance_year_column_texts(code)
             self.stocks[code]['PER_E'] = float(annual_finance[recent_year_column_text]['PER(배)'].replace(",",""))
