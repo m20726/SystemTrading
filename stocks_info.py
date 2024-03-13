@@ -50,7 +50,7 @@ BUY_STRATEGY = 2
 SELL_STRATEGY = 3
 
 # 1차 매수량 1주만 매수 여부
-BUY_1_QTY_1 = True
+BUY_1_QTY_1 = False
 
 # 손절 후 종가가 20일선 위로 올라와야 매수 여부
 CHECK_END_PRICE_HIGHER_THAN_20MA_AFTER_LOSS_CUT = True
@@ -2595,4 +2595,3 @@ class Stocks_info:
         finally:
             if result == False:
                 self.send_msg_err(msg)
-    
