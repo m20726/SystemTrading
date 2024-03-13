@@ -11,6 +11,11 @@ PERIODIC_PRINT_TIME_M = 30      # 30분마다 주기적으로 출력
 ##############################################################
 def main():
     try:
+        today = datetime.datetime.today().weekday()
+        if today == SATURDAY or today == SUNDAY:  # 토요일이나 일요일이면 자동 종료
+            stocks_info.send_msg("주말이므로 프로그램을 종료")
+            return
+                
         stocks_info = Stocks_info()
         stocks_info.initialize()
         
@@ -44,10 +49,6 @@ def main():
         t_now = datetime.datetime.now()
         t_start = t_now.replace(hour=9, minute=0, second=0, microsecond=0)
         t_exit = t_now.replace(hour=15, minute=30, second=0,microsecond=0)
-        today = datetime.datetime.today().weekday()
-        if today == SATURDAY or today == SUNDAY:  # 토요일이나 일요일이면 자동 종료
-            stocks_info.send_msg("주말이므로 프로그램을 종료")
-            return
 
         sell_order_done = False
         # 주기적으로 출력 여부
