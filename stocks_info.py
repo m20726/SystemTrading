@@ -70,8 +70,8 @@ MAX_PER = 40                                # PER가 이 값 이상이면 매수
 SMALL_TAKE_PROFIT_P = -1                    # 작은 익절가 %
 BIG_TAKE_PROFIT_P = -2                      # 큰 익절가 %
 
-BUY_MARGIN_P = 0.2                          # ex) 최저가 + 0.2% 에서 매수
-SELL_MARGIN_P = 0.2                          # ex) 목표가 + 0.2% 에서 매도
+BUY_MARGIN_P = 1                            # ex) 최저가 + x% 에서 매수
+SELL_MARGIN_P = 2                           # ex) 목표가 + x% 에서 매도
 
 if is_simulation():
     MAX_MY_STOCK_COUNT = 10                 # MAX 보유 주식 수
@@ -1650,7 +1650,7 @@ class Stocks_info:
                                 self.set_order_done(code, BUY_CODE)
                                 self.show_order_list()
             elif BUY_STRATEGY == 2:
-                # 전략 2 : 현재가 < 매수가 된적이 있는 상태에서 (현재가 >= 저가+x% or 현재가 >= 매수가 + y%)면 매수
+                # 전략 2 : 현재가 < 매수가 된적이 있는 상태에서 (현재가 >= 저가+x% or 현재가 > 매수가)면 매수
                 # 매수 가능 종목내에서만 매수
                 t_now = datetime.datetime.now()
                 t_buy = t_now.replace(hour=15, minute=20, second=0, microsecond=0)                
@@ -1666,14 +1666,14 @@ class Stocks_info:
                             self.send_msg(f"[{self.stocks[code]['name']}] 매수 감시 시작, 현재가 : {curr_price}, 매수 목표가 : {buy_target_price}")
                             self.stocks[code]['allow_monitoring_buy'] = True                        
                     else:
-                        # 현재가 >= 저가 + BUY_MARGIN_P% 에서 매수
+                        # "현재가 >= 저가 + BUY_MARGIN_P%" 에서 매수
                         lowest_price = self.get_lowest_price(code)
                         buy_margin = 1 + self.to_percent(BUY_MARGIN_P)
 
-                        # or buy 모니터링 중 15:20 까지 매수 안됐고 현재가가 매수가 아래면 매수
+                        # or buy 모니터링 중 "15:20" 까지 매수 안됐고 "현재가 <= 매수가"면 매수
                         if ((lowest_price > 0) and curr_price >= (lowest_price * buy_margin)) \
                             or (t_now >= t_buy and curr_price <= buy_target_price) \
-                            or (curr_price <= buy_target_price * 0.99):     # 현재가 <= 매수가 - 1% 에서 매수
+                            or (curr_price > buy_target_price):     # "현재가 > 매수가"면 매수
                             # 1차 매수 상태에서 allow_monitoring_buy 가 false 안된 상태에서 2차 매수 들어갈 때
                             # 1차 매수 반복되는 문제 수정
                             if lowest_price <= buy_target_price:
@@ -1757,7 +1757,7 @@ class Stocks_info:
                             # 익절가 이하 시 매도
                             take_profit_price = self.get_take_profit_price(code)
                             if (take_profit_price > 0 and curr_price <= take_profit_price) \
-                                or (curr_price >= (sell_target_price * sell_margin)):      # 현재가 >= 목표가 + 2% 면 매도
+                                or (curr_price >= (sell_target_price * sell_margin)):      # 현재가 >= 목표가 + SELL_MARGIN_P% 면 매도
                                 # 매도가가 5일선 이하면 전량 매도
                                 ma_5 = self.get_ma(code, 5)
                                 if curr_price <= ma_5:
