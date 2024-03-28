@@ -77,7 +77,7 @@ if is_simulation():
     MAX_MY_STOCK_COUNT = 10                 # MAX 보유 주식 수
     INVEST_MONEY_PER_STOCK = 2000000        # 종목 당 투자 금액(원)
 else:
-    MAX_MY_STOCK_COUNT = 3
+    MAX_MY_STOCK_COUNT = 2
     INVEST_MONEY_PER_STOCK = 200000         # 종목 당 투자 금액(원)
 
 BUYABLE_GAP = 8                             # "현재가 - 매수가 GAP" 가 X% 미만 경우만 매수 가능 종목으로 처리
@@ -1921,15 +1921,7 @@ class Stocks_info:
     def check_trade_done(self, code, buy_sell: str):
         result = True
         msg = ""
-        try:            
-            # # 이미 체결 완료 처리한 주문은 재처리 금지
-            # result, order_num = self.get_order_num(code, buy_sell)
-            # if result == True:
-            #     if order_num in self.trade_done_order_list:
-            #         return False
-            # else:
-            #     return False
-            
+        try:
             order_list = self.get_order_list()
             for stock in order_list:
                 if stock['pdno'] == code:
@@ -1986,11 +1978,14 @@ class Stocks_info:
                 else:
                     # 해당 종목 아님
                     pass
-            return True
-        except Exception as ex:
-            msg = "{}".format(traceback.format_exc())
-            self.send_msg_err(msg)
             return False
+        except Exception as ex:
+            result = False
+            msg = "{}".format(traceback.format_exc())
+        finally:
+            if result == False:
+                self.send_msg_err(msg)
+                return result
 
     ##############################################################
     # 체결 여부 체크

@@ -25,8 +25,8 @@ def main():
         stocks_info.get_stock_balance()        
         stocks_info.update_my_stocks()            # 보유 주식 업데이트
         stocks_info.update_buyable_stocks()
-        stocks_info.show_buyable_stocks()
         stocks_info.show_stocks_by_undervalue()
+        stocks_info.show_buyable_stocks()
 
         # # stocks_info.json 에 추가
         # for code in stocks_info.stocks.keys():
