@@ -3,6 +3,7 @@ from handle_json import *
 import time
 from libs.debug import *
 import datetime
+from datetime import date
 
 SATURDAY = 5
 SUNDAY = 6
@@ -18,7 +19,7 @@ def main():
                 
         stocks_info = Stocks_info()
         stocks_info.initialize()
-        
+
         stocks_info.update_stocks_trade_info()
         stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
         
@@ -30,25 +31,28 @@ def main():
 
         # # stocks_info.json 에 추가
         # for code in stocks_info.stocks.keys():
-        #     stocks_info.stocks[code]['loss_cut_done'] = False
+        #     stocks_info.stocks[code]['recent_buy_date'] = date.today().strftime('%Y-%m-%d')
         # stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
         
         # # stocks_info.json 에 key 제거
         # for code in stocks_info.stocks.keys():
-        #     del stocks_info.stocks[code]['long_ma_up']
+        #     del stocks_info.stocks[code]['buy_price']
         # stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
 
-        # # stocks_info.json 변경
+        # # # stocks_info.json 변경
         # for code in stocks_info.stocks.keys():
-        #     stocks_info.stocks[code]['envelope_p'] = 4
-        #     stocks_info.stocks[code]['sell_target_p'] = 4
+        #     stocks_info.stocks[code]['buy_price'] = [0, 0]
+        #     stocks_info.stocks[code]['buy_qty'] = [0, 0]
+        #     stocks_info.stocks[code]['buy_done'] = [False, False]
         # stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
         
-        stocks_info.send_msg("===국내 주식 자동매매 프로그램을 시작===")
+        stocks_info.send_msg("===국내 주식 자동매매 프로그램(v1.1)을 시작===")
         pre_stocks = copy.deepcopy(stocks_info.stocks)
         t_now = datetime.datetime.now()
         t_start = t_now.replace(hour=9, minute=0, second=0, microsecond=0)
-        t_exit = t_now.replace(hour=15, minute=30, second=0,microsecond=0)
+        # 동시 호가 15:20~15:30
+        t_simultaneous_quote = t_now.replace(hour=15, minute=20, second=0, microsecond=0)
+        t_exit = t_now.replace(hour=15, minute=30, second=0,microsecond=0)       
 
         sell_order_done = False
         # 주기적으로 출력 여부
@@ -57,14 +61,12 @@ def main():
         while True:
             t_now = datetime.datetime.now()
             if t_start <= t_now:
-                if t_exit < t_now:  # PM 03:30 ~ 장 종료
-                    stocks_info.send_msg("장 종료")
+                if t_exit < t_now:  # 종료
+                    stocks_info.send_msg("종료")
                     break
-            
-                # # test, 시장가 매도
-                # if sell_order_done == False:
-                #     stocks_info.handle_sell_stock(ORDER_TYPE_MARGET_ORDER)
-                #     sell_order_done = True
+                elif t_simultaneous_quote < t_now:  # 동시 호가 15:20 ~
+                    # 손절 확인
+                    stocks_info.handle_loss_cut()
 
                 if SELL_STRATEGY == 1:
                     # 장 시작 시 보유 종목 매도 주문
@@ -75,7 +77,7 @@ def main():
                     stocks_info.handle_sell_stock()
                 
                 stocks_info.handle_buy_stock()
-                stocks_info.handle_loss_cut()
+                # stocks_info.handle_loss_cut()
 
                 # 매수/매도 체결 여부
                 stocks_info.check_ordered_stocks_trade_done()
@@ -92,7 +94,7 @@ def main():
                 elif t_now.minute % PERIODIC_PRINT_TIME_M == 1:
                     allow_periodic_print = True
         
-        # 장 종료 후 처리
+        # 장 종료
         stocks_info.update_my_stocks()
         stocks_info.update_buy_qty_after_market_finish()            # 일부만 매수 됐을 때 처리
         stocks_info.show_stocks_by_undervalue(True)                 # 저평가

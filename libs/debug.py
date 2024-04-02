@@ -26,7 +26,7 @@ streamHandler = logging.StreamHandler(sys.stdout)
 streamHandler.setFormatter(formatter)
 
 LOG_FOLDER = '.\\log'
-LOG_FILE = LOG_FOLDER + '\\VA.log'
+LOG_FILE = LOG_FOLDER + '\\SystemTrading.log'
 
 # log 폴더 없으면 만들기
 if not os.path.exists(LOG_FOLDER):
