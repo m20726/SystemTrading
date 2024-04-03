@@ -12,11 +12,6 @@ import traceback
 from datetime import date
 
 
-def is_simulation():
-    if INVEST_TYPE == "sim_invest":
-        return True
-    return False
-
 ##############################################################
 #                           전략                             #
 ##############################################################
@@ -54,13 +49,6 @@ SELL_STRATEGY = 3
 # 매수량 1주만 매수 여부
 BUY_QTY_1 = True
 
-# 손절 후 종가가 20일선 위로 올라와야 매수 여부
-CHECK_END_PRICE_HIGHER_THAN_20MA_AFTER_LOSS_CUT = True
-
-
-INVEST_TYPE = "real_invest"                 # sim_invest : 모의 투자, real_invest : 실전 투자
-# INVEST_TYPE = "sim_invest"
-
 # 투자 전략 => 저평가 조건
 # high : 공격적, middle : 중도적, low : 보수적
 INVEST_RISK = "high"
@@ -78,7 +66,6 @@ else:
     GAP_MAX_SELL_TARGET_PRICE_P = 5
     SUM_UNDER_VALUE_SELL_TARGET_GAP = 10
 
-
 LOSS_CUT_P = 5                              # last차 매수에서 x% 이탈 시 손절
 MAX_PER = 40                                # PER가 이 값 이상이면 매수 금지
 
@@ -88,7 +75,10 @@ BIG_TAKE_PROFIT_P = -2                      # 큰 익절가 %
 BUY_MARGIN_P = 1                            # ex) 최저가 + x% 에서 매수
 SELL_MARGIN_P = 2                           # ex) 목표가 + x% 에서 매도
 
-if is_simulation():
+INVEST_TYPE = "real_invest"                 # sim_invest : 모의 투자, real_invest : 실전 투자
+# INVEST_TYPE = "sim_invest"
+
+if INVEST_TYPE == "sim_invest":
     MAX_MY_STOCK_COUNT = 10                 # MAX 보유 주식 수
     INVEST_MONEY_PER_STOCK = 2000000        # 종목 당 투자 금액(원)
 else:
@@ -97,10 +87,12 @@ else:
 
 # "현재가 - 매수가 GAP" 가 X% 미만 경우만 매수 가능 종목으로 처리
 # GAP 이 클수록 종목이 많아 실시간 처리가 느려진다
-BUYABLE_GAP = 8                             
-                                            
+BUYABLE_GAP = 8
 BUYABLE_COUNT = 30                          # 상위 몇개 종목까지 매수 가능 종목으로 유지
-BUYABLE_MARGET_CAP = 20000                  # 시종 X 미만 매수 금지
+BUYABLE_MARGET_CAP = 20000                  # 시총 X 미만 매수 금지(억)
+
+# 손절 후 종가가 20일선 위로 올라와야 매수 여부
+CHECK_END_PRICE_HIGHER_THAN_20MA_AFTER_LOSS_CUT = True
 
 ##############################################################
 
@@ -2339,7 +2331,6 @@ class Stocks_info:
     #   손절 주문 시 True, 손절 주문 없을 시 False
     ##############################################################
     def handle_loss_cut(self):
-        # PRINT_INFO('')
         result = True
         msg = ""
         try:
@@ -2359,6 +2350,7 @@ class Stocks_info:
                 if days_diff > no_buy_days:
                     if self.stocks[code]['sell_1_done'] == False and self.stocks[code]['buy_done'][BUY_SPLIT_COUNT-1] == False:
                         do_loss_cut = True
+                        PRINT_INFO(f'{recent_buy_date} 매수 후 {today}까지 {days_diff} 동안 매수 없어 손절')
 
                 curr_price = self.get_curr_price(code)
                 loss_cut_price = self.get_loss_cut_price(code)
@@ -2629,25 +2621,25 @@ class Stocks_info:
 
     ##############################################################
     # 1차 매수할 지 여부 체크
-    #   "한 달 내 최고 종가 > (1 + X * 엔벨지지) * 엔벨지지가" 경우
+    #   "한 달 내 최고 종가 > 1차 매수가 * X" 경우
     #   retun True 아니면 False
     #   즉, 떨어진 폭이 기준보다 적으면 매수 안함
     # param :
     #   code        종목 코드
-    #   price       엔벨지지가
+    #   price       1차 매수가
     ##############################################################
-    def is_ok_to_buy_1(self, code, envelope_price):  
+    def is_ok_to_buy_1(self, code, price):  
         result = True
         msg = ""
         try:
             # 한 달은 약 21일
             highest_end_price = self.get_highest_end_pirce(code, 21)
-            envelope_p = self.stocks[code]['envelope_p']
-            check_price = int((1 + 1.7 * self.to_percent(envelope_p)) * envelope_price)
+            margine_p = 15
+            check_price = int(price * (1 + self.to_percent(margine_p)))
             if highest_end_price > check_price:
                 return True
             
-            PRINT_INFO(f"[{self.stocks[code]['name']}] Do not buy first, highest_end_price:{highest_end_price} <= {check_price}")
+            # PRINT_INFO(f"[{self.stocks[code]['name']}] Do not buy first, highest_end_price:{highest_end_price} <= {check_price}")
             return False
         except Exception as ex:
             result = False

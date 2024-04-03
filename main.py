@@ -77,7 +77,6 @@ def main():
                     stocks_info.handle_sell_stock()
                 
                 stocks_info.handle_buy_stock()
-                # stocks_info.handle_loss_cut()
 
                 # 매수/매도 체결 여부
                 stocks_info.check_ordered_stocks_trade_done()
