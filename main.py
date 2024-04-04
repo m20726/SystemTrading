@@ -50,9 +50,10 @@ def main():
         pre_stocks = copy.deepcopy(stocks_info.stocks)
         t_now = datetime.datetime.now()
         t_start = t_now.replace(hour=9, minute=0, second=0, microsecond=0)
-        # 동시 호가 15:20~15:30
-        t_simultaneous_quote = t_now.replace(hour=15, minute=20, second=0, microsecond=0)
-        t_exit = t_now.replace(hour=15, minute=30, second=0,microsecond=0)       
+        # 장 종료 15:30
+        t_market_end = t_now.replace(hour=15, minute=30, second=0, microsecond=0)
+        # 종가 매매 위해 15:35 에 종료
+        t_exit = t_now.replace(hour=15, minute=35, second=0,microsecond=0)       
 
         sell_order_done = False
         # 주기적으로 출력 여부
@@ -64,7 +65,7 @@ def main():
                 if t_exit < t_now:  # 종료
                     stocks_info.send_msg("종료")
                     break
-                elif t_simultaneous_quote < t_now:  # 동시 호가 15:20 ~
+                elif t_market_end < t_now:  # 종가 매매
                     # 손절 확인
                     stocks_info.handle_loss_cut()
 

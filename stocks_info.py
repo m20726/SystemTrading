@@ -28,8 +28,6 @@ from datetime import date
 #       오늘 > 최근 매수일 + x days, 즉 x 일 동안 매수 없고
 #           1차 매도가 안됐고 last차 매수까지 안된 경우 손절
 
-# 분할 매수 횟수
-BUY_SPLIT_COUNT = 2
 
 ##############################################################
 #                       Config                               #
@@ -46,25 +44,16 @@ BUY_SPLIT_COUNT = 2
 BUY_STRATEGY = 2
 SELL_STRATEGY = 3
 
+# 분할 매수 횟수
+BUY_SPLIT_COUNT = 2
+
 # 매수량 1주만 매수 여부
 BUY_QTY_1 = True
 
-# 투자 전략 => 저평가 조건
-# high : 공격적, middle : 중도적, low : 보수적
-INVEST_RISK = "high"
-
-if INVEST_RISK == "high":
-    UNDER_VALUE = -8                            # 저평가가 이 값 미만은 매수 금지
-    GAP_MAX_SELL_TARGET_PRICE_P = -10           # 목표주가GAP 이 이 값 미만은 매수 금지
-    SUM_UNDER_VALUE_SELL_TARGET_GAP = -20       # 저평가 + 목표주가GAP 이 이 값 미만은 매수 금지    
-elif INVEST_RISK == "middle":
-    UNDER_VALUE = -3
-    GAP_MAX_SELL_TARGET_PRICE_P = -5           
-    SUM_UNDER_VALUE_SELL_TARGET_GAP = -10         
-else:
-    UNDER_VALUE = 0
-    GAP_MAX_SELL_TARGET_PRICE_P = 5
-    SUM_UNDER_VALUE_SELL_TARGET_GAP = 10
+# 투자 전략 리스크
+INVEST_RISK_LOW = 0
+INVEST_RISK_MIDDLE = 1
+INVEST_RISK_HIGH = 2
 
 LOSS_CUT_P = 5                              # last차 매수에서 x% 이탈 시 손절
 MAX_PER = 40                                # PER가 이 값 이상이면 매수 금지
@@ -113,6 +102,8 @@ ORDER_TYPE_LIMIT_ORDER = "00"               # 지정가
 ORDER_TYPE_MARGET_ORDER = "01"              # 시장가
 ORDER_TYPE_MARKETABLE_LIMIT_ORDER = "03"    # 최유리지정가
 ORDER_TYPE_IMMEDIATE_ORDER = "04"           # 최우선지정가
+ORDER_TYPE_BEFORE_MARKET_ORDER = "05"       # 장전 시간외(08:20~08:40)
+ORDER_TYPE_AFTER_MARKET_ORDER = "06"        # 장후 시간외(15:30~16:00)
 
 API_DELAY_S = 0.07                          # 초당 API 20회 제한
 
@@ -125,23 +116,33 @@ REQUESTS_POST_MAX_SIZE = 2000
 
 ##############################################################
 
+class Trade_strategy:
+    def __init__(self) -> None:
+        self.invest_risk = INVEST_RISK_LOW              # 투자 전략, high : 공격적, middle : 중도적, low : 보수적
+        self.under_value = 0                            # 저평가가 이 값 미만은 매수 금지
+        self.gap_max_sell_target_price_p = 0            # 목표주가GAP 이 이 값 미만은 매수 금지
+        self.sum_under_value_sell_target_gap = 0        # 저평가 + 목표주가GAP 이 이 값 미만은 매수 금지  
+
+        
 class Stocks_info:
     def __init__(self) -> None:
-        self.stocks = dict()                                        # 모든 종목의 정보
-        self.my_stocks = dict()                                     # 보유 종목
-        self.buyable_stocks = dict()                                # 매수 가능 종목
-        self.config = dict()                                        # 투자 관련 설정 정보
+        self.stocks = dict()                            # 모든 종목의 정보
+        self.my_stocks = dict()                         # 보유 종목
+        self.buyable_stocks = dict()                    # 매수 가능 종목
+        self.config = dict()                            # 투자 관련 설정 정보
         self.access_token = ""                  
-        self.my_cash = 0                                            # 주문 가능 현금 잔고
+        self.my_cash = 0                                # 주문 가능 현금 잔고
 
-        # 분할 매수 비중(%), BUY_SPLIT_COUNT 개수만큼 세팅        
+        # 분할 매수 비중(%), BUY_SPLIT_COUNT 개수만큼 세팅 
         self.buy_split_p = []
         for i in range(BUY_SPLIT_COUNT):
             self.buy_split_p.append(100/BUY_SPLIT_COUNT)
 
         self.buy_invest_money = list()
-        self.trade_done_order_list = list()                         # 체결 완료 주문 list
+        self.trade_done_order_list = list()             # 체결 완료 주문 list
         self.this_year = datetime.datetime.now().year
+        self.my_stock_count = 0                         # 보유 종목 수
+        self.trade_strategy = Trade_strategy()
 
     ##############################################################
     # 초기화 시 처리 할 내용
@@ -158,6 +159,8 @@ class Stocks_info:
             self.access_token = self.get_access_token()
             self.my_cash = self.get_my_cash()       # 보유 현금 세팅
             self.init_trade_done_order_list()
+            self.my_stock_count = self.get_my_stock_count()
+            self.init_trade_strategy()                # 매매 전략 세팅
             self.print_strategy()
         except Exception as ex:
             result = False
@@ -1155,15 +1158,15 @@ class Stocks_info:
                 return False
 
             # 저평가 조건(X미만 매수 금지)
-            if self.stocks[code]['undervalue'] < UNDER_VALUE:
+            if self.stocks[code]['undervalue'] < self.trade_strategy.under_value:
                 return False
             
             # 목표 주가 GAP = (목표 주가 - 목표가) / 목표가 < X% 미만 매수 금지
-            if self.stocks[code]['gap_max_sell_target_price_p'] < GAP_MAX_SELL_TARGET_PRICE_P:
+            if self.stocks[code]['gap_max_sell_target_price_p'] < self.trade_strategy.gap_max_sell_target_price_p:
                 return False
 
             # 저평가 + 목표주가GAP < X 미만 매수 금지
-            if (self.stocks[code]['undervalue'] + self.stocks[code]['gap_max_sell_target_price_p']) < SUM_UNDER_VALUE_SELL_TARGET_GAP:
+            if (self.stocks[code]['undervalue'] + self.stocks[code]['gap_max_sell_target_price_p']) < self.trade_strategy.sum_under_value_sell_target_gap:
                 return False
             
             # PER 매수 금지
@@ -1466,6 +1469,13 @@ class Stocks_info:
             if self.is_ok_to_buy(code) == False:
                 return False
             
+            # 종가 매매 처리
+            t_now = datetime.datetime.now()
+            # 장 종료 15:30
+            t_market_end = t_now.replace(hour=15, minute=30, second=0, microsecond=0)
+            if t_now >= t_market_end:
+                order_type = ORDER_TYPE_AFTER_MARKET_ORDER
+            
             # 지정가 이외의 주문은 가격을 0으로 해야 주문 실패하지 않는다.
             # 업체 : 장전 시간외, 장후 시간외, 시장가 등 모든 주문구분의 경우 1주당 가격을 공란으로 비우지 않고
             # "0"으로 입력 권고드리고 있습니다.
@@ -1524,7 +1534,14 @@ class Stocks_info:
     def sell(self, code: str, price: str, qty: str, order_type:str = ORDER_TYPE_LIMIT_ORDER):
         result = True
         msg = ""
-        try:            
+        try:
+            # 종가 매매 처리
+            t_now = datetime.datetime.now()
+            # 장 종료 15:30
+            t_market_end = t_now.replace(hour=15, minute=30, second=0, microsecond=0)
+            if t_now >= t_market_end:
+                order_type = ORDER_TYPE_AFTER_MARKET_ORDER
+
             # 지정가 이외의 주문은 가격을 0으로 해야 주문 실패하지 않는다.
             # 업체 : 장전 시간외, 장후 시간외, 시장가 등 모든 주문구분의 경우 1주당 가격을 공란으로 비우지 않고
             # "0"으로 입력 권고드리고 있습니다.
@@ -1653,7 +1670,7 @@ class Stocks_info:
         # PRINT_INFO('')
         result = True
         msg = ""
-        try:    
+        try:
             if BUY_STRATEGY == 1:
                 # 전략 1 : 현재가 <= 매수가면 매수
                 # 매수 가능 종목내에서만 매수
@@ -1703,7 +1720,7 @@ class Stocks_info:
                                 buy_target_qty = self.get_buy_target_qty(code)
                                 if self.buy(code, curr_price, buy_target_qty, ORDER_TYPE_IMMEDIATE_ORDER) == True:
                                     self.set_order_done(code, BUY_CODE)
-                                    self.send_msg(f"[{self.stocks[code]['name']}] 매수 주문, 현재가 : {curr_price} >= {lowest_price * buy_margin}(저가 : {lowest_price} * {buy_margin})")
+                                    self.send_msg(f"[{self.stocks[code]['name']}] 매수 주문, 현재가 : {curr_price} >= {int(lowest_price * buy_margin)}(저가 : {lowest_price} * {buy_margin})")
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -1730,7 +1747,7 @@ class Stocks_info:
                     if self.sell(code, self.my_stocks[code]['sell_target_price'], self.my_stocks[code]['stockholdings'], order_type) == True:
                         self.set_order_done(code, SELL_CODE)
             elif SELL_STRATEGY == 2:
-                # 전략 2 : 현재가 >= 목표가 된적이 있는 상태에서 (현재가 <= 여지껏 고가 - x% or 현재가 <= 목표가 - y%)면 최우선지정가 매도
+                # 전략 2 : 현재가 >= 목표가 된적이 있는 상태에서 (현재가 <= 여지껏 고가 - x% or 현재가 <= 목표가 - y%)면 전량 매도
                 for code in self.my_stocks.keys():
                     curr_price = self.get_curr_price(code)
                     if curr_price == 0:
@@ -1745,7 +1762,7 @@ class Stocks_info:
                         # 익절가 이하 시 매도
                         take_profit_price = self.get_take_profit_price(code)
                         if (take_profit_price > 0 and curr_price <= take_profit_price):
-                            if self.sell(code, curr_price, self.my_stocks[code]['stockholdings'], ORDER_TYPE_IMMEDIATE_ORDER) == True:
+                            if self.sell(code, curr_price, self.my_stocks[code]['stockholdings'], ORDER_TYPE_MARGET_ORDER) == True:
                                 self.set_order_done(code, SELL_CODE)
                                 self.send_msg(f"[{self.stocks[code]['name']}] 매도 주문, 현재가 : {curr_price} <= take profit : {take_profit_price}")
             # 전략 3 : 목표가에 반 매도(2전략 트레일링스탑). 단, 매도가가 5일선 이하면 전량 매도
@@ -1783,7 +1800,7 @@ class Stocks_info:
                                 if self.sell(code, curr_price, qty, ORDER_TYPE_MARGET_ORDER) == True:
                                     self.set_order_done(code, SELL_CODE)
                                     if curr_price >= (sell_target_price * sell_margin):
-                                        self.send_msg(f"[{self.stocks[code]['name']}] 매도 주문, 현재가 : {curr_price} >= 목표가 + {SELL_MARGIN_P}% : {sell_target_price * sell_margin}")
+                                        self.send_msg(f"[{self.stocks[code]['name']}] 매도 주문, 현재가 : {curr_price} >= 목표가 + {SELL_MARGIN_P}% : {int(sell_target_price * sell_margin)}")
                                     else:
                                         self.send_msg(f"[{self.stocks[code]['name']}] 매도 주문, 현재가 : {curr_price} <= take profit : {take_profit_price}, highest_price_ever : {self.stocks[code]['highest_price_ever']}")
                     else:
@@ -1803,11 +1820,11 @@ class Stocks_info:
                                         self.send_msg(f"[{self.stocks[code]['name']}] 매도 주문, 현재가 : {curr_price} <= 목표가 : {sell_target_price}")
                         else:
                             # 15:15 이전에는 5일선 -1% 이탈 시 매도
-                            if curr_price < ma_5 * 0.99 or curr_price <= sell_target_price:
+                            if curr_price < (ma_5 * 0.99) or curr_price <= sell_target_price:
                                 if self.sell(code, curr_price, self.my_stocks[code]['stockholdings'], ORDER_TYPE_MARGET_ORDER) == True:
                                     self.set_order_done(code, SELL_CODE)
-                                    if curr_price < ma_5 * 0.99:
-                                        self.send_msg(f"[{self.stocks[code]['name']}] 매도 주문, 현재가 : {curr_price} < 5일선 - 1% 이탈 : {ma_5 * 0.99}")
+                                    if curr_price < (ma_5 * 0.99):
+                                        self.send_msg(f"[{self.stocks[code]['name']}] 매도 주문, 현재가 : {curr_price} < 5일선 - 1% 이탈 : {int(ma_5 * 0.99)}")
                                     else:
                                         self.send_msg(f"[{self.stocks[code]['name']}] 매도 주문, 현재가 : {curr_price} <= 목표가 : {sell_target_price}")
         except Exception as ex:
@@ -2647,6 +2664,95 @@ class Stocks_info:
         finally:
             if result == False:
                 self.send_msg_err(msg)
+
+
+    ##############################################################
+    # 보유 주식 종목 수
+    ##############################################################
+    def get_my_stock_count(self):
+        result = True
+        msg = ""
+        try:
+            PATH = "uapi/domestic-stock/v1/trading/inquire-balance"
+            URL = f"{self.config['URL_BASE']}/{PATH}"
+            headers = {"Content-Type": "application/json",
+                    "authorization": f"Bearer {self.access_token}",
+                    "appKey": self.config['APP_KEY'],
+                    "appSecret": self.config['APP_SECRET'],
+                    "tr_id": self.config['TR_ID_GET_STOCK_BALANCE'],
+                    "custtype": "P",
+                    }
+            params = {
+                "CANO": self.config['CANO'],
+                "ACNT_PRDT_CD": self.config['ACNT_PRDT_CD'],
+                "AFHR_FLPR_YN": "N",
+                "OFL_YN": "",
+                "INQR_DVSN": "02",
+                "UNPR_DVSN": "01",
+                "FUND_STTL_ICLD_YN": "N",
+                "FNCG_AMT_AUTO_RDPT_YN": "N",
+                "PRCS_DVSN": "01",
+                "CTX_AREA_FK100": "",
+                "CTX_AREA_NK100": ""
+            }
+            time.sleep(API_DELAY_S)
+            res = requests.get(URL, headers=headers, params=params)
+            my_stocks_count = 0
+            if self.is_request_ok(res) == True:
+                stocks = res.json()['output1']
+                self.my_stocks.clear()
+                for stock in stocks:
+                    if int(stock['hldg_qty']) > 0:
+                        my_stocks_count += 1
+            else:
+                raise Exception(f"[계좌 조회 실패]{str(res.json())}")
+        except Exception as ex:
+            result = False
+            msg = "{}".format(traceback.format_exc())
+        finally:
+            if result == False:
+                self.send_msg_err(msg)
+            return my_stocks_count
+
+    ##############################################################
+    # 매매 전략 세팅
+    #   ex) 매매 금지 저평가 기준
+    ##############################################################
+    def init_trade_strategy(self):
+        result = True
+        msg = ""
+        try:
+            # 투자 전략은 보유 주식 수에 따라 자동으로 처리
+            # 현재 보유 주식 수가 최대 보유 주식 수의
+            # 1/3 이하 : high(공격적)
+            # 2/3 이하 : middle(중도적)
+            # 2/3 초과 : low(보수적)
+            if self.my_stock_count <= MAX_MY_STOCK_COUNT * 1/3:
+                self.trade_strategy.invest_risk = INVEST_RISK_HIGH 
+            elif self.my_stock_count <= MAX_MY_STOCK_COUNT * 2/3:
+                self.trade_strategy.invest_risk = INVEST_RISK_MIDDLE
+            else:
+                self.trade_strategy.invest_risk = INVEST_RISK_LOW
+
+            if self.trade_strategy.invest_risk == INVEST_RISK_HIGH:
+                self.trade_strategy.under_value = -5                        # 저평가가 이 값 미만은 매수 금지
+                self.trade_strategy.gap_max_sell_target_price_p = -10       # 목표주가GAP 이 이 값 미만은 매수 금지
+                self.trade_strategy.sum_under_value_sell_target_gap = -20   # 저평가 + 목표주가GAP 이 이 값 미만은 매수 금지  
+            elif self.trade_strategy.invest_risk == INVEST_RISK_MIDDLE:
+                self.trade_strategy.under_value = 0                         # 저평가가 이 값 미만은 매수 금지
+                self.trade_strategy.gap_max_sell_target_price_p = -5        # 목표주가GAP 이 이 값 미만은 매수 금지
+                self.trade_strategy.sum_under_value_sell_target_gap = -8    # 저평가 + 목표주가GAP 이 이 값 미만은 매수 금지  
+            else:
+                self.trade_strategy.under_value = 3                         # 저평가가 이 값 미만은 매수 금지
+                self.trade_strategy.gap_max_sell_target_price_p = 5         # 목표주가GAP 이 이 값 미만은 매수 금지
+                self.trade_strategy.sum_under_value_sell_target_gap = 10    # 저평가 + 목표주가GAP 이 이 값 미만은 매수 금지  
+        except Exception as ex:
+            result = False
+            msg = "{}".format(traceback.format_exc())
+        finally:
+            if result == False:
+                self.send_msg_err(msg)
+
 
     '''
     ##############################################################
