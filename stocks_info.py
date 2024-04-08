@@ -1022,9 +1022,9 @@ class Stocks_info:
                 else:
                     self.stocks[code]['envelope_p'] = 15
 
-                # 60일선 하락 추세면 envelope_p 감소
+                # 60일선 하락 추세면 envelope_p + @
                 if self.get_ma_trend(code) == TREND_DOWN:
-                    self.stocks[code]['envelope_p'] -= 2
+                    self.stocks[code]['envelope_p'] += 2
                     PRINT_INFO(f"[{self.stocks[code]['name']}] 60일선 하락 추세")
                 else:
                     PRINT_INFO(f"{self.stocks[code]['name']}")
