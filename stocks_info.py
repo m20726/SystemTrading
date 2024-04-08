@@ -192,7 +192,7 @@ class Stocks_info:
         sell_strategy_msg = dict()
         sell_strategy_msg[1] = "목표가에 전량 매도"
         sell_strategy_msg[2] = "트레일링스탑 전량 매도"
-        sell_strategy_msg[3] = "목표가에 반 매도(트레일링스탑). 단, 매도가가 5일선 이하면 전량 매도\n\t나머지는 15:15이후 현재가가 5일선 or 목표가 이탈 시 매도"
+        sell_strategy_msg[3] = "목표가에 반 매도(트레일링스탑). 단, 매도가가 5일선 이하면 전량 매도, 나머지는 15:15이후 현재가가 5일선 or 목표가 이탈 시 매도"
         PRINT_INFO(f'{sell_strategy_msg[SELL_STRATEGY]}')
 
         if BUY_QTY_1 == True:
@@ -2727,7 +2727,7 @@ class Stocks_info:
         finally:
             if result == False:
                 self.send_msg_err(msg)
-
+                return result
 
     ##############################################################
     # 보유 주식 종목 수
@@ -2981,40 +2981,6 @@ class Stocks_info:
         msg = ""
         try:
             ma_trend = TREND_DOWN
-
-            # 조회 종료 날짜(오늘) 구하기
-            end_day_ = datetime.datetime.today()
-            end_day = end_day_.strftime('%Y%m%d')
-            # 100일 전 날짜 구하기
-            start_day_ = (end_day_ - datetime.timedelta(days=100))
-            start_day = start_day_.strftime('%Y%m%d')
-
-            PATH = "uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice"
-            URL = f"{self.config['URL_BASE']}/{PATH}"
-            headers = {"Content-Type": "application/json",
-                    "authorization": f"Bearer {self.access_token}",
-                    "appKey": self.config['APP_KEY'],
-                    "appSecret": self.config['APP_SECRET'],
-                    "tr_id": "FHKST03010100"}
-            params = {
-                "fid_cond_mrkt_div_code": "J",
-                # 조회 시작일자 ex) 20220501
-                "fid_input_date_1": start_day,
-                # 조회 종료일자 ex) 20220530
-                "fid_input_date_2": end_day,
-                "fid_input_iscd": code,
-                # 0 : 수정주가반영, 1 : 수정주가미반영
-                "fid_org_adj_prc": "0",
-                # D : 일봉
-                # W : 주봉
-                # M : 월봉
-                # Y : 년봉
-                "fid_period_div_code": period
-            }
-            time.sleep(API_DELAY_S)
-            res = requests.get(URL, headers=headers, params=params)
-            if self.is_request_ok(res) == False:
-                raise Exception(f"[get_ma_trend failed]]{str(res.json())}")
 
             # x일 연속 상승,하락인지 체크 그외 보합
             trand_up_count = 0
