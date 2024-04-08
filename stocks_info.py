@@ -9,7 +9,7 @@ from handle_json import *
 from libs.debug import *
 import datetime
 import traceback
-from datetime import date
+from datetime import date, timedelta
 
 
 ##############################################################
@@ -114,6 +114,10 @@ TRADE_NOT_DONE_CODE = "02"      # 미체결
 
 REQUESTS_POST_MAX_SIZE = 2000
 
+# 추세선
+TREND_DOWN = 0      # 하락
+TREND_SIDE = 1      # 보합
+TREND_UP = 2        # 상승
 ##############################################################
 
 class Trade_strategy:
@@ -752,7 +756,7 @@ class Stocks_info:
             if self.is_request_ok(res) == True:
                 price = int(float(res.json()['output'][type]))
             else:
-                self.send_msg(f"[get_price failed]{str(res.json())}")
+                raise Exception(f"[get_price failed]]{str(res.json())}")
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -1229,44 +1233,64 @@ class Stocks_info:
     # X일선 가격 리턴
     # param :
     #   code            종목 코드
-    #   days            X일선
+    #   ma              X일선
     #                   ex) 20일선 : 20, 5일선 : 5
     #   past_day        X일선 가격 기준
     #                   ex) 0 : 금일 X일선, 1 : 어제 X일선
-    #   period          D : 일, W : 주, M : 월
+    #   period          D : 일, W : 주, M : 월, Y : 년
     ##############################################################
-    def get_ma(self, code: str, days=20, past_day=0, period="D"):
+    def get_ma(self, code: str, ma=20, past_day=0, period="D"):
         result = True
         msg = ""
-        try:            
-            PATH = "uapi/domestic-stock/v1/quotations/inquire-daily-price"
+        try:
+            # 조회 종료 날짜(오늘) 구하기
+            end_day_ = datetime.datetime.today()
+            end_day = end_day_.strftime('%Y%m%d')
+            # 150일 전 날짜 구하기
+            start_day_ = (end_day_ - datetime.timedelta(days=150))
+            start_day = start_day_.strftime('%Y%m%d')
+
+            PATH = "uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice"
             URL = f"{self.config['URL_BASE']}/{PATH}"
             headers = {"Content-Type": "application/json",
                     "authorization": f"Bearer {self.access_token}",
                     "appKey": self.config['APP_KEY'],
                     "appSecret": self.config['APP_SECRET'],
-                    "tr_id": "FHKST01010400"}
+                    "tr_id": "FHKST03010100"}
             params = {
                 "fid_cond_mrkt_div_code": "J",
+                # 조회 시작일자 ex) 20220501
+                "fid_input_date_1": start_day,
+                # 조회 종료일자 ex) 20220530
+                "fid_input_date_2": end_day,
                 "fid_input_iscd": code,
                 # 0 : 수정주가반영, 1 : 수정주가미반영
                 "fid_org_adj_prc": "0",
-                # D : (일)최근 30거래일
-                # W : (주)최근 30주
-                # M : (월)최근 30개월
+                # D : 일봉
+                # W : 주봉
+                # M : 월봉
+                # Y : 년봉
                 "fid_period_div_code": period
             }
             time.sleep(API_DELAY_S)
             res = requests.get(URL, headers=headers, params=params)
+            if self.is_request_ok(res) == False:
+                raise Exception(f"[get_ma_trend failed]]{str(res.json())}")
 
-            # x일 이평선 구하기 위해 x일간의 종가 구한다
-            days_last = past_day + days
-            sum_end_price = 0
-            for i in range(past_day, days_last):
-                end_price = int(res.json()['output'][i]['stck_clpr'])   # 종가
-                sum_end_price = sum_end_price + end_price               # 종가 합
+            value_ma = 0
+            if self.is_request_ok(res) == True:
+                # x일 이평선 구하기 위해 x일간의 종가 구한다
+                days_last = past_day + ma
+                sum_end_price = 0
+                for i in range(past_day, days_last):
+                    end_price = int(res.json()['output2'][i]['stck_clpr'])   # 종가
+                    sum_end_price = sum_end_price + end_price               # 종가 합
 
-            value_ma = sum_end_price / days                           # x일선 가격
+                value_ma = sum_end_price / ma                           # x일선 가격
+            else:
+                raise Exception(f"[get_ma failed]]{str(res.json())}")
+
+            PRINT_INFO(f'{int(value_ma)}')
             return int(value_ma)
         except Exception as ex:
             result = False
@@ -1274,6 +1298,7 @@ class Stocks_info:
         finally:
             if result == False:
                 self.send_msg_err(msg)
+                return result
 
     ##############################################################
     # 종가 리턴
@@ -1309,6 +1334,9 @@ class Stocks_info:
             }
             time.sleep(API_DELAY_S)
             res = requests.get(URL, headers=headers, params=params)
+            if self.is_request_ok(res) == False:
+                raise Exception(f"[get_end_price failed]]{str(res.json())}")
+
             return int(res.json()['output'][past_day]['stck_clpr'])   # 종가
         except Exception as ex:
             result = False
@@ -1316,6 +1344,7 @@ class Stocks_info:
         finally:
             if result == False:
                 self.send_msg_err(msg)
+                return 0
 
     ##############################################################
     # 토큰 발급
@@ -1395,6 +1424,8 @@ class Stocks_info:
             }
             time.sleep(API_DELAY_S)
             res = requests.get(URL, headers=headers, params=params)
+            if self.is_request_ok(res) == False:
+                raise Exception(f"[get_stock_balance failed]]{str(res.json())}")
             stock_list = res.json()['output1']
             evaluation = res.json()['output2']
             data = {'종목명':[], '수량':[], '수익률(%)':[], '평가금액':[], '손익금액':[], '평단가':[], '현재가':[], '목표가':[], '손절가':[]}
@@ -1434,6 +1465,7 @@ class Stocks_info:
         finally:
             if result == False:
                 self.send_msg_err(msg)
+                return []
 
     ##############################################################
     # 현금 잔고 조회
@@ -1462,6 +1494,8 @@ class Stocks_info:
             }
             time.sleep(API_DELAY_S)
             res = requests.get(URL, headers=headers, params=params)
+            if self.is_request_ok(res) == False:
+                raise Exception(f"[get_my_cash failed]]{str(res.json())}")
             cash = res.json()['output']['ord_psbl_cash']
             # self.send_msg(f"주문 가능 현금 잔고: {cash}원")
             return int(cash)
@@ -1471,6 +1505,7 @@ class Stocks_info:
         finally:
             if result == False:
                 self.send_msg_err(msg)
+                return 0
 
     ##############################################################
     # 매수
@@ -2105,7 +2140,7 @@ class Stocks_info:
             if self.is_request_ok(res) == True:
                 order_list = res.json()['output1']
             else:
-                self.send_msg(f"[update_order_list failed]{str(res.json())}")                        
+                raise Exception(f"[update_order_list failed]]{str(res.json())}")
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -2646,15 +2681,14 @@ class Stocks_info:
                     end_price_list.append(int(res.json()['output'][i]['stck_clpr']))
                 highest_end_price = max(end_price_list)
             else:
-                self.send_msg(f"[get_highest_end_pirce failed]{str(res.json())}")
-
-            return highest_end_price
+                raise Exception(f"[get_highest_end_pirce failed]]{str(res.json())}")
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
+            return highest_end_price
 
     ##############################################################
     # 1차 매수할 지 여부 체크
@@ -2694,6 +2728,8 @@ class Stocks_info:
         result = True
         msg = ""
         try:
+            my_stocks_count = 0
+
             PATH = "uapi/domestic-stock/v1/trading/inquire-balance"
             URL = f"{self.config['URL_BASE']}/{PATH}"
             headers = {"Content-Type": "application/json",
@@ -2718,7 +2754,6 @@ class Stocks_info:
             }
             time.sleep(API_DELAY_S)
             res = requests.get(URL, headers=headers, params=params)
-            my_stocks_count = 0
             if self.is_request_ok(res) == True:
                 stocks = res.json()['output1']
                 self.my_stocks.clear()
@@ -2919,3 +2954,83 @@ class Stocks_info:
             if result == False:
                 self.send_msg_err(msg)
     '''
+
+    ##############################################################
+    # 이평선의 추세 리턴
+    #   X일 동안 연속 상승이면 상승추세, 하락이면 하락, 그외 보합
+    #   상승 : TREND_UP
+    #   보합 : TREND_SIDE
+    #   하락 : TREND_DOWN
+    # param :
+    #   code                종목 코드
+    #   ma                  X일선
+    #                       ex) 20일선 : 20, 5일선 : 5    
+    #   consecutive_days    X일동안 연속 상승이면 상승추세, 하락이면 하락, 그외 보합
+    #   period              D : 일, W : 주, M : 월, Y : 년
+    ##############################################################
+    def get_ma_trend(self, code: str, ma=60, consecutive_days=10, period="D"):
+        result = True
+        msg = ""
+        try:
+            ma_trend = TREND_DOWN
+
+            # 조회 종료 날짜(오늘) 구하기
+            end_day_ = datetime.datetime.today()
+            end_day = end_day_.strftime('%Y%m%d')
+            # 100일 전 날짜 구하기
+            start_day_ = (end_day_ - datetime.timedelta(days=100))
+            start_day = start_day_.strftime('%Y%m%d')
+
+            PATH = "uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice"
+            URL = f"{self.config['URL_BASE']}/{PATH}"
+            headers = {"Content-Type": "application/json",
+                    "authorization": f"Bearer {self.access_token}",
+                    "appKey": self.config['APP_KEY'],
+                    "appSecret": self.config['APP_SECRET'],
+                    "tr_id": "FHKST03010100"}
+            params = {
+                "fid_cond_mrkt_div_code": "J",
+                # 조회 시작일자 ex) 20220501
+                "fid_input_date_1": start_day,
+                # 조회 종료일자 ex) 20220530
+                "fid_input_date_2": end_day,
+                "fid_input_iscd": code,
+                # 0 : 수정주가반영, 1 : 수정주가미반영
+                "fid_org_adj_prc": "0",
+                # D : 일봉
+                # W : 주봉
+                # M : 월봉
+                # Y : 년봉
+                "fid_period_div_code": period
+            }
+            time.sleep(API_DELAY_S)
+            res = requests.get(URL, headers=headers, params=params)
+            if self.is_request_ok(res) == False:
+                raise Exception(f"[get_ma_trend failed]]{str(res.json())}")
+
+            # x일 연속 상승,하락인지 체크 그외 보합
+            trand_up_count = 0
+            trand_down_count = 0
+            ma_price = self.get_ma(code, ma, 0)
+            for i in range(1, consecutive_days):
+                if i < consecutive_days:
+                    yesterdat_ma_price = self.get_ma(code, ma, i)
+                    if ma_price > yesterdat_ma_price:
+                        trand_up_count += 1
+                    elif ma_price < yesterdat_ma_price:
+                        trand_down_count += 1
+                    ma_price = yesterdat_ma_price
+            
+            if trand_up_count >= (consecutive_days - 1):
+                ma_trend = TREND_UP
+            elif trand_down_count >= (consecutive_days - 1):
+                ma_trend = TREND_DOWN
+            else:
+                ma_trend = TREND_SIDE
+        except Exception as ex:
+            result = False
+            msg = "{}".format(traceback.format_exc())
+        finally:
+            if result == False:
+                self.send_msg_err(msg)
+            return ma_trend
