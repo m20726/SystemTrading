@@ -2658,7 +2658,8 @@ class Stocks_info:
 
     ##############################################################
     # 1차 매수할 지 여부 체크
-    #   "한 달 내 최고 종가 > 1차 매수가 * X" 경우
+    #   단기간에 급락해야 매수
+    #   ex) "한 달 내 최고 종가 > 1차 매수가 * X" 경우
     #   retun True 아니면 False
     #   즉, 떨어진 폭이 기준보다 적으면 매수 안함
     # param :
@@ -2671,7 +2672,7 @@ class Stocks_info:
         try:
             # 한 달은 약 21일
             highest_end_price = self.get_highest_end_pirce(code, 21)
-            margine_p = 15
+            margine_p = self.stocks[code]['envelope_p'] * 1.6
             check_price = int(price * (1 + self.to_percent(margine_p)))
             if highest_end_price > check_price:
                 return True
