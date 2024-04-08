@@ -48,7 +48,7 @@ SELL_STRATEGY = 3
 BUY_SPLIT_COUNT = 2
 
 # 매수량 1주만 매수 여부
-BUY_QTY_1 = True
+BUY_QTY_1 = False
 
 # 투자 전략 리스크
 INVEST_RISK_LOW = 0
@@ -174,20 +174,22 @@ class Stocks_info:
     ##############################################################
     def print_strategy(self):
         PRINT_INFO('===============================')
-        if BUY_STRATEGY == 1:
-            buy_strategy_msg = "매수 목표가에 매수"
-        elif BUY_STRATEGY == 2:
-            buy_strategy_msg = "트레일링스탑 매수"
+        invest_risk_msg = dict()
+        invest_risk_msg[INVEST_RISK_LOW] = "보수적 전략"
+        invest_risk_msg[INVEST_RISK_MIDDLE] = "중도적 전략"
+        invest_risk_msg[INVEST_RISK_HIGH] = "공격적 전략"
+        PRINT_INFO(f'{invest_risk_msg[self.trade_strategy.invest_risk]}')
 
-        if SELL_STRATEGY == 1:
-            sell_strategy_msg = "목표가에 전량 매도"
-        elif SELL_STRATEGY == 2:
-            sell_strategy_msg = "트레일링스탑 전량 매도"
-        elif SELL_STRATEGY == 3:
-            sell_strategy_msg = "목표가에 반 매도(트레일링스탑). 단, 매도가가 5일선 이하면 전량 매도\n\t나머지는 15:15이후 현재가가 5일선 or 목표가 이탈 시 매도"
+        buy_strategy_msg = dict()
+        buy_strategy_msg[1] = "매수 목표가에 매수"
+        buy_strategy_msg[2] = "트레일링스탑 매수"
+        PRINT_INFO(f'{buy_strategy_msg[BUY_STRATEGY]}')
 
-        PRINT_INFO(f'매수 전략 : {buy_strategy_msg}')
-        PRINT_INFO(f'매도 전략 : {sell_strategy_msg}')
+        sell_strategy_msg = dict()
+        sell_strategy_msg[1] = "목표가에 전량 매도"
+        sell_strategy_msg[2] = "트레일링스탑 전량 매도"
+        sell_strategy_msg[3] = "목표가에 반 매도(트레일링스탑). 단, 매도가가 5일선 이하면 전량 매도\n\t나머지는 15:15이후 현재가가 5일선 or 목표가 이탈 시 매도"
+        PRINT_INFO(f'{sell_strategy_msg[SELL_STRATEGY]}')
 
         if BUY_QTY_1 == True:
             PRINT_INFO('1주만 매수')
@@ -409,28 +411,38 @@ class Stocks_info:
     # 매수가 세팅
     #   분할 매수 개수만큼 리스트
     #   ex) 5차 분할 매수 [1000, 950, 900, 850, 800]
+    # Parameter :
+    #       code            종목 코드
+    #       done_nth        N차 매수 완료
+    #       bought_price    N차 매수 체결가, 0 인 경우
     ##############################################################
-    def set_buy_price(self, code):
+    def set_buy_price(self, code, done_nth=0, bought_price=0):
         result = True
         msg = ""
         try:
-            # 매수가 세팅은 1차 매수가 안된 경우에만 세팅한다
-            # 1차 매수 된 상태에서도 세팅하면 yesterday_20ma 선이 바뀌어 값이 매번 달라질 수 있다
-            if self.stocks[code]['buy_done'][0] == True:
-                return
-            
-            envelope_p = self.to_percent(self.stocks[code]['envelope_p'])
-            envelope_support_line = self.stocks[code]['yesterday_20ma'] * (1 - envelope_p)
+            # 1차 매수 안된 경우 envelope 기반으로 매수가 세팅
+            if self.stocks[code]['buy_done'][0] == False:
+                envelope_p = self.to_percent(self.stocks[code]['envelope_p'])
+                envelope_support_line = self.stocks[code]['yesterday_20ma'] * (1 - envelope_p)
 
-            self.stocks[code]['buy_price'][0] = int(envelope_support_line * MARGIN_20MA)
+                self.stocks[code]['buy_price'][0] = int(envelope_support_line * MARGIN_20MA)
 
-            # 1 ~ (BUY_SPLIT_COUNT-1)
-            for i in range(1, BUY_SPLIT_COUNT):
-                #   2차 매수 : 1차 매수가 - 10%
-                #   3차 매수 : 2차 매수가 - 10%
-                #   4차 매수 : 3차 매수가 - 10%
-                #   5차 매수 : 4차 매수가 - 10%
-                 self.stocks[code]['buy_price'][i] = int(self.stocks[code]['buy_price'][i-1] * 0.9)
+                # 1 ~ (BUY_SPLIT_COUNT-1)
+                for i in range(1, BUY_SPLIT_COUNT):
+                    #   2차 매수 : 1차 매수가 - 10%
+                    #   3차 매수 : 2차 매수가 - 10%
+                    self.stocks[code]['buy_price'][i] = int(self.stocks[code]['buy_price'][i-1] * 0.9)
+            else:
+                # N차 매수 된 경우 실제 매수가 기반으로 세팅
+                # done_nth 차 매수 bought_price 가격에 완료
+                # 실제 bought_price 를 기반으로 업데이트
+                if done_nth > 0 and bought_price > 0:
+                    PRINT_INFO(f"{done_nth}차 매수 {bought_price}원 완료, 매수가 업데이트")
+                    self.stocks[code]['buy_price'][done_nth-1] = bought_price
+                    for i in range(done_nth, BUY_SPLIT_COUNT):
+                        self.stocks[code]['buy_price'][i] = int(self.stocks[code]['buy_price'][i-1] * 0.9)
+                        PRINT_INFO(f"{i}차 매수가 {self.stocks[code]['buy_price'][i]}원")
+
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -479,8 +491,9 @@ class Stocks_info:
     # Return    : None
     # Parameter :
     #       code            종목 코드
+    #       bought_price    체결가     
     ##############################################################
-    def set_buy_done(self, code):
+    def set_buy_done(self, code, bought_price=0):
         result = True
         msg = ""
         try:
@@ -507,6 +520,7 @@ class Stocks_info:
                 if self.stocks[code]['buy_done'][i] == False:
                     if self.stocks[code]['stockholdings'] >= tot_buy_qty:
                         self.stocks[code]['buy_done'][i] = True
+                        self.set_buy_price(code, i + 1, bought_price)
                         break
 
             # 다음 매수 조건 체크위해 allow_monitoring_buy 초기화
@@ -527,8 +541,11 @@ class Stocks_info:
     ##############################################################
     # 매도 완료 시 호출
     #   매도는 항상 전체 수량 매도 기반
+    # Parameter :
+    #       code            종목 코드
+    #       sold_price      체결가     
     ##############################################################
-    def set_sell_done(self, code):
+    def set_sell_done(self, code, sold_price=0):
         result = True
         msg = ""
         try:
@@ -997,8 +1014,10 @@ class Stocks_info:
                 # ex) 시총 >= 5조 면 10
                 if self.stocks[code]['market_cap'] >= 50000:
                     self.stocks[code]['envelope_p'] = 10
-                else:
+                elif self.stocks[code]['market_cap'] >= 20000:
                     self.stocks[code]['envelope_p'] = 12
+                else:
+                    self.stocks[code]['envelope_p'] = 15
 
                 # 매수된적 없으면(True 없다) self.stocks[code]['sell_target_p'] 초기화
                 if True not in self.stocks[code]['buy_done']:
@@ -1718,7 +1737,7 @@ class Stocks_info:
                             # 1차 매수 반복되는 문제 수정
                             if lowest_price <= buy_target_price:
                                 buy_target_qty = self.get_buy_target_qty(code)
-                                if self.buy(code, curr_price, buy_target_qty, ORDER_TYPE_IMMEDIATE_ORDER) == True:
+                                if self.buy(code, curr_price, buy_target_qty, ORDER_TYPE_MARGET_ORDER) == True:
                                     self.set_order_done(code, BUY_CODE)
                                     self.send_msg(f"[{self.stocks[code]['name']}] 매수 주문, 현재가 : {curr_price} >= {int(lowest_price * buy_margin)}(저가 : {lowest_price} * {buy_margin})")
         except Exception as ex:
@@ -1785,9 +1804,10 @@ class Stocks_info:
                                 self.stocks[code]['allow_monitoring_sell'] = True
                         else:
                             # 익절가 이하 시 매도
+                            # 현재가 >= 목표가 + SELL_MARGIN_P% 면 매도
                             take_profit_price = self.get_take_profit_price(code)
                             if (take_profit_price > 0 and curr_price <= take_profit_price) \
-                                or (curr_price >= (sell_target_price * sell_margin)):      # 현재가 >= 목표가 + SELL_MARGIN_P% 면 매도
+                                or (curr_price >= (sell_target_price * sell_margin)):
                                 # 매도가가 5일선 이하면 전량 매도
                                 ma_5 = self.get_ma(code, 5)
                                 if curr_price <= ma_5:
@@ -2027,9 +2047,9 @@ class Stocks_info:
                 if self.check_trade_done(code, buy_sell) == True:
                     is_trade_done = True
                     if stock['sll_buy_dvsn_cd'] == BUY_CODE:
-                        self.set_buy_done(code)
+                        self.set_buy_done(code, stock['avg_prvs'])
                     else:
-                        self.set_sell_done(code)
+                        self.set_sell_done(code, stock['avg_prvs'])
             
             # 여러 종목 체결되도 결과는 한 번만 출력
             if is_trade_done == True:
@@ -2735,13 +2755,13 @@ class Stocks_info:
                 self.trade_strategy.invest_risk = INVEST_RISK_LOW
 
             if self.trade_strategy.invest_risk == INVEST_RISK_HIGH:
-                self.trade_strategy.under_value = -5                        # 저평가가 이 값 미만은 매수 금지
-                self.trade_strategy.gap_max_sell_target_price_p = -10       # 목표주가GAP 이 이 값 미만은 매수 금지
-                self.trade_strategy.sum_under_value_sell_target_gap = -20   # 저평가 + 목표주가GAP 이 이 값 미만은 매수 금지  
+                self.trade_strategy.under_value = -8                        # 저평가가 이 값 미만은 매수 금지
+                self.trade_strategy.gap_max_sell_target_price_p = -7        # 목표주가GAP 이 이 값 미만은 매수 금지
+                self.trade_strategy.sum_under_value_sell_target_gap = -10   # 저평가 + 목표주가GAP 이 이 값 미만은 매수 금지  
             elif self.trade_strategy.invest_risk == INVEST_RISK_MIDDLE:
-                self.trade_strategy.under_value = 0                         # 저평가가 이 값 미만은 매수 금지
-                self.trade_strategy.gap_max_sell_target_price_p = -5        # 목표주가GAP 이 이 값 미만은 매수 금지
-                self.trade_strategy.sum_under_value_sell_target_gap = -8    # 저평가 + 목표주가GAP 이 이 값 미만은 매수 금지  
+                self.trade_strategy.under_value = -3                        # 저평가가 이 값 미만은 매수 금지
+                self.trade_strategy.gap_max_sell_target_price_p = 0         # 목표주가GAP 이 이 값 미만은 매수 금지
+                self.trade_strategy.sum_under_value_sell_target_gap = 0     # 저평가 + 목표주가GAP 이 이 값 미만은 매수 금지  
             else:
                 self.trade_strategy.under_value = 3                         # 저평가가 이 값 미만은 매수 금지
                 self.trade_strategy.gap_max_sell_target_price_p = 5         # 목표주가GAP 이 이 값 미만은 매수 금지
