@@ -1007,8 +1007,7 @@ class Stocks_info:
             else:
                 past_day = 1        # 어제 기준
 
-            for code in self.stocks.keys():
-                PRINT_INFO(f"{self.stocks[code]['name']}")
+            for code in self.stocks.keys():                
                 # 순서 변경 금지
                 # ex) 목표가를 구하기 위해선 평단가가 먼저 있어야한다
                 # 시가 총액
@@ -1022,6 +1021,13 @@ class Stocks_info:
                     self.stocks[code]['envelope_p'] = 12
                 else:
                     self.stocks[code]['envelope_p'] = 15
+
+                # 60일선 하락 추세면 envelope_p 감소
+                if self.get_ma_trend(code) == TREND_DOWN:
+                    self.stocks[code]['envelope_p'] -= 2
+                    PRINT_INFO(f"[{self.stocks[code]['name']}] 60일선 하락 추세")
+                else:
+                    PRINT_INFO(f"{self.stocks[code]['name']}")
 
                 # 매수된적 없으면(True 없다) self.stocks[code]['sell_target_p'] 초기화
                 if True not in self.stocks[code]['buy_done']:
@@ -1290,7 +1296,6 @@ class Stocks_info:
             else:
                 raise Exception(f"[get_ma failed]]{str(res.json())}")
 
-            PRINT_INFO(f'{int(value_ma)}')
             return int(value_ma)
         except Exception as ex:
             result = False
@@ -1770,11 +1775,14 @@ class Stocks_info:
                             or (curr_price > buy_target_price):     # "현재가 > 매수가"면 매수
                             # 1차 매수 상태에서 allow_monitoring_buy 가 false 안된 상태에서 2차 매수 들어갈 때
                             # 1차 매수 반복되는 문제 수정
+                            self.send_msg(f"[{self.stocks[code]['name']}] 현재가 : {curr_price}, 매수 목표가 : {buy_target_price}, 저가 : {lowest_price}")
                             if lowest_price <= buy_target_price:
                                 buy_target_qty = self.get_buy_target_qty(code)
                                 if self.buy(code, curr_price, buy_target_qty, ORDER_TYPE_MARGET_ORDER) == True:
                                     self.set_order_done(code, BUY_CODE)
                                     self.send_msg(f"[{self.stocks[code]['name']}] 매수 주문, 현재가 : {curr_price} >= {int(lowest_price * buy_margin)}(저가 : {lowest_price} * {buy_margin})")
+                            else:
+                                self.send_msg(f"Not buy, [{self.stocks[code]['name']}] 매수 목표가 : {buy_target_price} < 저가 : {lowest_price}")
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
