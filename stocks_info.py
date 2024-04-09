@@ -614,7 +614,7 @@ class Stocks_info:
             # 목표가 = 평단가에서 목표% 수익가
             self.stocks[code]['sell_target_price'] = self.get_sell_target_price(code)
             # 어제 종가
-            self.stocks[code]['yesterday_end_price'] = self.get_end_price(code, 0)
+            self.stocks[code]['yesterday_end_price'] = self.get_end_price(code)
             # 익절가%
             self.set_take_profit_percent(code)
         except Exception as ex:
@@ -738,7 +738,7 @@ class Stocks_info:
     def get_price(self, code:str, type:str):
         result = True
         msg = ""
-        try:            
+        try:
             price = 0
             PATH = "uapi/domestic-stock/v1/quotations/inquire-price"
             URL = f"{self.config['URL_BASE']}/{PATH}"
@@ -1257,7 +1257,7 @@ class Stocks_info:
             # 조회 종료 날짜(오늘) 구하기
             end_day_ = datetime.datetime.today()
             end_day = end_day_.strftime('%Y%m%d')
-            # 150일 전 날짜 구하기
+            # 150일 전 날짜 구하기, 단 100건 까지만 구해진다
             start_day_ = (end_day_ - datetime.timedelta(days=150))
             start_day = start_day_.strftime('%Y%m%d')
 
@@ -1289,17 +1289,14 @@ class Stocks_info:
                 raise Exception(f"[get_ma_trend failed]]{str(res.json())}")
 
             value_ma = 0
-            if self.is_request_ok(res) == True:
-                # x일 이평선 구하기 위해 x일간의 종가 구한다
-                days_last = past_day + ma
-                sum_end_price = 0
-                for i in range(past_day, days_last):
-                    end_price = int(res.json()['output2'][i]['stck_clpr'])   # 종가
-                    sum_end_price = sum_end_price + end_price               # 종가 합
+            # x일 이평선 구하기 위해 x일간의 종가 구한다
+            days_last = past_day + ma
+            sum_end_price = 0
+            for i in range(past_day, days_last):
+                end_price = int(res.json()['output2'][i]['stck_clpr'])   # 종가
+                sum_end_price = sum_end_price + end_price               # 종가 합
 
-                value_ma = sum_end_price / ma                           # x일선 가격
-            else:
-                raise Exception(f"[get_ma failed]]{str(res.json())}")
+            value_ma = sum_end_price / ma                           # x일선 가격
 
             return int(value_ma)
         except Exception as ex:
@@ -1321,9 +1318,9 @@ class Stocks_info:
         result = True
         msg = ""
         try:            
-            if past_day > 30:
-                PRINT_INFO(f'can read 30 datas. make {past_day} to 30')
-                past_day = 30
+            if past_day > 29:
+                PRINT_INFO(f'can read over 30 data. make past_day to 29')
+                past_day = 29
                 
             PATH = "uapi/domestic-stock/v1/quotations/inquire-daily-price"
             URL = f"{self.config['URL_BASE']}/{PATH}"
@@ -2663,9 +2660,9 @@ class Stocks_info:
         try:
             highest_end_price = 0
 
-            if days > 30:
-                PRINT_INFO(f'can read 30 datas. make {days} to 30')
-                days = 30
+            if past_day > 29:
+                PRINT_INFO(f'can read over 30 data. make past_day to 29')
+                past_day = 29
                 
             PATH = "uapi/domestic-stock/v1/quotations/inquire-daily-price"
             URL = f"{self.config['URL_BASE']}/{PATH}"

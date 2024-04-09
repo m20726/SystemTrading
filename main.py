@@ -14,9 +14,9 @@ def main():
     try:
         today = datetime.datetime.today().weekday()
         if today == SATURDAY or today == SUNDAY:  # 토요일이나 일요일이면 자동 종료
-            stocks_info.send_msg("주말이므로 프로그램을 종료")
+            stocks_info.send_msg("Weekend, program end")
             return
-                
+
         stocks_info = Stocks_info()
         stocks_info.initialize()
 
@@ -46,7 +46,7 @@ def main():
         #     stocks_info.stocks[code]['buy_done'] = [False, False]
         # stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
         
-        stocks_info.send_msg("===국내 주식 자동매매 프로그램(v1.1)을 시작===")
+        stocks_info.send_msg("=== Program Start ===")
         pre_stocks = copy.deepcopy(stocks_info.stocks)
         t_now = datetime.datetime.now()
         t_start = t_now.replace(hour=9, minute=0, second=0, microsecond=0)
@@ -63,7 +63,7 @@ def main():
             t_now = datetime.datetime.now()
             if t_start <= t_now:
                 if t_exit < t_now:  # 종료
-                    stocks_info.send_msg("종료")
+                    stocks_info.send_msg(f"=== Exit loop {t_now} ===")
                     break
                 elif t_market_end < t_now:  # 종가 매매
                     # 손절 확인
@@ -104,7 +104,7 @@ def main():
         stocks_info.clear_after_market()
         stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
         
-        stocks_info.send_msg("프로그램 종료")
+        stocks_info.send_msg("=== Program End ===")
     except Exception as e:
         stocks_info.send_msg_err(f'[exception]{e}')
         time.sleep(1)
