@@ -1178,6 +1178,11 @@ class Stocks_info:
         result = True
         msg = ""
         try:
+            # 이미 내 주식은 무조건 매수
+            # ex) 2차, 3차 매수
+            if self.is_my_stock(code) == True:
+                return True
+
             # 주식 투자 정보가 valid 하지 않으면 매수 금지
             if self.stocks[code]['stock_invest_info_valid'] == False:
                 return False
@@ -1781,8 +1786,6 @@ class Stocks_info:
                                 if self.buy(code, curr_price, buy_target_qty, ORDER_TYPE_MARGET_ORDER) == True:
                                     self.set_order_done(code, BUY_CODE)
                                     self.send_msg(f"[{self.stocks[code]['name']}] 매수 주문, 현재가 : {curr_price} >= {int(lowest_price * buy_margin)}(저가 : {lowest_price} * {buy_margin})")
-                            else:
-                                self.send_msg(f"Not buy, [{self.stocks[code]['name']}] 매수 목표가 : {buy_target_price} < 저가 : {lowest_price}")
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -2090,9 +2093,9 @@ class Stocks_info:
                 if self.check_trade_done(code, buy_sell) == True:
                     is_trade_done = True
                     if stock['sll_buy_dvsn_cd'] == BUY_CODE:
-                        self.set_buy_done(code, stock['avg_prvs'])
+                        self.set_buy_done(code, int(stock['avg_prvs']))
                     else:
-                        self.set_sell_done(code, stock['avg_prvs'])
+                        self.set_sell_done(code, int(stock['avg_prvs']))
             
             # 여러 종목 체결되도 결과는 한 번만 출력
             if is_trade_done == True:
