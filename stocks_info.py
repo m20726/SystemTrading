@@ -55,8 +55,7 @@ INVEST_RISK_LOW = 0
 INVEST_RISK_MIDDLE = 1
 INVEST_RISK_HIGH = 2
 
-LOSS_CUT_P = 5                              # last차 매수에서 x% 이탈 시 손절
-MAX_PER = 40                                # PER가 이 값 이상이면 매수 금지
+LOSS_CUT_P = 5                              # last차 매수에서 x% 종가 이탈 시 손절
 
 SMALL_TAKE_PROFIT_P = -1                    # 작은 익절가 %
 BIG_TAKE_PROFIT_P = -2                      # 큰 익절가 %
@@ -67,18 +66,17 @@ SELL_MARGIN_P = 2                           # ex) 목표가 + x% 에서 매도
 INVEST_TYPE = "real_invest"                 # sim_invest : 모의 투자, real_invest : 실전 투자
 # INVEST_TYPE = "sim_invest"
 
-if INVEST_TYPE == "sim_invest":
-    MAX_MY_STOCK_COUNT = 10                 # MAX 보유 주식 수
-    INVEST_MONEY_PER_STOCK = 2000000        # 종목 당 투자 금액(원)
-else:
+if INVEST_TYPE == "real_invest":
     MAX_MY_STOCK_COUNT = 10
     INVEST_MONEY_PER_STOCK = 300000         # 종목 당 투자 금액(원)
+else:
+    MAX_MY_STOCK_COUNT = 10                 # MAX 보유 주식 수
+    INVEST_MONEY_PER_STOCK = 2000000        # 종목 당 투자 금액(원)
 
-# "현재가 - 매수가 GAP" 가 X% 미만 경우만 매수 가능 종목으로 처리
+# "현재가 - 매수가 GAP" 이 X% 미만 경우만 매수 가능 종목으로 처리
 # GAP 이 클수록 종목이 많아 실시간 처리가 느려진다
 BUYABLE_GAP = 8
 BUYABLE_COUNT = 30                          # 상위 몇개 종목까지 매수 가능 종목으로 유지
-BUYABLE_MARGET_CAP = 20000                  # 시총 X 미만 매수 금지(억)
 
 # 손절 후 종가가 20일선 위로 올라와야 매수 여부
 CHECK_END_PRICE_HIGHER_THAN_20MA_AFTER_LOSS_CUT = True
@@ -112,12 +110,11 @@ TRADE_ANY_CODE = "00"           # 체결 미체결 전체
 TRADE_DONE_CODE = "01"          # 체결
 TRADE_NOT_DONE_CODE = "02"      # 미체결
 
-REQUESTS_POST_MAX_SIZE = 2000
-
 # 추세선
 TREND_DOWN = 0      # 하락
 TREND_SIDE = 1      # 보합
 TREND_UP = 2        # 상승
+
 ##############################################################
 
 class Trade_strategy:
@@ -125,7 +122,9 @@ class Trade_strategy:
         self.invest_risk = INVEST_RISK_LOW              # 투자 전략, high : 공격적, middle : 중도적, low : 보수적
         self.under_value = 0                            # 저평가가 이 값 미만은 매수 금지
         self.gap_max_sell_target_price_p = 0            # 목표주가GAP 이 이 값 미만은 매수 금지
-        self.sum_under_value_sell_target_gap = 0        # 저평가 + 목표주가GAP 이 이 값 미만은 매수 금지  
+        self.sum_under_value_sell_target_gap = 0        # 저평가 + 목표주가GAP 이 이 값 미만은 매수 금지
+        self.max_per = 40                               # PER가 이 값 이상이면 매수 금지
+        self.buyable_market_cap = 20000                 # 시총 X 미만 매수 금지(억)
 
         
 class Stocks_info:
@@ -206,6 +205,8 @@ class Stocks_info:
         result = True
         ex_msg = ""
         try:
+            REQUESTS_POST_MAX_SIZE = 2000
+
             # now = datetime.datetime.now()
             if send_discode == True:
                 msg = str(msg)
@@ -1204,7 +1205,7 @@ class Stocks_info:
                 return False
             
             # PER 매수 금지
-            if self.stocks[code]['PER'] < 0 or self.stocks[code]['PER'] >= MAX_PER or self.stocks[code]['PER_E'] < 0 or self.stocks[code]['PER'] >= self.stocks[code]['industry_PER'] * 2:
+            if self.stocks[code]['PER'] < 0 or self.stocks[code]['PER'] >= self.trade_strategy.max_per or self.stocks[code]['PER_E'] < 0 or self.stocks[code]['PER'] >= self.stocks[code]['industry_PER'] * 2:
                 return False
             
             # EPS_E 매수 금지
@@ -1229,7 +1230,7 @@ class Stocks_info:
                 return False
             
             # 시총 체크
-            if self.stocks[code]['market_cap'] < BUYABLE_MARGET_CAP:
+            if self.stocks[code]['market_cap'] < self.trade_strategy.buyable_market_cap:
                 return False
             
             return True
@@ -2798,18 +2799,24 @@ class Stocks_info:
             else:
                 self.trade_strategy.invest_risk = INVEST_RISK_LOW
 
+            self.trade_strategy.max_per = 40                                # PER가 이 값 이상이면 매수 금지            
+            
             if self.trade_strategy.invest_risk == INVEST_RISK_HIGH:
                 self.trade_strategy.under_value = -8                        # 저평가가 이 값 미만은 매수 금지
                 self.trade_strategy.gap_max_sell_target_price_p = -7        # 목표주가GAP 이 이 값 미만은 매수 금지
-                self.trade_strategy.sum_under_value_sell_target_gap = -10   # 저평가 + 목표주가GAP 이 이 값 미만은 매수 금지  
+                self.trade_strategy.sum_under_value_sell_target_gap = -10   # 저평가 + 목표주가GAP 이 이 값 미만은 매수 금지
+                self.trade_strategy.max_per = 50                            # PER가 이 값 이상이면 매수 금지
+                self.trade_strategy.buyable_market_cap = 5000               # 시총 X 미만 매수 금지(억)
             elif self.trade_strategy.invest_risk == INVEST_RISK_MIDDLE:
-                self.trade_strategy.under_value = -3                        # 저평가가 이 값 미만은 매수 금지
-                self.trade_strategy.gap_max_sell_target_price_p = 0         # 목표주가GAP 이 이 값 미만은 매수 금지
-                self.trade_strategy.sum_under_value_sell_target_gap = 0     # 저평가 + 목표주가GAP 이 이 값 미만은 매수 금지  
-            else:
-                self.trade_strategy.under_value = 3                         # 저평가가 이 값 미만은 매수 금지
-                self.trade_strategy.gap_max_sell_target_price_p = 5         # 목표주가GAP 이 이 값 미만은 매수 금지
-                self.trade_strategy.sum_under_value_sell_target_gap = 10    # 저평가 + 목표주가GAP 이 이 값 미만은 매수 금지  
+                self.trade_strategy.under_value = -3
+                self.trade_strategy.gap_max_sell_target_price_p = 0
+                self.trade_strategy.sum_under_value_sell_target_gap = 0
+                self.trade_strategy.buyable_market_cap = 10000
+            else:   # INVEST_RISK_LOW
+                self.trade_strategy.under_value = 3
+                self.trade_strategy.gap_max_sell_target_price_p = 5
+                self.trade_strategy.sum_under_value_sell_target_gap = 10
+                self.trade_strategy.buyable_market_cap = 20000
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
