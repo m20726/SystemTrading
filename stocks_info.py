@@ -501,17 +501,6 @@ class Stocks_info:
         result = True
         msg = ""
         try:
-            # n차 매수에 따라 목표가 % 변경
-            #   1차 매수까지 경우 : 평단가 * 5%
-            #   2차 매수까지 경우 : 평단가 * 4.6%
-            for i in range(1, BUY_SPLIT_COUNT): # 1 ~ (BUY_SPLIT_COUNT-1)
-                if self.stocks[code]['buy_done'][BUY_SPLIT_COUNT-i] == True:
-                    self.stocks[code]['sell_target_p'] -= 0.4
-                    break
-            # 최소 목표가
-            if self.stocks[code]['sell_target_p'] < 4:
-                self.stocks[code]['sell_target_p'] = 4
-            
             # 매수 완료됐으니 평단가, 목표가 업데이트
             self.update_my_stocks()
             
@@ -526,6 +515,17 @@ class Stocks_info:
                         self.stocks[code]['buy_done'][i] = True
                         self.set_buy_price(code, i + 1, bought_price)
                         break
+
+            # n차 매수에 따라 목표가 % 변경
+            #   1차 매수까지 경우 : 평단가 * 5%
+            #   2차 매수까지 경우 : 평단가 * 4.6%
+            for i in range(1, BUY_SPLIT_COUNT): # 1 ~ (BUY_SPLIT_COUNT-1)
+                if self.stocks[code]['buy_done'][BUY_SPLIT_COUNT-i] == True:
+                    self.stocks[code]['sell_target_p'] -= 0.4
+                    break
+            # 최소 목표가
+            if self.stocks[code]['sell_target_p'] < 4:
+                self.stocks[code]['sell_target_p'] = 4
 
             # 다음 매수 조건 체크위해 allow_monitoring_buy 초기화
             self.stocks[code]['allow_monitoring_buy'] = False
