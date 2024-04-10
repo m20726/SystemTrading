@@ -2661,9 +2661,9 @@ class Stocks_info:
         try:
             highest_end_price = 0
 
-            if past_day > 29:
-                PRINT_INFO(f'can read over 30 data. make past_day to 29')
-                past_day = 29
+            if days > 29:
+                PRINT_INFO(f'can read over 30 data. make days to 29')
+                days = 29
                 
             PATH = "uapi/domestic-stock/v1/quotations/inquire-daily-price"
             URL = f"{self.config['URL_BASE']}/{PATH}"
