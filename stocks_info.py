@@ -1018,16 +1018,21 @@ class Stocks_info:
                 # ex) 시총 >= 5조 면 10
                 if self.stocks[code]['market_cap'] >= 50000:
                     self.stocks[code]['envelope_p'] = 10
-                elif self.stocks[code]['market_cap'] >= 20000:
+                elif self.stocks[code]['market_cap'] >= 10000:
                     self.stocks[code]['envelope_p'] = 12
                 else:
-                    self.stocks[code]['envelope_p'] = 15
+                    self.stocks[code]['envelope_p'] = 14
 
                 # 60일선 하락 추세면 envelope_p + @
                 if self.get_ma_trend(code) == TREND_DOWN:
                     self.stocks[code]['envelope_p'] += 2
                     PRINT_INFO(f"[{self.stocks[code]['name']}] 60일선 하락 추세")
+                # 60일선 상승 추세면 목표가 + @
+                elif self.get_ma_trend(code) == TREND_UP:
+                    self.stocks[code]['sell_target_p'] += 2
+                    PRINT_INFO(f"{self.stocks[code]['name']}")
                 else:
+                    # 60일선 보합
                     PRINT_INFO(f"{self.stocks[code]['name']}")
 
                 # 매수된적 없으면(True 없다) self.stocks[code]['sell_target_p'] 초기화
@@ -1242,19 +1247,17 @@ class Stocks_info:
                 self.send_msg_err(msg)
 
     ##############################################################
-    # X일선 가격 리턴
+    # 금일(index 0) 기준 100건의 종가 리스트 리턴
     # param :
     #   code            종목 코드
-    #   ma              X일선
-    #                   ex) 20일선 : 20, 5일선 : 5
-    #   past_day        X일선 가격 기준
-    #                   ex) 0 : 금일 X일선, 1 : 어제 X일선
     #   period          D : 일, W : 주, M : 월, Y : 년
     ##############################################################
-    def get_ma(self, code: str, ma=20, past_day=0, period="D"):
+    def get_end_price_list(self, code: str, period="D"):
         result = True
         msg = ""
         try:
+            end_price_list = []
+
             # 조회 종료 날짜(오늘) 구하기
             end_day_ = datetime.datetime.today()
             end_day = end_day_.strftime('%Y%m%d')
@@ -1288,25 +1291,50 @@ class Stocks_info:
             res = requests.get(URL, headers=headers, params=params)
             if self.is_request_ok(res) == False:
                 raise Exception(f"[get_ma_trend failed]]{str(res.json())}")
+            
+            for i in range(len(res.json()['output2'])):
+                end_price_list.append(int(res.json()['output2'][i]['stck_clpr']))   # 종가
 
-            value_ma = 0
-            # x일 이평선 구하기 위해 x일간의 종가 구한다
-            days_last = past_day + ma
-            sum_end_price = 0
-            for i in range(past_day, days_last):
-                end_price = int(res.json()['output2'][i]['stck_clpr'])   # 종가
-                sum_end_price = sum_end_price + end_price               # 종가 합
-
-            value_ma = sum_end_price / ma                           # x일선 가격
-
-            return int(value_ma)
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
-                return result
+            return end_price_list
+
+    ##############################################################
+    # X일선 가격 리턴
+    # param :
+    #   code            종목 코드
+    #   ma              X일선
+    #                   ex) 20일선 : 20, 5일선 : 5
+    #   past_day        X일선 가격 기준
+    #                   ex) 0 : 금일 X일선, 1 : 어제 X일선
+    #   period          D : 일, W : 주, M : 월, Y : 년
+    ##############################################################
+    def get_ma(self, code: str, ma=20, past_day=0, period="D"):
+        result = True
+        msg = ""
+        try:
+            end_price_list = self.get_end_price_list(code, period)
+
+            value_ma = 0
+            # x일 이평선 구하기 위해 x일간의 종가 구한다
+            days_last = past_day + ma
+            sum_end_price = 0
+            for i in range(past_day, days_last):
+                end_price = end_price_list[i]                   # 종가
+                sum_end_price = sum_end_price + end_price       # 종가 합
+
+            value_ma = sum_end_price / ma                       # x일선 가격
+        except Exception as ex:
+            result = False
+            msg = "{}".format(traceback.format_exc())
+        finally:
+            if result == False:
+                self.send_msg_err(msg)
+            return int(value_ma)
 
     ##############################################################
     # 종가 리턴
@@ -1318,34 +1346,13 @@ class Stocks_info:
     def get_end_price(self, code: str, past_day=0):
         result = True
         msg = ""
-        try:            
-            if past_day > 29:
-                PRINT_INFO(f'can read over 30 data. make past_day to 29')
-                past_day = 29
+        try:
+            if past_day > 99:
+                PRINT_INFO(f'can read over 99 data. make past_day to 99')
+                past_day = 99
                 
-            PATH = "uapi/domestic-stock/v1/quotations/inquire-daily-price"
-            URL = f"{self.config['URL_BASE']}/{PATH}"
-            headers = {"Content-Type": "application/json",
-                    "authorization": f"Bearer {self.access_token}",
-                    "appKey": self.config['APP_KEY'],
-                    "appSecret": self.config['APP_SECRET'],
-                    "tr_id": "FHKST01010400"}
-            params = {
-                "fid_cond_mrkt_div_code": "J",
-                "fid_input_iscd": code,
-                # 0 : 수정주가반영, 1 : 수정주가미반영
-                "fid_org_adj_prc": "0",
-                # D : (일)최근 30거래일
-                # W : (주)최근 30주
-                # M : (월)최근 30개월
-                "fid_period_div_code": "D"
-            }
-            time.sleep(API_DELAY_S)
-            res = requests.get(URL, headers=headers, params=params)
-            if self.is_request_ok(res) == False:
-                raise Exception(f"[get_end_price failed]]{str(res.json())}")
-
-            return int(res.json()['output'][past_day]['stck_clpr'])   # 종가
+            end_price_list = self.get_end_price_list(code)
+            return int(end_price_list[past_day])   # 종가
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -2653,7 +2660,6 @@ class Stocks_info:
     # param :
     #   code        종목 코드
     #   days        X 일. ex) 21 -> 금일 기준 21일 내(영업일 기준 약 한 달)
-    #               MAX : 30
     ##############################################################
     def get_highest_end_pirce(self, code, days=21):
         result = True
@@ -2661,36 +2667,12 @@ class Stocks_info:
         try:
             highest_end_price = 0
 
-            if days > 29:
-                PRINT_INFO(f'can read over 30 data. make days to 29')
-                days = 29
-                
-            PATH = "uapi/domestic-stock/v1/quotations/inquire-daily-price"
-            URL = f"{self.config['URL_BASE']}/{PATH}"
-            headers = {"Content-Type": "application/json",
-                    "authorization": f"Bearer {self.access_token}",
-                    "appKey": self.config['APP_KEY'],
-                    "appSecret": self.config['APP_SECRET'],
-                    "tr_id": "FHKST01010400"}
-            params = {
-                "fid_cond_mrkt_div_code": "J",
-                "fid_input_iscd": code,
-                # 0 : 수정주가반영, 1 : 수정주가미반영
-                "fid_org_adj_prc": "0",
-                # D : (일)최근 30거래일
-                # W : (주)최근 30주
-                # M : (월)최근 30개월
-                "fid_period_div_code": "D"
-            }
-            time.sleep(API_DELAY_S)
-            res = requests.get(URL, headers=headers, params=params)
-            if self.is_request_ok(res) == True:
-                end_price_list = []
-                for i in range(days):
-                    end_price_list.append(int(res.json()['output'][i]['stck_clpr']))
-                highest_end_price = max(end_price_list)
-            else:
-                raise Exception(f"[get_highest_end_pirce failed]]{str(res.json())}")
+            if days > 99:
+                PRINT_INFO(f'can read over 99 data. make days to 99')
+                days = 99
+
+            end_price_list = self.get_end_price_list(code)
+            highest_end_price = max(end_price_list[:days])
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -2824,71 +2806,38 @@ class Stocks_info:
             if result == False:
                 self.send_msg_err(msg)
 
-
-    '''
     ##############################################################
     # get RSI
-    #   최소 250개의 데이터로 계산해야하나 현재 API 에서 제공은 30개
-    #   그로인해 오차 발생
-    #   키움증권앱에서 한 값보다 0~14 정도 낮다
-    #   왜냐면 RSI 는 최초 상장일 데이터부터 해야하지만, API 에서 그만큼의 데이터가 없다
     # param :
     #   code        종목 코드                
     #   past_day    과거 언제 RSI 구할건지
     #               ex) 0 : 금일, 1 : 어제
-    #   days        RSI 기간
+    #   period      RSI 기간
     ##############################################################
-    def get_rsi(self, code: str, past_day=0, days=20):
+    def get_rsi(self, code: str, past_day=0, period=20):
         result = True
         msg = ""
         try:
-            # days 기간 동안의 종가 구하기
-            PATH = "uapi/domestic-stock/v1/quotations/inquire-daily-price"
-            URL = f"{self.config['URL_BASE']}/{PATH}"
-            headers = {"Content-Type": "application/json",
-                    "authorization": f"Bearer {self.access_token}",
-                    "appKey": self.config['APP_KEY'],
-                    "appSecret": self.config['APP_SECRET'],
-                    "tr_id": "FHKST01010400"}
-            params = {
-                "fid_cond_mrkt_div_code": "J",
-                "fid_input_iscd": code,
-                # 0 : 수정주가반영, 1 : 수정주가미반영
-                "fid_org_adj_prc": "0",
-                # D : (일)최근 30거래일
-                # W : (주)최근 30주
-                # M : (월)최근 30개월
-                "fid_period_div_code": "D"
-            }
-            time.sleep(API_DELAY_S)
-            res = requests.get(URL, headers=headers, params=params)
-            if self.is_request_ok(res) == False:
-                raise Exception(f"[get_rsi {self.stocks[code]['name']} failed]{str(res.json())}")
+            # 종가 100건 구하기, index 0 이 금일
+            end_price_list = self.get_end_price_list(code)
 
             # x일간의 종가 구한다
             # 마지막 날의 상승/하락분을 위해 마지막날 이전날 데이터까지 구한다
             # ex) 20 일간의 상승/하락분을 구하려면 21일간의 데이터 필요
-            data_count = (res.json()['output'])
-            days_last = past_day + days + 1
+            data_count = len(end_price_list)
+            days_last = past_day + period + 1
             if days_last > data_count:
-                raise Exception(f"Can't get more than 30 days data, days:{days}, past_day:{past_day}, days_last:{days_last}")
-            
-            end_price_list = []
-            for i in range(data_count):
-                # index 0 : 제일 과거 data
-                end_price_list.insert(0,(int(res.json()['output'][i]['stck_clpr'])))
-
-            # for i in range(past_day, days_last):
-            #     # 종가, index 적은게 최신 날짜
-            #     end_price_list.append(int(res.json()['output'][i]['stck_clpr']))
-            # end_price_list_len = len(end_price_list)
+                raise Exception(f"Can't get more than 99 days data, period:{period}, past_day:{past_day}, days_last:{days_last}")
 
             # 상승/하락분 구하기
-            up_price_list = []
-            down_price_list = []
-            for i in range(data_count):  # index 0 은 제일 과거 data
+            up_price_list = []      # index 0 이 금일
+            down_price_list = []    # index 0 이 금일
+            for i in range(data_count):  # end_price_list[0] 는 금일 종가, end_price_list[99] 는 제일 예전 종가
+                # 제일 예전 종가는 이전 종가가 없어서 skip
+                if i+1 >= data_count:
+                    break
                 # ex) 오늘 종가 - 어제 종가
-                diff_price = end_price_list[i] - end_price_list[i-1]
+                diff_price = end_price_list[i] - end_price_list[i+1]
                 if diff_price > 0:
                     up_price_list.append(diff_price)
                     down_price_list.append(0)
@@ -2900,41 +2849,41 @@ class Stocks_info:
                     up_price_list.append(diff_price)
                     down_price_list.append(diff_price)
 
-            # oldest day 에서 20일간의 AU, AD 구한다
-            # total data 30개 기준 index 10~29까지
             # 상승폭 평균(AU)
-            tot_up_price = 0
+            # oldest day 에서 period 동안의 AU0
+            # ex) AU0 는 up_price_list[98] ~ up_price_list[79] 까지의 평균, AU79는 금일
+            last_period = up_price_list[-1:-period-1:-1]    # 역순으로 마지막 period 개의 요소를 추출
+            au0 = sum(last_period) / len(last_period)
+            au_list = []    # index 0 이 oldest
+            au_list.append(au0)
+
+            # 그 다음 AU = (이전 AU * (period-1) + 현재 이득) / period
+            # AU1 ~ AU79, up20 ~ up98
             up_price_list_len = len(up_price_list)
-            for i in range(1, days + 1):  # i : 1 ~ 20
-                tot_up_price += up_price_list[i]
-            # oldest day 에서 20일간의 AU
-            au = tot_up_price / up_price_list_len
-
-            au_list = []
-            for i in range(days):
-                au_list.append(0)
-            # oldest day 에서 20일간의 AU
-            au_list.append(au)
-
-            # 그 다음 AU = (이전 AU * 19 + 현재 이득) / 20
-            au * 19 + 
-
-
+            for i in range(period, up_price_list_len):
+                au_list.append((au_list[-1]*(period-1) + up_price_list[up_price_list_len-i-1]) / period)
 
             # 하락폭 평균(AD)
-            tot_down_price = 0
-            for price in down_price_list:
-                tot_down_price += price
-            ad = tot_down_price / len(down_price_list)
+            # oldest day 에서 period 동안의 AD0
+            # ex) AD0 는 down_price_list[98] ~ down_price_list[79] 까지의 평균
+            last_period = down_price_list[-1:-period-1:-1]    # 역순으로 마지막 period 개의 요소를 추출
+            ad0 = sum(last_period) / len(last_period)
+            ad_list = []    # index 0 이 oldest
+            ad_list.append(ad0)
 
-            # RS
-            rs = au / ad
+            # 그 다음 AD = (이전 DU * (period-1) + 현재 손실) / period
+            # AD1 ~ AD79, down20 ~ down98
+            down_price_list_len = len(down_price_list)
+            for i in range(period, down_price_list_len):
+                ad_list.append((ad_list[-1]*(period-1) + down_price_list[down_price_list_len-i-1]) / period)
 
-            # RSI = 100 - (100 / (1 + RS))
-            rsi = 100 - (100 / (1 + rs))
+            rsi_list = []       # index 0 이 금일
+            for i in range(len(au_list)):
+                # RSI = AU/(AU+AD)*100
+                rsi_list.insert(0, au_list[i]/(au_list[i]+ad_list[i])*100)
 
-            PRINT_INFO(f"{self.stocks[code]['name']} RSI:{rsi}")
-            return rsi
+            # PRINT_INFO(f"{self.stocks[code]['name']} RSI:{rsi_list[past_day]}, past_day:{past_day}")
+            return rsi_list[past_day]
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -2943,9 +2892,10 @@ class Stocks_info:
                 self.send_msg_err(msg)
                 return 0
 
+    '''
     ##############################################################
     # 종목마다 매수 가능한 RSI 값 리턴
-    #   ex) 시총 1조 미만은 32, 이상은 34
+    #   ex) 시총 1조 미만은 30, 이상은 32
     # param :
     #   code        종목 코드                
     ##############################################################
@@ -2956,9 +2906,9 @@ class Stocks_info:
             buy_rsi = 0
 
             if self.stocks[code]['market_cap'] < 10000:
-                buy_rsi = 32
+                buy_rsi = 30
             else:
-                buy_rsi = 34
+                buy_rsi = 32
             
             PRINT_INFO(f"{self.stocks[code]['name']} BUY RSI:{buy_rsi}")
             return buy_rsi
