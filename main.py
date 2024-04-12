@@ -69,14 +69,7 @@ def main():
                     # 손절 확인
                     stocks_info.handle_loss_cut()
 
-                if SELL_STRATEGY == 1:
-                    # 장 시작 시 보유 종목 매도 주문
-                    if sell_order_done == False:
-                        stocks_info.handle_sell_stock()
-                        sell_order_done = True
-                else:
-                    stocks_info.handle_sell_stock()
-                
+                stocks_info.handle_sell_stock()
                 stocks_info.handle_buy_stock()
 
                 # 매수/매도 체결 여부

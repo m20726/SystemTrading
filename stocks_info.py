@@ -450,8 +450,8 @@ class Stocks_info:
             else:
                 for i in range(BUY_SPLIT_COUNT):
                     if self.stocks[code]['buy_price'][i] > 0:
-                        # n차 매수에 일부만 매수된 경우 다시 qty 구하지 않는다
-                        if self.stocks[code]['buy_qty'][i] > 0:
+                        # 매수 완료 차수는 업데이트 하지 않는다
+                        if self.stocks[code]['buy_done'][i] == True:
                             continue
 
                         # 최소 1주 매수
@@ -1418,13 +1418,13 @@ class Stocks_info:
                 raise Exception(f"[get_stock_balance failed]]{str(res.json())}")
             stock_list = res.json()['output1']
             evaluation = res.json()['output2']
-            data = {'종목명':[], '수량':[], '수익률(%)':[], '평가금액':[], '손익금액':[], '평단가':[], '현재가':[], '목표가':[], '손절가':[]}
+            data = {'종목명':[], '수익률(%)':[], '수량':[], '평가금액':[], '손익금액':[], '평단가':[], '현재가':[], '목표가':[], '손절가':[]}
             self.send_msg(f"==========주식 보유잔고==========", send_discode)
             for stock in stock_list:
                 if int(stock['hldg_qty']) > 0:
                     data['종목명'].append(stock['prdt_name'])
-                    data['수량'].append(stock['hldg_qty'])
                     data['수익률(%)'].append(float(stock['evlu_pfls_rt'].replace(",","")))
+                    data['수량'].append(stock['hldg_qty'])
                     data['평가금액'].append(int(stock['evlu_amt'].replace(",","")))
                     data['손익금액'].append(stock['evlu_pfls_amt'])
                     data['평단가'].append(int(float(stock['pchs_avg_pric'].replace(",",""))))
