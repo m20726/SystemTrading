@@ -442,11 +442,11 @@ class Stocks_info:
                 # done_nth 차 매수 bought_price 가격에 완료
                 # 실제 bought_price 를 기반으로 업데이트
                 if done_nth > 0 and bought_price > 0:
-                    PRINT_INFO(f"{done_nth}차 매수 {bought_price}원 완료, 매수가 업데이트")
+                    PRINT_INFO(f"[{self.stocks[code]['name']}] {done_nth}차 매수 {bought_price}원 완료, 매수가 업데이트")
                     self.stocks[code]['buy_price'][done_nth-1] = bought_price
                     for i in range(done_nth, BUY_SPLIT_COUNT):
                         self.stocks[code]['buy_price'][i] = int(self.stocks[code]['buy_price'][i-1] * 0.9)
-                        PRINT_INFO(f"{i}차 매수가 {self.stocks[code]['buy_price'][i]}원")
+                        PRINT_INFO(f"[{self.stocks[code]['name']}] {i+1}차 매수가 {self.stocks[code]['buy_price'][i]}원")
 
         except Exception as ex:
             result = False
@@ -1767,13 +1767,21 @@ class Stocks_info:
                     buy_target_price = self.get_buy_target_price(code)
                     if self.stocks[code]['allow_monitoring_buy'] == False:
                         # 목표가 왔다 -> 매수 감시 시작
-                        if curr_price < buy_target_price:
-                            # RSI 조건 추가
-                            # TODO
-                            # if self.get_rsi(code) < self.get_buy_rsi(code):
-                            if 1:
+                        if curr_price <= buy_target_price:
+                            # 1차 매수 경우 RSI 조건 추가
+                            if self.stocks[code]['buy_done'][0] == False:
+                                rsi = self.get_rsi(code)
+                                buy_rsi = self.get_buy_rsi(code)
+                                if rsi < buy_rsi:
+                                    self.send_msg(f"[{self.stocks[code]['name']}] 매수 감시 시작, 현재가 : {curr_price}, 매수 목표가 : {buy_target_price}")
+                                    self.stocks[code]['allow_monitoring_buy'] = True
+                                else:
+                                    # self.send_msg(f"Not buy [{self.stocks[code]['name']}] RSI:{rsi} >= BUY RSI:{buy_rsi}")
+                                    pass
+                            else:
+                                # 2차 매수 이상 경우
                                 self.send_msg(f"[{self.stocks[code]['name']}] 매수 감시 시작, 현재가 : {curr_price}, 매수 목표가 : {buy_target_price}")
-                                self.stocks[code]['allow_monitoring_buy'] = True                        
+                                self.stocks[code]['allow_monitoring_buy'] = True
                     else:
                         # "현재가 >= 저가 + BUY_MARGIN_P%" 에서 매수
                         lowest_price = self.get_lowest_price(code)
@@ -1805,7 +1813,6 @@ class Stocks_info:
     #       현재가 <= 여지껏 고가 - x% or 
     #       현재가 <= 목표가 - y% or
     #       현재가 >= 목표가 + z% 면
-    #       최우선지정가 매도
     ##############################################################
     def handle_sell_stock(self, order_type:str = ORDER_TYPE_LIMIT_ORDER):
         result = True
@@ -1845,7 +1852,7 @@ class Stocks_info:
                         continue
                     
                     if self.stocks[code]['sell_1_done'] == False:
-                        # 하나도 매도 안된 상태
+                        # 1차 매도 안된 상태
                         sell_target_price = self.my_stocks[code]['sell_target_price']
 
                         if self.stocks[code]['allow_monitoring_sell'] == False:
@@ -1875,14 +1882,15 @@ class Stocks_info:
                                     else:
                                         self.send_msg(f"[{self.stocks[code]['name']}] 매도 주문, 현재가 : {curr_price} <= take profit : {take_profit_price}, highest_price_ever : {self.stocks[code]['highest_price_ever']}")
                     else:
-                        # 반 매도된 상태에서 나머지는 15:15 이후 현재가가 5일선 미만 경우 전량 매도   
+                        # 반 매도된 상태
                         t_now = datetime.datetime.now()
                         t_sell = t_now.replace(hour=15, minute=15, second=0, microsecond=0)
                         ma_5 = self.get_ma(code, 5)
                         sell_target_price = self.my_stocks[code]['sell_target_price']
                         if t_now >= t_sell:
-                            # 15:15 이후 현재가가 5일선 or 목표가 이탈 시 매도
-                            if curr_price < ma_5 or curr_price <= sell_target_price:
+                            # 15:15 이후
+                            # 현재가가 5일선 or 목표가 이하 시 매도
+                            if curr_price <= ma_5 or curr_price <= sell_target_price:
                                 if self.sell(code, curr_price, self.my_stocks[code]['stockholdings'], ORDER_TYPE_MARGET_ORDER) == True:
                                     self.set_order_done(code, SELL_CODE)
                                     if curr_price < ma_5:
@@ -1890,8 +1898,9 @@ class Stocks_info:
                                     else:
                                         self.send_msg(f"[{self.stocks[code]['name']}] 매도 주문, 현재가 : {curr_price} <= 목표가 : {sell_target_price}")
                         else:
-                            # 15:15 이전에는 5일선 -1% 이탈 시 매도
-                            if curr_price < (ma_5 * 0.99) or curr_price <= sell_target_price:
+                            # 15:15 이전에는
+                            # 현재가가 5일선 -1% or 목표가 이하 시 매도
+                            if curr_price <= (ma_5 * 0.99) or curr_price <= sell_target_price:
                                 if self.sell(code, curr_price, self.my_stocks[code]['stockholdings'], ORDER_TYPE_MARGET_ORDER) == True:
                                     self.set_order_done(code, SELL_CODE)
                                     if curr_price < (ma_5 * 0.99):
@@ -2892,10 +2901,9 @@ class Stocks_info:
                 self.send_msg_err(msg)
                 return 0
 
-    '''
     ##############################################################
     # 종목마다 매수 가능한 RSI 값 리턴
-    #   ex) 시총 1조 미만은 30, 이상은 32
+    #   ex) 시총 1조 이상은 x, 미만은 y
     # param :
     #   code        종목 코드                
     ##############################################################
@@ -2905,12 +2913,13 @@ class Stocks_info:
         try:
             buy_rsi = 0
 
-            if self.stocks[code]['market_cap'] < 10000:
-                buy_rsi = 30
+            if self.stocks[code]['market_cap'] >= 50000:
+                buy_rsi = 40
+            elif self.stocks[code]['market_cap'] >= 20000:
+                buy_rsi = 37
             else:
-                buy_rsi = 32
+                buy_rsi = 35
             
-            PRINT_INFO(f"{self.stocks[code]['name']} BUY RSI:{buy_rsi}")
             return buy_rsi
         except Exception as ex:
             result = False
@@ -2918,7 +2927,6 @@ class Stocks_info:
         finally:
             if result == False:
                 self.send_msg_err(msg)
-    '''
 
     ##############################################################
     # 이평선의 추세 리턴
