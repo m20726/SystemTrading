@@ -1736,7 +1736,6 @@ class Stocks_info:
     #       (현재가 >= 저가+x% or 현재가 <= 매수가 - y% 에서 매수)면 최우선지정가 매수
     ##############################################################
     def handle_buy_stock(self):
-        # PRINT_INFO('')
         result = True
         msg = ""
         try:
@@ -1755,10 +1754,9 @@ class Stocks_info:
                                 self.set_order_done(code, BUY_CODE)
                                 self.show_order_list()
             elif BUY_STRATEGY == 2:
-                # 전략 2 : 현재가 < 매수가 된적이 있는 상태에서 (현재가 >= 저가+x% or 현재가 > 매수가)면 매수
                 # 매수 가능 종목내에서만 매수
                 t_now = datetime.datetime.now()
-                t_buy = t_now.replace(hour=15, minute=20, second=0, microsecond=0)                
+                t_buy = t_now.replace(hour=15, minute=15, second=0, microsecond=0)                
                 for code in self.buyable_stocks.keys():
                     curr_price = self.get_curr_price(code)
                     if curr_price == 0:
@@ -1772,7 +1770,7 @@ class Stocks_info:
                             if self.stocks[code]['buy_done'][0] == False:
                                 rsi = self.get_rsi(code)
                                 buy_rsi = self.get_buy_rsi(code)
-                                if rsi < buy_rsi:
+                                if rsi > 0 and rsi < buy_rsi:
                                     self.send_msg(f"[{self.stocks[code]['name']}] 매수 감시 시작, 현재가 : {curr_price}, 매수 목표가 : {buy_target_price}")
                                     self.stocks[code]['allow_monitoring_buy'] = True
                                 else:
@@ -1783,14 +1781,15 @@ class Stocks_info:
                                 self.send_msg(f"[{self.stocks[code]['name']}] 매수 감시 시작, 현재가 : {curr_price}, 매수 목표가 : {buy_target_price}")
                                 self.stocks[code]['allow_monitoring_buy'] = True
                     else:
+                        # buy 모니터링 중
                         # "현재가 >= 저가 + BUY_MARGIN_P%" 에서 매수
+                        # "15:15" 까지 매수 안됐고 "현재가 <= 매수가"면 매수
+                        # "현재가 >= 매수가"면 매수
                         lowest_price = self.get_lowest_price(code)
                         buy_margin = 1 + self.to_percent(BUY_MARGIN_P)
-
-                        # or buy 모니터링 중 "15:20" 까지 매수 안됐고 "현재가 <= 매수가"면 매수
                         if ((lowest_price > 0) and curr_price >= (lowest_price * buy_margin)) \
                             or (t_now >= t_buy and curr_price <= buy_target_price) \
-                            or (curr_price > buy_target_price):     # "현재가 > 매수가"면 매수
+                            or (curr_price >= buy_target_price):
                             # 1차 매수 상태에서 allow_monitoring_buy 가 false 안된 상태에서 2차 매수 들어갈 때
                             # 1차 매수 반복되는 문제 수정
                             self.send_msg(f"[{self.stocks[code]['name']}] 현재가 : {curr_price}, 매수 목표가 : {buy_target_price}, 저가 : {lowest_price}")
@@ -1813,6 +1812,7 @@ class Stocks_info:
     #       현재가 <= 여지껏 고가 - x% or 
     #       현재가 <= 목표가 - y% or
     #       현재가 >= 목표가 + z% 면
+    #   전략 3 : 목표가에 반 매도(2전략 트레일링스탑). 단, 매도가가 5일선 이하면 전량 매도    
     ##############################################################
     def handle_sell_stock(self, order_type:str = ORDER_TYPE_LIMIT_ORDER):
         result = True
