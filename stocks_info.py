@@ -395,7 +395,7 @@ class Stocks_info:
     #   ex) 5차 분할 매수 [1000, 950, 900, 850, 800]
     # Parameter :
     #       code            종목 코드
-    #       done_nth        N차 매수 완료
+    #       done_nth        N차 매수 완료(ex: 1차매수 경우 1)
     #       bought_price    N차 매수 체결가, 0 인 경우
     ##############################################################
     def set_buy_price(self, code, done_nth=0, bought_price=0):
@@ -439,26 +439,21 @@ class Stocks_info:
         result = True
         msg = ""
         try:
-            # 매수 수량 세팅은 1차 매수가 안된 경우에만 세팅한다
-            if self.stocks[code]['buy_done'][0] == True:
-                return
+            for i in range(BUY_SPLIT_COUNT):
+                if self.stocks[code]['buy_price'][i] > 0:
+                    # 매수 완료 차수는 업데이트 하지 않는다
+                    if self.stocks[code]['buy_done'][i] == True:
+                        continue
 
-            if BUY_QTY_1 == True:
-                # 매수량은 항상 1주만
-                for i in range(BUY_SPLIT_COUNT):
-                    self.stocks[code]['buy_qty'][i] = 1
-            else:
-                for i in range(BUY_SPLIT_COUNT):
-                    if self.stocks[code]['buy_price'][i] > 0:
-                        # 매수 완료 차수는 업데이트 하지 않는다
-                        if self.stocks[code]['buy_done'][i] == True:
-                            continue
-
+                    if BUY_QTY_1 == True:
+                        # 매수량은 항상 1주만
+                        self.stocks[code]['buy_qty'][i] = 1
+                    else:
                         # 최소 1주 매수
                         qty = max(1, int(self.buy_invest_money[i] / self.stocks[code]['buy_price'][i]))
                         self.stocks[code]['buy_qty'][i] = qty
-                    else:
-                        self.stocks[code]['buy_qty'][i] = 0
+                else:
+                    self.stocks[code]['buy_qty'][i] = 0
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -491,15 +486,19 @@ class Stocks_info:
                 if self.stocks[code]['buy_done'][i] == False:
                     if self.stocks[code]['stockholdings'] >= tot_buy_qty:
                         self.stocks[code]['buy_done'][i] = True
+                        # 매수 완료 후 실제 매수가로 N차 매수 업데이트
                         self.set_buy_price(code, i + 1, bought_price)
+                        # 실제 매수가로 qty 업데이트
+                        self.set_buy_qty(code)
                         break
 
             # n차 매수에 따라 목표가 % 변경
+            #   ex)
             #   1차 매수까지 경우 : 평단가 * 5%
-            #   2차 매수까지 경우 : 평단가 * 4.6%
+            #   2차 매수까지 경우 : 평단가 * 4%
             for i in range(1, BUY_SPLIT_COUNT): # 1 ~ (BUY_SPLIT_COUNT-1)
                 if self.stocks[code]['buy_done'][BUY_SPLIT_COUNT-i] == True:
-                    self.stocks[code]['sell_target_p'] -= 0.4
+                    self.stocks[code]['sell_target_p'] -= -1
                     break
             # 최소 목표가
             if self.stocks[code]['sell_target_p'] < 4:
@@ -568,31 +567,8 @@ class Stocks_info:
         msg = ""
         try:
             self.clear_buy_sell_info(code)
-
             self.stocks[code]['loss_cut_done'] = True
             self.stocks[code]['loss_cut_order'] = False
-            if CHECK_END_PRICE_HIGHER_THAN_20MA_AFTER_LOSS_CUT == False:
-                # 손절 처리 경우 20일선 위로 올라오는거 체크하지 않는다
-                self.stocks[code]['sell_done'] = False
-                # 1차 매수가 = 손절가 -5% 에 1차 매수
-                self.stocks[code]['buy_price'][0] = int(self.get_loss_cut_price(code) * 0.95)            
-            else:
-                self.stocks[code]['sell_done'] = True
-
-            self.stocks[code]['allow_monitoring_buy'] = False
-            self.stocks[code]['allow_monitoring_sell'] = False
-            self.stocks[code]['sell_1_done'] = False
-            for i in range(BUY_SPLIT_COUNT):
-                self.stocks[code]['buy_done'][i] = False
-
-            # 평단가
-            self.stocks[code]['avg_buy_price'] = self.get_avg_buy_price(code)
-            # 목표가 = 평단가에서 목표% 수익가
-            self.stocks[code]['sell_target_price'] = self.get_sell_target_price(code)
-            # 어제 종가
-            self.stocks[code]['yesterday_end_price'] = self.get_end_price(code)
-            # 익절가%
-            self.set_take_profit_percent(code)
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -998,12 +974,16 @@ class Stocks_info:
                 else:
                     self.stocks[code]['envelope_p'] = 14
 
+                # sell_target_p
+                self.stocks[code]['sell_target_p'] = 5
+
                 # 60일선 하락 추세면 envelope_p + @
-                if self.get_ma_trend(code) == TREND_DOWN:
+                self.stocks[code]['ma_trend'] = self.get_ma_trend(code)
+                if self.stocks[code]['ma_trend'] == TREND_DOWN:
                     self.stocks[code]['envelope_p'] += 2
                     PRINT_INFO(f"[{self.stocks[code]['name']}] 60일선 하락 추세")
                 # 60일선 상승 추세면 목표가 + @
-                elif self.get_ma_trend(code) == TREND_UP:
+                elif self.stocks[code]['ma_trend'] == TREND_UP:
                     self.stocks[code]['sell_target_p'] += 2
                     PRINT_INFO(f"{self.stocks[code]['name']}")
                 else:
@@ -2006,6 +1986,8 @@ class Stocks_info:
                 self.show_trade_done_stocks(buy_sell)
                 # 계좌 잔고 조회
                 self.get_stock_balance()
+                # 종목 체결로 종목 수 변경 가능성 있음으로 전략 업데이트
+                self.init_trade_strategy()
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -2810,6 +2792,10 @@ class Stocks_info:
             else:
                 buy_rsi = 35
             
+            # 60일선 하락 추세면 buy rsi - @
+            if self.stocks[code]['ma_trend'] == TREND_DOWN:
+                buy_rsi -= 3
+
             return buy_rsi
         except Exception as ex:
             result = False
@@ -2820,18 +2806,20 @@ class Stocks_info:
 
     ##############################################################
     # 이평선의 추세 리턴
-    #   X일 동안 연속 상승이면 상승추세, 하락이면 하락, 그외 보합
+    #   default 어제 기준, X일 동안 연속 상승이면 상승추세, 하락이면 하락, 그외 보합
     #   상승 : TREND_UP
     #   보합 : TREND_SIDE
     #   하락 : TREND_DOWN
     # param :
     #   code                종목 코드
     #   ma                  X일선
-    #                       ex) 20일선 : 20, 5일선 : 5    
+    #                       ex) 20일선 : 20, 5일선 : 5
+    #   past_day            X일선 가격 기준
+    #                       ex) 0 : 금일 X일선, 1 : 어제 X일선    
     #   consecutive_days    X일동안 연속 상승이면 상승추세, 하락이면 하락, 그외 보합
     #   period              D : 일, W : 주, M : 월, Y : 년
     ##############################################################
-    def get_ma_trend(self, code: str, ma=60, consecutive_days=10, period="D"):
+    def get_ma_trend(self, code: str, past_day=1, ma=60, consecutive_days=10, period="D"):
         result = True
         msg = ""
         try:
@@ -2840,10 +2828,12 @@ class Stocks_info:
             # x일 연속 상승,하락인지 체크 그외 보합
             trand_up_count = 0
             trand_down_count = 0
-            ma_price = self.get_ma(code, ma, 0)
-            for i in range(1, consecutive_days):
-                if i < consecutive_days:
-                    yesterdat_ma_price = self.get_ma(code, ma, i)
+            ma_price = self.get_ma(code, ma, past_day, period)
+            start_day = past_day+1
+            last_day = past_day+consecutive_days
+            for i in range(start_day, last_day):
+                if i < last_day:
+                    yesterdat_ma_price = self.get_ma(code, ma, i, period)
                     if ma_price > yesterdat_ma_price:
                         trand_up_count += 1
                     elif ma_price < yesterdat_ma_price:

@@ -62,6 +62,7 @@
             false
         ],
         "market_cap": 0,                                         시가총액(억)
-        "recent_buy_date": null                                 최근 매수 날짜
+        "recent_buy_date": null,                                 최근 매수 날짜
+        "ma_trend":0                                             이평선 추세, default 60일선
     }
 }
