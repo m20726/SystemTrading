@@ -508,7 +508,7 @@ class Stocks_info:
             self.stocks[code]['allow_monitoring_buy'] = False
             self.my_cash = self.get_my_cash()
             self.stocks[code]['loss_cut_done'] = False
-            # 매수일 업데이트
+            # 매수일 업데이트            
             self.stocks[code]['recent_buy_date'] = date.today().strftime('%Y-%m-%d')         
         except Exception as ex:
             result = False
@@ -1948,6 +1948,12 @@ class Stocks_info:
                         elif order_qty > tot_trade_qty:
                             # 일부 체결
                             if self.stocks[code]['stockholdings'] < tot_trade_qty:
+                                for i in range(BUY_SPLIT_COUNT):
+                                    if self.stocks[code]['buy_done'][i] == False:
+                                        # 일부만 매수된 경우, 다음날 매수 위해 매수량 업데이트
+                                        self.stocks[code]['buy_qty'][i] -= tot_trade_qty
+                                        break
+
                                 raise Exception(f"[{stock['prdt_name']}] {stock['avg_prvs']}원 {tot_trade_qty}/{order_qty}주 {buy_sell_order} 체결")
                 else:
                     # 해당 종목 아님
@@ -2399,31 +2405,6 @@ class Stocks_info:
             while buyable_count < len(self.buyable_stocks) and sorted_list[buyable_count][1]['undervalue'] > 0:
                 buyable_count = buyable_count + 1
             self.buyable_stocks = dict(sorted_list[:buyable_count])
-        except Exception as ex:
-            result = False
-            msg = "{}".format(traceback.format_exc())
-        finally:
-            if result == False:
-                self.send_msg_err(msg)
-
-    ##############################################################
-    # 장종료 시 일부 매수만 된 경우 처리
-    #   nth buy_qty = nth buy_qty - 보유 수량
-    ##############################################################
-    def update_buy_qty_after_market_finish(self):
-        result = True
-        msg = ""
-        try:
-            for code in self.my_stocks.keys():
-                if self.stocks[code]['stockholdings'] > 0:
-                    for i in range(BUY_SPLIT_COUNT):
-                        if self.stocks[code]['buy_done'][i] == False:
-                            # 다 매수된 경우
-                            if self.stocks[code]['stockholdings'] >= self.stocks[code]['buy_qty'][i]:
-                                self.set_buy_done(code)
-                            else:
-                                # 일부만 매수된 경우
-                                self.stocks[code]['buy_qty'][i] -= self.stocks[code]['stockholdings']
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())

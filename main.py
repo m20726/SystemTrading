@@ -31,7 +31,7 @@ def main():
 
         # # stocks_info.json 에 추가
         # for code in stocks_info.stocks.keys():
-        #     stocks_info.stocks[code]['recent_buy_date'] = date.today().strftime('%Y-%m-%d')
+        #     stocks_info.stocks[code]['ma_trend'] = TREND_DOWN
         # stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
         
         # # stocks_info.json 에 key 제거
@@ -55,7 +55,6 @@ def main():
         # 종가 매매 위해 16:00 에 종료
         t_exit = t_now.replace(hour=16, minute=00, second=0,microsecond=0)       
 
-        sell_order_done = False
         # 주기적으로 출력 여부
         allow_periodic_print = True
         
@@ -89,7 +88,6 @@ def main():
         
         # 장 종료
         stocks_info.update_my_stocks()
-        stocks_info.update_buy_qty_after_market_finish()            # 일부만 매수 됐을 때 처리
         stocks_info.show_stocks_by_undervalue(True)                 # 저평가
         stocks_info.show_trade_done_stocks(BUY_CODE)
         stocks_info.show_trade_done_stocks(SELL_CODE)
