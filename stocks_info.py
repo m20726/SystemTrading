@@ -965,34 +965,32 @@ class Stocks_info:
                 # 시가 총액
                 self.stocks[code]['market_cap'] = self.get_market_cap(code)
                 
-                # envelope
-                # ex) 시총 >= 5조 면 10
-                if self.stocks[code]['market_cap'] >= 50000:
-                    self.stocks[code]['envelope_p'] = 10
-                elif self.stocks[code]['market_cap'] >= 10000:
-                    self.stocks[code]['envelope_p'] = 12
-                else:
-                    self.stocks[code]['envelope_p'] = 14
+                # 1차 매수 안된 경우만 업데이트
+                if self.stocks[code]['buy_done'][0] == False:
+                    # envelope
+                    # ex) 시총 >= 5조 면 10
+                    if self.stocks[code]['market_cap'] >= 50000:
+                        self.stocks[code]['envelope_p'] = 10
+                    elif self.stocks[code]['market_cap'] >= 10000:
+                        self.stocks[code]['envelope_p'] = 12
+                    else:
+                        self.stocks[code]['envelope_p'] = 14
 
-                # sell_target_p
-                self.stocks[code]['sell_target_p'] = 5
+                    # sell_target_p
+                    self.stocks[code]['sell_target_p'] = 5
 
-                # 60일선 하락 추세면 envelope_p + @
-                self.stocks[code]['ma_trend'] = self.get_ma_trend(code)
-                if self.stocks[code]['ma_trend'] == TREND_DOWN:
-                    self.stocks[code]['envelope_p'] += 2
-                    PRINT_INFO(f"[{self.stocks[code]['name']}] 60일선 하락 추세")
-                # 60일선 상승 추세면 목표가 + @
-                elif self.stocks[code]['ma_trend'] == TREND_UP:
-                    self.stocks[code]['sell_target_p'] += 2
-                    PRINT_INFO(f"{self.stocks[code]['name']}")
-                else:
-                    # 60일선 보합
-                    PRINT_INFO(f"{self.stocks[code]['name']}")
-
-                # 매수된적 없으면(True 없다) self.stocks[code]['sell_target_p'] 초기화
-                if True not in self.stocks[code]['buy_done']:
-                   self.stocks[code]['sell_target_p'] = 5
+                    # 60일선 하락 추세면 envelope_p + @
+                    self.stocks[code]['ma_trend'] = self.get_ma_trend(code)
+                    if self.stocks[code]['ma_trend'] == TREND_DOWN:
+                        self.stocks[code]['envelope_p'] += 2
+                        PRINT_INFO(f"[{self.stocks[code]['name']}] 60일선 하락 추세")
+                    # 60일선 상승 추세면 목표가 + @
+                    elif self.stocks[code]['ma_trend'] == TREND_UP:
+                        self.stocks[code]['sell_target_p'] += 2
+                        PRINT_INFO(f"{self.stocks[code]['name']}")
+                    else:
+                        # 60일선 보합
+                        PRINT_INFO(f"{self.stocks[code]['name']}")
 
                 # yesterday 20일선
                 self.stocks[code]['yesterday_20ma'] = self.get_ma(code, 20, past_day)
@@ -1000,6 +998,7 @@ class Stocks_info:
                 self.set_buy_price(code)
                 # 매수 수량 세팅
                 self.set_buy_qty(code)
+
                 # 손절가
                 self.stocks[code]['loss_cut_price'] = self.get_loss_cut_price(code)
                 # 어제 종가
