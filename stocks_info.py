@@ -965,6 +965,9 @@ class Stocks_info:
                 # 시가 총액
                 self.stocks[code]['market_cap'] = self.get_market_cap(code)
                 
+                # yesterday 20일선
+                self.stocks[code]['yesterday_20ma'] = self.get_ma(code, 20, past_day)
+
                 # 1차 매수 안된 경우만 업데이트
                 if self.stocks[code]['buy_done'][0] == False:
                     # envelope
@@ -992,12 +995,10 @@ class Stocks_info:
                         # 60일선 보합
                         PRINT_INFO(f"{self.stocks[code]['name']}")
 
-                # yesterday 20일선
-                self.stocks[code]['yesterday_20ma'] = self.get_ma(code, 20, past_day)
-                # 매수가 세팅
-                self.set_buy_price(code)
-                # 매수 수량 세팅
-                self.set_buy_qty(code)
+                    # 매수가 세팅
+                    self.set_buy_price(code)
+                    # 매수 수량 세팅
+                    self.set_buy_qty(code)
 
                 # 손절가
                 self.stocks[code]['loss_cut_price'] = self.get_loss_cut_price(code)
