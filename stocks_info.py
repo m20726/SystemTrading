@@ -974,7 +974,7 @@ class Stocks_info:
                     # ex) 시총 >= 5조 면 10
                     if self.stocks[code]['market_cap'] >= 50000:
                         self.stocks[code]['envelope_p'] = 10
-                    elif self.stocks[code]['market_cap'] >= 10000:
+                    elif self.stocks[code]['market_cap'] >= 20000:
                         self.stocks[code]['envelope_p'] = 12
                     else:
                         self.stocks[code]['envelope_p'] = 14
@@ -1005,7 +1005,7 @@ class Stocks_info:
                 # 어제 종가
                 self.stocks[code]['yesterday_end_price'] = self.get_end_price(code, past_day)
 
-                # 어제 종가 > 어제 20ma 인가
+                # 매도 완료 후 "어제 종가 > 어제 20ma" 여야 재매수 가능
                 if self.stocks[code]['sell_done'] == True:
                     # 어제 종가 > 어제 20ma
                     if self.stocks[code]['yesterday_end_price'] > self.stocks[code]['yesterday_20ma']:
@@ -2646,18 +2646,18 @@ class Stocks_info:
             self.trade_strategy.max_per = 40                                # PER가 이 값 이상이면 매수 금지            
             
             if self.trade_strategy.invest_risk == INVEST_RISK_HIGH:
-                self.trade_strategy.under_value = -8                        # 저평가가 이 값 미만은 매수 금지
-                self.trade_strategy.gap_max_sell_target_price_p = -7        # 목표주가GAP 이 이 값 미만은 매수 금지
-                self.trade_strategy.sum_under_value_sell_target_gap = -10   # 저평가 + 목표주가GAP 이 이 값 미만은 매수 금지
+                self.trade_strategy.under_value = 0                         # 저평가가 이 값 미만은 매수 금지
+                self.trade_strategy.gap_max_sell_target_price_p = 0         # 목표주가GAP 이 이 값 미만은 매수 금지
+                self.trade_strategy.sum_under_value_sell_target_gap = 2     # 저평가 + 목표주가GAP 이 이 값 미만은 매수 금지
                 self.trade_strategy.max_per = 50                            # PER가 이 값 이상이면 매수 금지
                 self.trade_strategy.buyable_market_cap = 5000               # 시총 X 미만 매수 금지(억)
             elif self.trade_strategy.invest_risk == INVEST_RISK_MIDDLE:
-                self.trade_strategy.under_value = -3
-                self.trade_strategy.gap_max_sell_target_price_p = 0
-                self.trade_strategy.sum_under_value_sell_target_gap = 0
+                self.trade_strategy.under_value = 2
+                self.trade_strategy.gap_max_sell_target_price_p = 3
+                self.trade_strategy.sum_under_value_sell_target_gap = 5
                 self.trade_strategy.buyable_market_cap = 10000
             else:   # INVEST_RISK_LOW
-                self.trade_strategy.under_value = 3
+                self.trade_strategy.under_value = 5
                 self.trade_strategy.gap_max_sell_target_price_p = 5
                 self.trade_strategy.sum_under_value_sell_target_gap = 10
                 self.trade_strategy.buyable_market_cap = 20000
