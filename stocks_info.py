@@ -11,6 +11,18 @@ import datetime
 import traceback
 from datetime import date, timedelta
 
+# TODO
+'''
+.물타기 대신 불타기
+1차 매수 후 이론대로 상승(2~2.5%) 시
+단, 1차 매수가 이탈 시 추가매수분만 손절
+.손절5%
+ 1차 매수만 된 경우 5%
+ 불타기 경우 평단가 이탈
+. N차매도 : n-1차매도가 ×1.02
+Pre_sell_target
+익절 : 1차 매도가 이하 
+'''
 
 ##############################################################
 #                           전략                             #
@@ -971,11 +983,13 @@ class Stocks_info:
                 # 1차 매수 안된 경우만 업데이트
                 if self.stocks[code]['buy_done'][0] == False:
                     # envelope
-                    # ex) 시총 >= 5조 면 10
-                    if self.stocks[code]['market_cap'] >= 50000:
+                    # ex) 시총 >= 10조 면 10
+                    if self.stocks[code]['market_cap'] >= 100000:
                         self.stocks[code]['envelope_p'] = 10
-                    elif self.stocks[code]['market_cap'] >= 20000:
+                    elif self.stocks[code]['market_cap'] >= 30000:
                         self.stocks[code]['envelope_p'] = 12
+                    elif self.stocks[code]['market_cap'] >= 20000:
+                        self.stocks[code]['envelope_p'] = 13
                     else:
                         self.stocks[code]['envelope_p'] = 14
 
@@ -985,7 +999,7 @@ class Stocks_info:
                     # 60일선 하락 추세면 envelope_p + @
                     self.stocks[code]['ma_trend'] = self.get_ma_trend(code)
                     if self.stocks[code]['ma_trend'] == TREND_DOWN:
-                        self.stocks[code]['envelope_p'] += 2
+                        self.stocks[code]['envelope_p'] += 3
                         PRINT_INFO(f"[{self.stocks[code]['name']}] 60일선 하락 추세")
                     # 60일선 상승 추세면 목표가 + @
                     elif self.stocks[code]['ma_trend'] == TREND_UP:
@@ -993,7 +1007,12 @@ class Stocks_info:
                         PRINT_INFO(f"{self.stocks[code]['name']}")
                     else:
                         # 60일선 보합
+                        self.stocks[code]['envelope_p'] += 1
                         PRINT_INFO(f"{self.stocks[code]['name']}")
+
+                    # PER
+                    if self.stocks[code]['PER'] >= 50:
+                        self.stocks[code]['envelope_p'] += 3
 
                     # 매수가 세팅
                     self.set_buy_price(code)
@@ -1114,14 +1133,33 @@ class Stocks_info:
         finally:
             if result == False:
                 self.send_msg_err(msg)
+
     ##############################################################
-    # 보유 주식인지 체크
+    # 보유 종목인지 체크
     ##############################################################
     def is_my_stock(self, code):
         result = True
         msg = ""
         try:
             if code in self.my_stocks.keys():
+                return True
+            else:
+                return False
+        except Exception as ex:
+            result = False
+            msg = "{}".format(traceback.format_exc())
+        finally:
+            if result == False:
+                self.send_msg_err(msg)
+
+    ##############################################################
+    # 매수 가능 종목인지 체크
+    ##############################################################
+    def is_buyable_stock(self, code):
+        result = True
+        msg = ""
+        try:
+            if code in self.buyable_stocks.keys():
                 return True
             else:
                 return False
@@ -1142,6 +1180,10 @@ class Stocks_info:
             # 이미 내 주식은 무조건 매수
             # ex) 2차, 3차 매수
             if self.is_my_stock(code) == True:
+                return True
+            
+            # 매수 가능 종목은 무조건 매수
+            if self.is_buyable_stock(code) == True:
                 return True
 
             # 주식 투자 정보가 valid 하지 않으면 매수 금지
@@ -1369,7 +1411,7 @@ class Stocks_info:
     def get_stock_balance(self, send_discode:bool = False):
         result = True
         msg = ""
-        try:            
+        try:
             PATH = "uapi/domestic-stock/v1/trading/inquire-balance"
             URL = f"{self.config['URL_BASE']}/{PATH}"
             headers = {"Content-Type": "application/json",
@@ -1698,7 +1740,7 @@ class Stocks_info:
                         self.send_msg(f"[{self.stocks[code]['name']}] 현재가 : {curr_price}, 매수 목표가 : {buy_target_price}, 저가 : {lowest_price}")
                         if lowest_price <= buy_target_price:
                             buy_target_qty = self.get_buy_target_qty(code)
-                            if self.buy(code, curr_price, buy_target_qty, ORDER_TYPE_MARGET_ORDER) == True:
+                            if self.buy(code, curr_price, buy_target_qty, ORDER_TYPE_IMMEDIATE_ORDER) == True:
                                 self.set_order_done(code, BUY_CODE)
                                 self.send_msg(f"[{self.stocks[code]['name']}] 매수 주문, 현재가 : {curr_price} >= {int(lowest_price * buy_margin)}(저가 : {lowest_price} * {buy_margin})")
         except Exception as ex:
@@ -1715,6 +1757,9 @@ class Stocks_info:
         result = True
         msg = ""
         try:
+            t_now = datetime.datetime.now()
+            t_sell = t_now.replace(hour=15, minute=15, second=0, microsecond=0)
+
             sell_margin = 1 + self.to_percent(SELL_MARGIN_P)
             for code in self.my_stocks.keys():
                 curr_price = self.get_curr_price(code)
@@ -1754,7 +1799,6 @@ class Stocks_info:
                 else:
                     # 반 매도된 상태
                     t_now = datetime.datetime.now()
-                    t_sell = t_now.replace(hour=15, minute=15, second=0, microsecond=0)
                     ma_5 = self.get_ma(code, 5)
                     sell_target_price = self.my_stocks[code]['sell_target_price']
                     if t_now >= t_sell:
@@ -2280,7 +2324,7 @@ class Stocks_info:
 
     ##############################################################
     # 손절가
-    #   2차 매수가 -x%
+    #   last차 매수가 -x%
     ##############################################################
     def get_loss_cut_price(self, code):
         result = True
@@ -2312,8 +2356,9 @@ class Stocks_info:
             ret = False
             do_loss_cut = False
             today = date.today()
-            no_buy_days = 21
+            no_buy_days = 10
             for code in self.my_stocks.keys():
+                # 손실 상태에서 x일간 지지부진하면 손절
                 # 오늘 > 최근 매수일 + x day, 즉 x 일 동안 매수 없고
                 # 1차 매도가 안됐고 last차 매수까지 안된 경우 손절
                 do_loss_cut = False
@@ -2322,10 +2367,13 @@ class Stocks_info:
                 if recent_buy_date == None:
                     continue
                 days_diff = (today - recent_buy_date).days
+                # 손실 상태에서 x일간 지지부진하면 손절
                 if days_diff > no_buy_days:
-                    if self.stocks[code]['sell_1_done'] == False and self.stocks[code]['buy_done'][BUY_SPLIT_COUNT-1] == False:
-                        do_loss_cut = True
-                        PRINT_INFO(f'{recent_buy_date} 매수 후 {today}까지 {days_diff} 동안 매수 없어 손절')
+                    # 손실 상태 체크
+                    if self.stocks[code]['avg_buy_price'] < self.get_end_price(code):
+                        if self.stocks[code]['sell_1_done'] == False and self.stocks[code]['buy_done'][BUY_SPLIT_COUNT-1] == False:
+                            do_loss_cut = True
+                            PRINT_INFO(f'{recent_buy_date} 매수 후 {today}까지 {days_diff} 동안 매수 없어 손절')
 
                 curr_price = self.get_curr_price(code)
                 loss_cut_price = self.get_loss_cut_price(code)
@@ -2371,7 +2419,7 @@ class Stocks_info:
     def update_buyable_stocks(self):
         result = True
         msg = ""
-        try: 
+        try:
             self.buyable_stocks.clear()
             for code in self.stocks.keys():
                 if (self.is_my_stock(code) and self.stocks[code]['buy_done'][BUY_SPLIT_COUNT-1] == False) or self.is_ok_to_buy(code):
@@ -2643,13 +2691,12 @@ class Stocks_info:
             else:
                 self.trade_strategy.invest_risk = INVEST_RISK_LOW
 
-            self.trade_strategy.max_per = 40                                # PER가 이 값 이상이면 매수 금지            
+            self.trade_strategy.max_per = 80                                # PER가 이 값 이상이면 매수 금지            
             
             if self.trade_strategy.invest_risk == INVEST_RISK_HIGH:
                 self.trade_strategy.under_value = 0                         # 저평가가 이 값 미만은 매수 금지
                 self.trade_strategy.gap_max_sell_target_price_p = 0         # 목표주가GAP 이 이 값 미만은 매수 금지
                 self.trade_strategy.sum_under_value_sell_target_gap = 2     # 저평가 + 목표주가GAP 이 이 값 미만은 매수 금지
-                self.trade_strategy.max_per = 50                            # PER가 이 값 이상이면 매수 금지
                 self.trade_strategy.buyable_market_cap = 5000               # 시총 X 미만 매수 금지(억)
             elif self.trade_strategy.invest_risk == INVEST_RISK_MIDDLE:
                 self.trade_strategy.under_value = 2
@@ -2766,9 +2813,9 @@ class Stocks_info:
         try:
             buy_rsi = 0
 
-            if self.stocks[code]['market_cap'] >= 50000:
+            if self.stocks[code]['market_cap'] >= 100000:
                 buy_rsi = 40
-            elif self.stocks[code]['market_cap'] >= 20000:
+            elif self.stocks[code]['market_cap'] >= 30000:
                 buy_rsi = 37
             else:
                 buy_rsi = 35
