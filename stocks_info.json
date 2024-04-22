@@ -51,7 +51,9 @@
         "market_cap": 21709,
         "loss_cut_price": 84700,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "138930": {
         "name": "BNK금융지주",
@@ -105,7 +107,9 @@
         "market_cap": 25187,
         "loss_cut_price": 5800,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "001040": {
         "name": "CJ",
@@ -159,7 +163,9 @@
         "market_cap": 35012,
         "loss_cut_price": 90700,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "097950": {
         "name": "CJ제일제당",
@@ -213,7 +219,9 @@
         "loss_cut_price": 231500,
         "market_cap": 49980,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "005830": {
         "name": "DB손해보험",
@@ -267,7 +275,9 @@
         "market_cap": 62870,
         "loss_cut_price": 75100,
         "recent_buy_date": "2024-04-12",
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "000990": {
         "name": "DB하이텍",
@@ -321,7 +331,9 @@
         "market_cap": 18625,
         "loss_cut_price": 30950,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "007340": {
         "name": "DN오토모티브",
@@ -375,7 +387,9 @@
         "market_cap": 7975,
         "loss_cut_price": 57500,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "114090": {
         "name": "GKL",
@@ -429,7 +443,9 @@
         "market_cap": 8363,
         "loss_cut_price": 9630,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "078930": {
         "name": "GS",
@@ -483,7 +499,9 @@
         "market_cap": 39303,
         "loss_cut_price": 36000,
         "recent_buy_date": "2024-04-18",
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "007070": {
         "name": "GS리테일",
@@ -537,7 +555,9 @@
         "market_cap": 19970,
         "loss_cut_price": 14050,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "009540": {
         "name": "HD한국조선해양",
@@ -591,7 +611,9 @@
         "market_cap": 84503,
         "loss_cut_price": 89400,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "267250": {
         "name": "HD현대",
@@ -645,7 +667,9 @@
         "market_cap": 48265,
         "loss_cut_price": 51200,
         "recent_buy_date": null,
-        "ma_trend": 1
+        "ma_trend": 1,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "267270": {
         "name": "HD현대건설기계",
@@ -699,7 +723,9 @@
         "market_cap": 10185,
         "loss_cut_price": 40700,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "267260": {
         "name": "HD현대일렉트릭",
@@ -753,7 +779,9 @@
         "market_cap": 86153,
         "loss_cut_price": 147500,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "329180": {
         "name": "HD현대중공업",
@@ -807,7 +835,9 @@
         "market_cap": 106794,
         "loss_cut_price": 91600,
         "recent_buy_date": null,
-        "ma_trend": 1
+        "ma_trend": 1,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "195940": {
         "name": "HK이노엔",
@@ -861,7 +891,9 @@
         "market_cap": 10340,
         "loss_cut_price": 25850,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "204320": {
         "name": "HL만도",
@@ -915,7 +947,9 @@
         "market_cap": 15191,
         "loss_cut_price": 23400,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "011200": {
         "name": "HMM",
@@ -969,7 +1003,9 @@
         "market_cap": 101013,
         "loss_cut_price": 11400,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "403870": {
         "name": "HPSP",
@@ -1023,7 +1059,9 @@
         "market_cap": 36491,
         "loss_cut_price": 36000,
         "recent_buy_date": null,
-        "ma_trend": 1
+        "ma_trend": 1,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "175330": {
         "name": "JB금융지주",
@@ -1077,7 +1115,9 @@
         "market_cap": 23586,
         "loss_cut_price": 9350,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "001060": {
         "name": "JW중외제약",
@@ -1131,7 +1171,9 @@
         "market_cap": 6939,
         "loss_cut_price": 22350,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "035900": {
         "name": "JYP Ent.",
@@ -1185,7 +1227,9 @@
         "market_cap": 22918,
         "loss_cut_price": 48450,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "105560": {
         "name": "KB금융",
@@ -1239,7 +1283,9 @@
         "market_cap": 258247,
         "loss_cut_price": 52600,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "002380": {
         "name": "KCC",
@@ -1293,7 +1339,9 @@
         "market_cap": 20928,
         "loss_cut_price": 195500,
         "recent_buy_date": "2024-04-17",
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "030200": {
         "name": "KT",
@@ -1347,7 +1395,9 @@
         "market_cap": 86536,
         "loss_cut_price": 27300,
         "recent_buy_date": null,
-        "ma_trend": 1
+        "ma_trend": 1,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "033780": {
         "name": "KT&G",
@@ -1401,7 +1451,9 @@
         "market_cap": 117030,
         "loss_cut_price": 69700,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "003550": {
         "name": "LG",
@@ -1455,7 +1507,9 @@
         "market_cap": 119863,
         "loss_cut_price": 69900,
         "recent_buy_date": "2024-04-11",
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "034220": {
         "name": "LG디스플레이",
@@ -1509,7 +1563,9 @@
         "market_cap": 50250,
         "loss_cut_price": 7510,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "051900": {
         "name": "LG생활건강",
@@ -1563,7 +1619,9 @@
         "market_cap": 59583,
         "loss_cut_price": 283500,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "373220": {
         "name": "LG에너지솔루션",
@@ -1617,7 +1675,9 @@
         "market_cap": 882180,
         "loss_cut_price": 286500,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "011070": {
         "name": "LG이노텍",
@@ -1671,7 +1731,9 @@
         "market_cap": 44163,
         "loss_cut_price": 141500,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "066570": {
         "name": "LG전자",
@@ -1725,7 +1787,9 @@
         "market_cap": 151538,
         "loss_cut_price": 72900,
         "recent_buy_date": null,
-        "ma_trend": 1
+        "ma_trend": 1,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "051910": {
         "name": "LG화학",
@@ -1779,7 +1843,9 @@
         "market_cap": 267192,
         "loss_cut_price": 306000,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "079550": {
         "name": "LIG넥스원",
@@ -1833,7 +1899,9 @@
         "market_cap": 34782,
         "loss_cut_price": 127000,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "006260": {
         "name": "LS",
@@ -1887,7 +1955,9 @@
         "market_cap": 42021,
         "loss_cut_price": 84700,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "010120": {
         "name": "LS ELECTRIC",
@@ -1941,7 +2011,9 @@
         "market_cap": 46500,
         "loss_cut_price": 84800,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "001120": {
         "name": "LX인터내셔널",
@@ -1995,7 +2067,9 @@
         "market_cap": 10097,
         "loss_cut_price": 18650,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "035420": {
         "name": "NAVER",
@@ -2049,7 +2123,9 @@
         "market_cap": 293472,
         "loss_cut_price": 138500,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "005940": {
         "name": "NH투자증권",
@@ -2103,7 +2179,9 @@
         "market_cap": 37611,
         "loss_cut_price": 8760,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "005490": {
         "name": "POSCO홀딩스",
@@ -2157,7 +2235,9 @@
         "market_cap": 329828,
         "loss_cut_price": 301000,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "064960": {
         "name": "S-Oil",
@@ -2211,7 +2291,9 @@
         "market_cap": 6588,
         "loss_cut_price": 32850,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "034730": {
         "name": "SK",
@@ -2265,7 +2347,9 @@
         "market_cap": 114775,
         "loss_cut_price": 133500,
         "recent_buy_date": null,
-        "ma_trend": 1
+        "ma_trend": 1,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "011790": {
         "name": "SKC",
@@ -2319,7 +2403,9 @@
         "market_cap": 43056,
         "loss_cut_price": 90900,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "018670": {
         "name": "SK가스",
@@ -2373,7 +2459,9 @@
         "market_cap": 14085,
         "loss_cut_price": 112000,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "006120": {
         "name": "SK디스커버리",
@@ -2427,7 +2515,9 @@
         "market_cap": 8012,
         "loss_cut_price": 32350,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "402340": {
         "name": "SK스퀘어",
@@ -2481,7 +2571,9 @@
         "market_cap": 116327,
         "loss_cut_price": 59300,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "361610": {
         "name": "SK아이이테크놀로지",
@@ -2535,7 +2627,9 @@
         "market_cap": 43349,
         "loss_cut_price": 49900,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "100090": {
         "name": "SK오션플랜트",
@@ -2589,7 +2683,9 @@
         "market_cap": 7654,
         "loss_cut_price": 9500,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "096770": {
         "name": "SK이노베이션",
@@ -2643,7 +2739,9 @@
         "market_cap": 101671,
         "loss_cut_price": 85200,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "017670": {
         "name": "SK텔레콤",
@@ -2697,7 +2795,9 @@
         "market_cap": 108899,
         "loss_cut_price": 39750,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "000660": {
         "name": "SK하이닉스",
@@ -2751,7 +2851,9 @@
         "market_cap": 1327148,
         "loss_cut_price": 138000,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "069260": {
         "name": "TKG휴켐스",
@@ -2805,7 +2907,9 @@
         "market_cap": 7746,
         "loss_cut_price": 13800,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "010950": {
         "name": "sfa반도체",
@@ -2859,7 +2963,9 @@
         "market_cap": 84887,
         "loss_cut_price": 59200,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "035250": {
         "name": "강원랜드",
@@ -2913,7 +3019,9 @@
         "market_cap": 31813,
         "loss_cut_price": 11800,
         "recent_buy_date": null,
-        "ma_trend": 1
+        "ma_trend": 1,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "010130": {
         "name": "고려아연",
@@ -2967,7 +3075,9 @@
         "market_cap": 98689,
         "loss_cut_price": 344000,
         "recent_buy_date": null,
-        "ma_trend": 1
+        "ma_trend": 1,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "098460": {
         "name": "고영",
@@ -3021,7 +3131,9 @@
         "market_cap": 12392,
         "loss_cut_price": 13400,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "011780": {
         "name": "금호석유",
@@ -3075,7 +3187,9 @@
         "market_cap": 32709,
         "loss_cut_price": 99900,
         "recent_buy_date": null,
-        "ma_trend": 1
+        "ma_trend": 1,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "073240": {
         "name": "금호타이어",
@@ -3129,7 +3243,9 @@
         "market_cap": 18614,
         "loss_cut_price": 4415,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "000270": {
         "name": "기아",
@@ -3183,7 +3299,9 @@
         "market_cap": 451094,
         "loss_cut_price": 84400,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "024110": {
         "name": "기업은행",
@@ -3237,7 +3355,9 @@
         "market_cap": 105898,
         "loss_cut_price": 10450,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "002350": {
         "name": "넥센타이어",
@@ -3291,7 +3411,9 @@
         "market_cap": 8917,
         "loss_cut_price": 6310,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "004370": {
         "name": "농심",
@@ -3345,7 +3467,9 @@
         "market_cap": 23114,
         "loss_cut_price": 276000,
         "recent_buy_date": null,
-        "ma_trend": 1
+        "ma_trend": 1,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "023590": {
         "name": "다우기술",
@@ -3399,7 +3523,9 @@
         "market_cap": 8300,
         "loss_cut_price": 14700,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "003490": {
         "name": "대한항공",
@@ -3453,7 +3579,9 @@
         "market_cap": 75669,
         "loss_cut_price": 15300,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "192080": {
         "name": "더블유게임즈",
@@ -3507,7 +3635,9 @@
         "market_cap": 8738,
         "loss_cut_price": 30000,
         "recent_buy_date": null,
-        "ma_trend": 1
+        "ma_trend": 1,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "213420": {
         "name": "덕산네오룩스",
@@ -3561,7 +3691,9 @@
         "market_cap": 9287,
         "loss_cut_price": 26950,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "145720": {
         "name": "덴티움",
@@ -3615,7 +3747,9 @@
         "market_cap": 14389,
         "loss_cut_price": 96300,
         "recent_buy_date": null,
-        "ma_trend": 1
+        "ma_trend": 1,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "086450": {
         "name": "동국제약",
@@ -3669,7 +3803,9 @@
         "market_cap": 7238,
         "loss_cut_price": 11600,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "006040": {
         "name": "동원산업",
@@ -3723,7 +3859,9 @@
         "market_cap": 16734,
         "loss_cut_price": 27350,
         "recent_buy_date": null,
-        "ma_trend": 1
+        "ma_trend": 1,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "014820": {
         "name": "동원시스템즈",
@@ -3777,7 +3915,9 @@
         "market_cap": 11828,
         "loss_cut_price": 30950,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "005290": {
         "name": "동진쎄미캠",
@@ -3831,7 +3971,9 @@
         "market_cap": 23933,
         "loss_cut_price": 34600,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "025900": {
         "name": "동화기업",
@@ -3885,7 +4027,9 @@
         "market_cap": 11384,
         "loss_cut_price": 40450,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "000150": {
         "name": "두산",
@@ -3939,7 +4083,9 @@
         "market_cap": 23299,
         "loss_cut_price": 109000,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "241560": {
         "name": "두산밥캣",
@@ -3993,7 +4139,9 @@
         "market_cap": 51929,
         "loss_cut_price": 39250,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "131970": {
         "name": "두산테스나",
@@ -4047,7 +4195,9 @@
         "market_cap": 8248,
         "loss_cut_price": 33900,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "281740": {
         "name": "레이크머티리얼즈",
@@ -4101,7 +4251,9 @@
         "market_cap": 14526,
         "loss_cut_price": 18350,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "023530": {
         "name": "롯데쇼핑",
@@ -4155,7 +4307,9 @@
         "market_cap": 18501,
         "loss_cut_price": 51800,
         "recent_buy_date": null,
-        "ma_trend": 1
+        "ma_trend": 1,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "020150": {
         "name": "롯데에너지머티리얼즈",
@@ -4209,7 +4363,9 @@
         "market_cap": 19367,
         "loss_cut_price": 34100,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "280360": {
         "name": "롯데웰푸드",
@@ -4263,7 +4419,9 @@
         "market_cap": 11699,
         "loss_cut_price": 86100,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "005300": {
         "name": "롯데칠성",
@@ -4317,7 +4475,9 @@
         "market_cap": 11691,
         "loss_cut_price": 90200,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "011170": {
         "name": "롯데케미칼",
@@ -4371,7 +4531,9 @@
         "market_cap": 42861,
         "loss_cut_price": 83700,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "058470": {
         "name": "리노공업",
@@ -4425,7 +4587,9 @@
         "market_cap": 41078,
         "loss_cut_price": 194000,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "215200": {
         "name": "메가스터디교육",
@@ -4479,7 +4643,9 @@
         "market_cap": 7403,
         "loss_cut_price": 40650,
         "recent_buy_date": null,
-        "ma_trend": 1
+        "ma_trend": 1,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "138040": {
         "name": "메리츠금융지주",
@@ -4533,7 +4699,9 @@
         "market_cap": 148534,
         "loss_cut_price": 61500,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "006800": {
         "name": "미래에셋증권",
@@ -4587,7 +4755,9 @@
         "market_cap": 43399,
         "loss_cut_price": 5920,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "003850": {
         "name": "보령",
@@ -4641,7 +4811,9 @@
         "market_cap": 7700,
         "loss_cut_price": 8900,
         "recent_buy_date": null,
-        "ma_trend": 1
+        "ma_trend": 1,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "028050": {
         "name": "삼성E&A",
@@ -4695,7 +4867,9 @@
         "market_cap": 50372,
         "loss_cut_price": 18850,
         "recent_buy_date": null,
-        "ma_trend": 1
+        "ma_trend": 1,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "006400": {
         "name": "삼성SDI",
@@ -4749,7 +4923,9 @@
         "market_cap": 278840,
         "loss_cut_price": 333500,
         "recent_buy_date": null,
-        "ma_trend": 1
+        "ma_trend": 1,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "028260": {
         "name": "삼성물산",
@@ -4803,7 +4979,9 @@
         "market_cap": 260385,
         "loss_cut_price": 116000,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "207940": {
         "name": "삼성바이오로직스",
@@ -4857,7 +5035,9 @@
         "market_cap": 562275,
         "loss_cut_price": 622000,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "032830": {
         "name": "삼성생명",
@@ -4911,7 +5091,9 @@
         "market_cap": 156000,
         "loss_cut_price": 72700,
         "recent_buy_date": "2024-04-15",
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "018260": {
         "name": "삼성에스디에스",
@@ -4965,7 +5147,9 @@
         "market_cap": 115757,
         "loss_cut_price": 115000,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "009150": {
         "name": "삼성전기",
@@ -5019,7 +5203,9 @@
         "market_cap": 109576,
         "loss_cut_price": 115500,
         "recent_buy_date": null,
-        "ma_trend": 1
+        "ma_trend": 1,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "005930": {
         "name": "삼성전자",
@@ -5073,7 +5259,9 @@
         "market_cap": 4751947,
         "loss_cut_price": 62500,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "005935": {
         "name": "삼성전자우",
@@ -5127,7 +5315,9 @@
         "market_cap": 545574,
         "loss_cut_price": 51700,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "010140": {
         "name": "삼성중공업",
@@ -5181,7 +5371,9 @@
         "market_cap": 83952,
         "loss_cut_price": 6570,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "016360": {
         "name": "삼성증권",
@@ -5235,7 +5427,9 @@
         "market_cap": 32148,
         "loss_cut_price": 29100,
         "recent_buy_date": null,
-        "ma_trend": 1
+        "ma_trend": 1,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "029780": {
         "name": "삼성카드",
@@ -5289,7 +5483,9 @@
         "market_cap": 41477,
         "loss_cut_price": 27950,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "000810": {
         "name": "삼성화재",
@@ -5343,7 +5539,9 @@
         "market_cap": 131228,
         "loss_cut_price": 232500,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "003230": {
         "name": "삼양식품",
@@ -5397,7 +5595,9 @@
         "market_cap": 20226,
         "loss_cut_price": 164000,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "015750": {
         "name": "성우하이텍",
@@ -5451,7 +5651,9 @@
         "market_cap": 7232,
         "loss_cut_price": 6800,
         "recent_buy_date": null,
-        "ma_trend": 1
+        "ma_trend": 1,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "365340": {
         "name": "성일하이텍",
@@ -5505,7 +5707,9 @@
         "market_cap": 9103,
         "loss_cut_price": 59800,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "004490": {
         "name": "세방전지",
@@ -5559,7 +5763,9 @@
         "market_cap": 13160,
         "loss_cut_price": 60600,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "068270": {
         "name": "셀트리온",
@@ -5613,7 +5819,9 @@
         "market_cap": 386166,
         "loss_cut_price": 139500,
         "recent_buy_date": null,
-        "ma_trend": 1
+        "ma_trend": 1,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "357780": {
         "name": "솔브레인",
@@ -5667,7 +5875,9 @@
         "market_cap": 23491,
         "loss_cut_price": 224000,
         "recent_buy_date": null,
-        "ma_trend": 1
+        "ma_trend": 1,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "253450": {
         "name": "스튜디오드래곤",
@@ -5721,7 +5931,9 @@
         "market_cap": 12279,
         "loss_cut_price": 30800,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "004170": {
         "name": "신세계",
@@ -5775,7 +5987,9 @@
         "market_cap": 15870,
         "loss_cut_price": 122000,
         "recent_buy_date": null,
-        "ma_trend": 1
+        "ma_trend": 1,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "055550": {
         "name": "신한지주",
@@ -5829,7 +6043,9 @@
         "market_cap": 213436,
         "loss_cut_price": 35250,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "003410": {
         "name": "쌍용C&E",
@@ -5883,7 +6099,9 @@
         "market_cap": 34909,
         "loss_cut_price": 5230,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "002790": {
         "name": "아모레G",
@@ -5937,7 +6155,9 @@
         "market_cap": 25109,
         "loss_cut_price": 20800,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "090430": {
         "name": "아모레퍼시픽",
@@ -5991,7 +6211,9 @@
         "market_cap": 85692,
         "loss_cut_price": 96700,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "067160": {
         "name": "아프리카TV",
@@ -6045,7 +6267,9 @@
         "market_cap": 13093,
         "loss_cut_price": 85700,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "101490": {
         "name": "에스앤에스텍",
@@ -6099,7 +6323,9 @@
         "market_cap": 9803,
         "loss_cut_price": 33100,
         "recent_buy_date": null,
-        "ma_trend": 1
+        "ma_trend": 1,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "056190": {
         "name": "에스에프에이",
@@ -6153,7 +6379,9 @@
         "market_cap": 9103,
         "loss_cut_price": 18150,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "005850": {
         "name": "에스엘",
@@ -6207,7 +6435,9 @@
         "market_cap": 14097,
         "loss_cut_price": 22250,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "041510": {
         "name": "에스엠",
@@ -6261,7 +6491,9 @@
         "market_cap": 17952,
         "loss_cut_price": 56600,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "012750": {
         "name": "에스원",
@@ -6315,7 +6547,9 @@
         "market_cap": 22838,
         "loss_cut_price": 44400,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "058610": {
         "name": "에스피지",
@@ -6369,7 +6603,9 @@
         "market_cap": 6099,
         "loss_cut_price": 20200,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "383310": {
         "name": "에코프로에이치엔",
@@ -6423,7 +6659,9 @@
         "market_cap": 10423,
         "loss_cut_price": 56300,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "036570": {
         "name": "엔씨소프트",
@@ -6477,7 +6715,9 @@
         "market_cap": 37058,
         "loss_cut_price": 136000,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "066970": {
         "name": "엘앤에프",
@@ -6531,7 +6771,9 @@
         "market_cap": 53804,
         "loss_cut_price": 121500,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "111770": {
         "name": "영원무역",
@@ -6585,7 +6827,9 @@
         "market_cap": 16351,
         "loss_cut_price": 27850,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "000670": {
         "name": "영풍",
@@ -6639,7 +6883,9 @@
         "market_cap": 7230,
         "loss_cut_price": 319000,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "271560": {
         "name": "오리온",
@@ -6693,7 +6939,9 @@
         "market_cap": 36057,
         "loss_cut_price": 70100,
         "recent_buy_date": null,
-        "ma_trend": 1
+        "ma_trend": 1,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "316140": {
         "name": "우리금융지주",
@@ -6747,7 +6995,9 @@
         "market_cap": 100250,
         "loss_cut_price": 10800,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "074600": {
         "name": "원익qnc",
@@ -6801,7 +7051,9 @@
         "market_cap": 8728,
         "loss_cut_price": 24050,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "084370": {
         "name": "유진테크",
@@ -6855,7 +7107,9 @@
         "market_cap": 11733,
         "loss_cut_price": 33400,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "000100": {
         "name": "유한양행",
@@ -6909,7 +7163,9 @@
         "market_cap": 56227,
         "loss_cut_price": 55000,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "008730": {
         "name": "율촌화학",
@@ -6963,7 +7219,9 @@
         "market_cap": 8519,
         "loss_cut_price": 26900,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "214320": {
         "name": "이노션",
@@ -7017,7 +7275,9 @@
         "market_cap": 8760,
         "loss_cut_price": 15850,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "272290": {
         "name": "이녹스첨단소재",
@@ -7071,7 +7331,9 @@
         "market_cap": 5899,
         "loss_cut_price": 21300,
         "recent_buy_date": null,
-        "ma_trend": 1
+        "ma_trend": 1,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "007660": {
         "name": "이수페타시스",
@@ -7125,7 +7387,9 @@
         "market_cap": 24698,
         "loss_cut_price": 29750,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "039030": {
         "name": "이오테크닉스",
@@ -7179,7 +7443,9 @@
         "market_cap": 30306,
         "loss_cut_price": 167000,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "049070": {
         "name": "인탑스",
@@ -7233,7 +7499,9 @@
         "market_cap": 4524,
         "loss_cut_price": 21250,
         "recent_buy_date": null,
-        "ma_trend": 1
+        "ma_trend": 1,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "103590": {
         "name": "일진전기",
@@ -7287,7 +7555,9 @@
         "market_cap": 9776,
         "loss_cut_price": 14550,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "030000": {
         "name": "제일기획",
@@ -7341,7 +7611,9 @@
         "market_cap": 21846,
         "loss_cut_price": 13900,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "185750": {
         "name": "종근당",
@@ -7395,7 +7667,9 @@
         "market_cap": 13385,
         "loss_cut_price": 75100,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "036930": {
         "name": "주성엔지니어링",
@@ -7449,7 +7723,9 @@
         "market_cap": 16863,
         "loss_cut_price": 26400,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "035720": {
         "name": "카카오",
@@ -7503,7 +7779,9 @@
         "market_cap": 218615,
         "loss_cut_price": 37600,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "281820": {
         "name": "케이씨텍",
@@ -7557,7 +7835,9 @@
         "market_cap": 8157,
         "loss_cut_price": 29850,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "003690": {
         "name": "코리안리",
@@ -7611,7 +7891,9 @@
         "market_cap": 12915,
         "loss_cut_price": 5870,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "183300": {
         "name": "코미코",
@@ -7665,7 +7947,9 @@
         "market_cap": 9310,
         "loss_cut_price": 55800,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "192820": {
         "name": "코스맥스",
@@ -7719,7 +8003,9 @@
         "market_cap": 15356,
         "loss_cut_price": 91000,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "005420": {
         "name": "코스모화학",
@@ -7773,7 +8059,9 @@
         "market_cap": 11964,
         "loss_cut_price": 24750,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "120110": {
         "name": "코오롱인더",
@@ -7827,7 +8115,9 @@
         "market_cap": 9659,
         "loss_cut_price": 25850,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "021240": {
         "name": "코웨이",
@@ -7881,7 +8171,9 @@
         "market_cap": 41475,
         "loss_cut_price": 41950,
         "recent_buy_date": null,
-        "ma_trend": 1
+        "ma_trend": 1,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "214150": {
         "name": "클래시스",
@@ -7935,7 +8227,9 @@
         "market_cap": 24928,
         "loss_cut_price": 27300,
         "recent_buy_date": null,
-        "ma_trend": 1
+        "ma_trend": 1,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "039490": {
         "name": "키움증권",
@@ -7989,7 +8283,9 @@
         "market_cap": 33151,
         "loss_cut_price": 92500,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "064760": {
         "name": "티씨케이",
@@ -8043,7 +8339,9 @@
         "market_cap": 15878,
         "loss_cut_price": 91500,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "034230": {
         "name": "파라다이스",
@@ -8097,7 +8395,9 @@
         "market_cap": 13828,
         "loss_cut_price": 10650,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "214450": {
         "name": "파마리서치",
@@ -8151,7 +8451,9 @@
         "market_cap": 13014,
         "loss_cut_price": 80600,
         "recent_buy_date": null,
-        "ma_trend": 1
+        "ma_trend": 1,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "140860": {
         "name": "파크시스템스",
@@ -8205,7 +8507,9 @@
         "market_cap": 11139,
         "loss_cut_price": 115000,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "028670": {
         "name": "팬오션",
@@ -8259,7 +8563,9 @@
         "market_cap": 21142,
         "loss_cut_price": 3055,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "022100": {
         "name": "포스코DX",
@@ -8313,7 +8619,9 @@
         "market_cap": 60966,
         "loss_cut_price": 33550,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "047050": {
         "name": "포스코인터내셔널",
@@ -8367,7 +8675,9 @@
         "market_cap": 77054,
         "loss_cut_price": 36300,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "103140": {
         "name": "풍산",
@@ -8421,7 +8731,9 @@
         "market_cap": 16927,
         "loss_cut_price": 39050,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "137400": {
         "name": "피엔티",
@@ -8475,7 +8787,9 @@
         "market_cap": 8994,
         "loss_cut_price": 28900,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "086790": {
         "name": "하나금융지주",
@@ -8529,7 +8843,9 @@
         "market_cap": 156411,
         "loss_cut_price": 44200,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "166090": {
         "name": "하나머티리얼즈",
@@ -8583,7 +8899,9 @@
         "market_cap": 11141,
         "loss_cut_price": 40750,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "039130": {
         "name": "하나투어",
@@ -8637,7 +8955,9 @@
         "market_cap": 9223,
         "loss_cut_price": 43900,
         "recent_buy_date": null,
-        "ma_trend": 1
+        "ma_trend": 1,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "352820": {
         "name": "하이브",
@@ -8691,7 +9011,9 @@
         "market_cap": 95175,
         "loss_cut_price": 162500,
         "recent_buy_date": null,
-        "ma_trend": 1
+        "ma_trend": 1,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "000080": {
         "name": "하이트진로",
@@ -8745,7 +9067,9 @@
         "market_cap": 14728,
         "loss_cut_price": 15150,
         "recent_buy_date": null,
-        "ma_trend": 1
+        "ma_trend": 1,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "036460": {
         "name": "한국가스공사",
@@ -8799,7 +9123,9 @@
         "market_cap": 23494,
         "loss_cut_price": 19550,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "071050": {
         "name": "한국금융지주",
@@ -8853,7 +9179,9 @@
         "market_cap": 34439,
         "loss_cut_price": 49550,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "000240": {
         "name": "한국앤컴퍼니",
@@ -8907,7 +9235,9 @@
         "market_cap": 14971,
         "loss_cut_price": 11750,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "015760": {
         "name": "한국전력",
@@ -8961,7 +9291,9 @@
         "market_cap": 130961,
         "loss_cut_price": 16500,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "161390": {
         "name": "한국타이어앤테크놀로지",
@@ -9015,7 +9347,9 @@
         "market_cap": 75440,
         "loss_cut_price": 42100,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "047810": {
         "name": "한국항공우주",
@@ -9069,7 +9403,9 @@
         "market_cap": 47812,
         "loss_cut_price": 36200,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "042700": {
         "name": "한미반도체",
@@ -9123,7 +9459,9 @@
         "market_cap": 138806,
         "loss_cut_price": 99500,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "008930": {
         "name": "한미사이언스",
@@ -9177,7 +9515,9 @@
         "market_cap": 22876,
         "loss_cut_price": 26900,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "128940": {
         "name": "한미약품",
@@ -9231,7 +9571,9 @@
         "market_cap": 40483,
         "loss_cut_price": 232000,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "105630": {
         "name": "한세실업",
@@ -9285,7 +9627,9 @@
         "market_cap": 8280,
         "loss_cut_price": 14800,
         "recent_buy_date": null,
-        "ma_trend": 1
+        "ma_trend": 1,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "014680": {
         "name": "한솔케미칼",
@@ -9339,7 +9683,9 @@
         "market_cap": 21650,
         "loss_cut_price": 142000,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "018880": {
         "name": "한온시스템",
@@ -9393,7 +9739,9 @@
         "market_cap": 26850,
         "loss_cut_price": 4040,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "300720": {
         "name": "한일시멘트",
@@ -9447,7 +9795,9 @@
         "market_cap": 8665,
         "loss_cut_price": 9030,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "052690": {
         "name": "한전기술",
@@ -9501,7 +9851,9 @@
         "market_cap": 21594,
         "loss_cut_price": 45100,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "180640": {
         "name": "한진칼",
@@ -9555,7 +9907,9 @@
         "market_cap": 38322,
         "loss_cut_price": 43100,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "088350": {
         "name": "한화생명",
@@ -9609,7 +9963,9 @@
         "market_cap": 22886,
         "loss_cut_price": 2250,
         "recent_buy_date": null,
-        "ma_trend": 1
+        "ma_trend": 1,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "009830": {
         "name": "한화솔루션",
@@ -9663,7 +10019,9 @@
         "market_cap": 43833,
         "loss_cut_price": 19350,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "272210": {
         "name": "한화시스템",
@@ -9717,7 +10075,9 @@
         "market_cap": 31682,
         "loss_cut_price": 12550,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "012450": {
         "name": "한화에어로스페이스",
@@ -9771,7 +10131,9 @@
         "market_cap": 114424,
         "loss_cut_price": 164000,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "042660": {
         "name": "한화오션",
@@ -9825,7 +10187,9 @@
         "market_cap": 102018,
         "loss_cut_price": 21800,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "195870": {
         "name": "해성디에스",
@@ -9879,7 +10243,9 @@
         "market_cap": 8415,
         "loss_cut_price": 35950,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "000720": {
         "name": "현대건설",
@@ -9933,7 +10299,9 @@
         "market_cap": 36079,
         "loss_cut_price": 23750,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "086280": {
         "name": "현대글로비스",
@@ -9987,7 +10355,9 @@
         "market_cap": 64088,
         "loss_cut_price": 132000,
         "recent_buy_date": null,
-        "ma_trend": 1
+        "ma_trend": 1,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "064350": {
         "name": "현대로템",
@@ -10041,7 +10411,9 @@
         "market_cap": 44912,
         "loss_cut_price": 27900,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "012330": {
         "name": "현대모비스",
@@ -10095,7 +10467,9 @@
         "market_cap": 220089,
         "loss_cut_price": 190500,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "010620": {
         "name": "현대미포조선",
@@ -10149,7 +10523,9 @@
         "market_cap": 25922,
         "loss_cut_price": 44700,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "307950": {
         "name": "현대오토에버",
@@ -10203,7 +10579,9 @@
         "market_cap": 37927,
         "loss_cut_price": 105500,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "004020": {
         "name": "현대제철",
@@ -10257,7 +10635,9 @@
         "market_cap": 42769,
         "loss_cut_price": 23900,
         "recent_buy_date": null,
-        "ma_trend": 1
+        "ma_trend": 1,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "005380": {
         "name": "현대차",
@@ -10311,7 +10691,9 @@
         "market_cap": 483751,
         "loss_cut_price": 179500,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "001450": {
         "name": "현대해상",
@@ -10365,7 +10747,9 @@
         "market_cap": 26239,
         "loss_cut_price": 22850,
         "recent_buy_date": null,
-        "ma_trend": 1
+        "ma_trend": 1,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "008770": {
         "name": "호텔신라",
@@ -10419,7 +10803,9 @@
         "market_cap": 22450,
         "loss_cut_price": 42200,
         "recent_buy_date": null,
-        "ma_trend": 0
+        "ma_trend": 0,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "298040": {
         "name": "효성중공업",
@@ -10473,7 +10859,9 @@
         "market_cap": 30585,
         "loss_cut_price": 216500,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "081660": {
         "name": "휠라홀딩스",
@@ -10527,7 +10915,9 @@
         "market_cap": 23876,
         "loss_cut_price": 28450,
         "recent_buy_date": null,
-        "ma_trend": 1
+        "ma_trend": 1,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     },
     "145020": {
         "name": "휴젤",
@@ -10581,6 +10971,8 @@
         "market_cap": 24016,
         "loss_cut_price": 143500,
         "recent_buy_date": null,
-        "ma_trend": 2
+        "ma_trend": 2,
+        "recent_sold_price": 0,
+        "first_sell_target_price": 0
     }
 }
