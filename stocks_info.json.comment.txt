@@ -32,7 +32,6 @@
         "allow_monitoring_buy": false,                          매수해도 되는지 여부
         "allow_monitoring_sell": false,                         매도해도 되는지 여부
         "highest_price_ever": false,                            매수 후 여지껏 최고가
-        "take_profit_p": -2,                                    익절가 %
         "sell_1_done": false,                                   1차 매도 완료 여부
         "real_avg_buy_price": 0,                                실제 매수 평단가
         "loss_cut_order": false,                                손절 주문 여부
