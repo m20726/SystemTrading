@@ -425,7 +425,7 @@ class Stocks_info:
                 envelope_p = self.to_percent(self.stocks[code]['envelope_p'])
                 envelope_support_line = self.stocks[code]['yesterday_20ma'] * (1 - envelope_p)
 
-                self.stocks[code]['buy_price'][0] = int(envelope_support_line * MARGIN_20MA)
+                self.stocks[code]['buy_price'][0] = int(envelope_support_line * MARGIN_20MA)                
 
                 # 1 ~ (BUY_SPLIT_COUNT-1)
                 for i in range(1, BUY_SPLIT_COUNT):
@@ -553,7 +553,6 @@ class Stocks_info:
                 if self.stocks[code]['sell_1_done'] == False:
                     # 1차 매도 완료 상태
                     self.stocks[code]['sell_1_done'] = True
-                    self.stocks[code]['first_sell_target_price'] = sold_price
                 self.stocks[code]['recent_sold_price'] = sold_price
                 self.update_my_stocks()
                 self.send_msg(f"{self.stocks[code]['name']} 일부 매도", True)
@@ -659,8 +658,8 @@ class Stocks_info:
     def get_sell_target_price(self, code):
         result = True
         msg = ""
+        price = 0
         try:
-            price = 0
             if self.stocks[code]['sell_1_done'] == False:
                 # 1차 매도 안된 경우
                 sell_target_p = self.to_percent(self.stocks[code]['sell_target_p'])
@@ -678,14 +677,14 @@ class Stocks_info:
                 # 1차 매도 완료 경우
                 # N차 매도가 : N-1차 매도가 * 1.02 (N>=2)
                 price = self.stocks[code]['recent_sold_price'] * 1.02
-            # 주식 호가 단위로 가격 변경
-            return self.get_stock_asking_price(int(price))
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
+            # 주식 호가 단위로 가격 변경
+            return self.get_stock_asking_price(int(price))
 
     ##############################################################
     # 현재가 리턴
@@ -1042,6 +1041,7 @@ class Stocks_info:
                     # PER
                     if self.stocks[code]['PER'] >= 50:
                         self.stocks[code]['envelope_p'] += 3
+                        PRINT_INFO(f"[{self.stocks[code]['name']}] PER {self.stocks[code]['PER']}, envelope +3")
 
                     # 매수가 세팅
                     self.set_buy_price(code)
@@ -1065,6 +1065,8 @@ class Stocks_info:
                 self.stocks[code]['avg_buy_price'] = self.get_avg_buy_price(code)
                 # 목표가 = 평단가에서 목표% 수익가
                 self.stocks[code]['sell_target_price'] = self.get_sell_target_price(code)
+                # 1차 목표가 유지
+                self.stocks[code]['first_sell_target_price'] = self.get_first_sell_target_price(code)
 
                 # 주식 투자 정보 업데이트(상장 주식 수, 저평가, BPS, PER, EPS)
                 self.stocks[code]['stock_invest_info_valid'] = self.update_stock_invest_info(code)
@@ -1123,6 +1125,8 @@ class Stocks_info:
                             self.stocks[code]['avg_buy_price'] = self.get_avg_buy_price(code)
                             # 목표가
                             self.stocks[code]['sell_target_price'] = self.get_sell_target_price(self.stocks[code]['code'])
+                            # 1차 목표가 유지
+                            self.stocks[code]['first_sell_target_price'] = self.get_first_sell_target_price(code)
                             # self.my_stocks 업데이트
                             temp_stock = copy.deepcopy({code: self.stocks[code]})
                             self.my_stocks[code] = temp_stock[code]
@@ -1269,7 +1273,7 @@ class Stocks_info:
 
             # 이평선 정배열 체크
             if self.get_multi_ma_status(code, [60,90]) != MA_STATUS_POSITIVE:
-                PRINT_INFO(f"[{self.stocks[code]['name']}] 정배열 아님")
+                # PRINT_INFO(f"[{self.stocks[code]['name']}] 정배열 아님")
                 return False
             
             return True
@@ -2748,9 +2752,9 @@ class Stocks_info:
             self.trade_strategy.max_per = 80                                # PER가 이 값 이상이면 매수 금지            
             
             if self.trade_strategy.invest_risk == INVEST_RISK_HIGH:
-                self.trade_strategy.under_value = 0                         # 저평가가 이 값 미만은 매수 금지
+                self.trade_strategy.under_value = -2                        # 저평가가 이 값 미만은 매수 금지
                 self.trade_strategy.gap_max_sell_target_price_p = 0         # 목표주가GAP 이 이 값 미만은 매수 금지
-                self.trade_strategy.sum_under_value_sell_target_gap = 2     # 저평가 + 목표주가GAP 이 이 값 미만은 매수 금지
+                self.trade_strategy.sum_under_value_sell_target_gap = 0     # 저평가 + 목표주가GAP 이 이 값 미만은 매수 금지
                 self.trade_strategy.buyable_market_cap = 5000               # 시총 X 미만 매수 금지(억)
             elif self.trade_strategy.invest_risk == INVEST_RISK_MIDDLE:
                 self.trade_strategy.under_value = 2
@@ -2977,3 +2981,22 @@ class Stocks_info:
             if result == False:
                 self.send_msg_err(msg)
             return ma_status
+
+    ##############################################################
+    # 1차 목표가 리턴
+    ##############################################################
+    def get_first_sell_target_price(self, code):
+        result = True
+        msg = ""
+        price = self.stocks[code]['first_sell_target_price']
+        try:
+            # 1차 매도 안됐다 -> sell_target_price 가 1차 목표가이다.
+            if self.stocks[code]['sell_1_done'] == False:
+                price = self.stocks[code]['sell_target_price']
+        except Exception as ex:
+            result = False
+            msg = "{}".format(traceback.format_exc())
+        finally:
+            if result == False:
+                self.send_msg_err(msg)
+            return self.get_stock_asking_price(int(price))
