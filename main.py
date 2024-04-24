@@ -8,7 +8,7 @@ from datetime import date
 SATURDAY = 5
 SUNDAY = 6
 PERIODIC_PRINT_TIME_M = 30      # 30분마다 주기적으로 출력
-     
+
 ##############################################################
 def main():
     try:
@@ -24,6 +24,8 @@ def main():
         t_start = t_now.replace(hour=9, minute=0, second=0, microsecond=0)
         # 장 종료 15:30
         t_market_end = t_now.replace(hour=15, minute=30, second=0, microsecond=0)
+        # 장 종료 후 15:31분에 미체결 주문 없으면 종료 위해 
+        t_market_end_order_check = t_now.replace(hour=15, minute=31, second=0, microsecond=0)
         # 종가 매매 위해 16:00 에 종료
         t_exit = t_now.replace(hour=16, minute=00, second=0,microsecond=0)
 
@@ -40,12 +42,12 @@ def main():
 
         # # stocks_info.json 에 추가
         # for code in stocks_info.stocks.keys():
-        #     stocks_info.stocks[code]['ma_trend'] = TREND_DOWN
+        #     stocks_info.stocks[code]['first_sell_target_price'] = 0
         # stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
         
         # # stocks_info.json 에 key 제거
         # for code in stocks_info.stocks.keys():
-        #     del stocks_info.stocks[code]['buy_price']
+        #     del stocks_info.stocks[code]['real_avg_buy_price']
         # stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
 
         # # # stocks_info.json 변경
@@ -68,8 +70,13 @@ def main():
                     stocks_info.send_msg(f"=== Exit loop {t_now} ===")
                     break
                 elif t_market_end < t_now:  # 종가 매매
-                    # 손절 확인
                     stocks_info.handle_loss_cut()
+
+                if t_market_end_order_check < t_now:
+                    # 미체결 주문 없으면 종료
+                    if len(stocks_info.get_order_list("02")) == 0:
+                        stocks_info.send_msg(f"=== Exit loop {t_now} ===")
+                        break
 
                 stocks_info.handle_sell_stock()
                 stocks_info.handle_buy_stock()

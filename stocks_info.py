@@ -18,18 +18,16 @@ from datetime import date, timedelta
 # 매수
 #   트레일링스탑 매수
 #   1차 매수 : envelope 지지
-#   2차 매수 : 1차 매수가 - 10%
+#   2차 매수 : 불타기, 1차매수가에서 2% 이상 상승 시
 # 매도
-#   목표가에 반 매도(트레일링스탑). 단, 매도가가 5일선 이하면 전량 매도
-#   나머지는 목표가 이탈 시 전량 매도
+#   목표가에 반 매도(트레일링스탑)
+#   나머지는 1차 목표가 이탈 시 전량 매도
+#   목표가 올려가며 남은 물량의 1/2 매도
 #      N차 매도가 : N-1차 매도가 * 1.02 (N>=2)
-#   N차 매수에 따라 목표가 % 변경
-#   ex)
-#   1차 매수까지 경우 : 평단가 * 5%
-#   2차 매수까지 경우 : 평단가 * 4%
-# 손절 : last차 매수가 - 5% 종가 이탈
-#       오늘 > 최근 매수일 + x days, 즉 x 일 동안 매수 없고
-#           1차 매도가 안됐고 last차 매수까지 안된 경우 손절
+# 손절
+#   last차 매수가 - 5% 종가 이탈
+#   오늘 > 최근 매수일 + x days, 즉 x 일 동안 매수 없고
+#   1차 매도가 안됐고 last차 매수까지 안된 경우 손절
 
 
 ##############################################################
@@ -615,7 +613,6 @@ class Stocks_info:
                 self.stocks[code]['buy_qty'].append(0)
                 self.stocks[code]['buy_done'].append(False)
 
-            self.stocks[code]['avg_buy_price'] = 0
             self.stocks[code]['sell_target_p'] = 5
             self.stocks[code]['sell_target_price'] = 0
             self.stocks[code]['stockholdings'] = 0
@@ -623,28 +620,13 @@ class Stocks_info:
             self.stocks[code]['allow_monitoring_sell'] = False
             self.stocks[code]['highest_price_ever'] = 0
             self.stocks[code]['sell_1_done'] = False
-            # real_avg_buy_price 은 매도 완료 후 매도 체결 조회 할 수 있기 때문에 초기화하지 않는다
-            # self.stocks[code]['real_avg_buy_price'] = 0
+            # 매도 완료 후 매도 체결 조회 할 수 있기 때문에 초기화하지 않는다
+            # self.stocks[code]['avg_buy_price'] = 0
             self.stocks[code]['loss_cut_done'] = False
             self.stocks[code]['recent_buy_date'] = None
             self.stocks[code]['ma_trend'] = TREND_DOWN
             self.stocks[code]['recent_sold_price'] = 0
             self.stocks[code]['first_sell_target_price'] = 0
-        except Exception as ex:
-            result = False
-            msg = "{}".format(traceback.format_exc())
-        finally:
-            if result == False:
-                self.send_msg_err(msg)
-
-    ##############################################################
-    # 실제 체결 평단가 리턴
-    ##############################################################
-    def get_avg_buy_price(self, code):
-        result = True
-        msg = ""
-        try:
-            return int(self.stocks[code]['real_avg_buy_price'])
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -731,8 +713,8 @@ class Stocks_info:
     def get_price(self, code:str, type:str):
         result = True
         msg = ""
+        price = 0
         try:
-            price = 0
             PATH = "uapi/domestic-stock/v1/quotations/inquire-price"
             URL = f"{self.config['URL_BASE']}/{PATH}"
             headers = {"Content-Type": "application/json",
@@ -1061,12 +1043,12 @@ class Stocks_info:
                         self.stocks[code]['end_price_higher_than_20ma_after_sold'] = True
                         self.stocks[code]['sell_done'] = False
                 
-                # 평단가
-                self.stocks[code]['avg_buy_price'] = self.get_avg_buy_price(code)
-                # 목표가 = 평단가에서 목표% 수익가
-                self.stocks[code]['sell_target_price'] = self.get_sell_target_price(code)
-                # 1차 목표가 유지
-                self.stocks[code]['first_sell_target_price'] = self.get_first_sell_target_price(code)
+                # # 평단가
+                # self.stocks[code]['avg_buy_price'] = self.get_avg_buy_price(code)
+                # # 목표가 = 평단가에서 목표% 수익가
+                # self.stocks[code]['sell_target_price'] = self.get_sell_target_price(code)
+                # # 1차 목표가 유지
+                # self.stocks[code]['first_sell_target_price'] = self.get_first_sell_target_price(code)
 
                 # 주식 투자 정보 업데이트(상장 주식 수, 저평가, BPS, PER, EPS)
                 self.stocks[code]['stock_invest_info_valid'] = self.update_stock_invest_info(code)
@@ -1121,8 +1103,7 @@ class Stocks_info:
                             # 보유 수량
                             self.stocks[code]['stockholdings'] = int(stock['hldg_qty'])
                             # 평단가
-                            self.stocks[code]['real_avg_buy_price'] = int(float(stock['pchs_avg_pric']))    # 계좌내 실제 평단가
-                            self.stocks[code]['avg_buy_price'] = self.get_avg_buy_price(code)
+                            self.stocks[code]['avg_buy_price'] = int(float(stock['pchs_avg_pric']))    # 계좌내 실제 평단가
                             # 목표가
                             self.stocks[code]['sell_target_price'] = self.get_sell_target_price(self.stocks[code]['code'])
                             # 1차 목표가 유지
@@ -1136,14 +1117,13 @@ class Stocks_info:
                             pass
             else:
                 raise Exception(f"[계좌 조회 실패]{str(res.json())}")
-            return result
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
-                return result
+            return result
 
     ##############################################################
     # 매수가능 주식 수 리턴
@@ -1293,9 +1273,8 @@ class Stocks_info:
     def get_end_price_list(self, code: str, period="D"):
         result = True
         msg = ""
+        end_price_list = []
         try:
-            end_price_list = []
-
             # 조회 종료 날짜(오늘) 구하기
             end_day_ = datetime.datetime.today()
             end_day = end_day_.strftime('%Y%m%d')
@@ -1448,6 +1427,7 @@ class Stocks_info:
         finally:
             if result == False:
                 self.send_msg_err(msg)
+
     ##############################################################
     # 주식 잔고조회
     ##############################################################
@@ -1528,6 +1508,7 @@ class Stocks_info:
     def get_my_cash(self):
         result = True
         msg = ""
+        cash = 0
         try:            
             PATH = "uapi/domestic-stock/v1/trading/inquire-psbl-order"
             URL = f"{self.config['URL_BASE']}/{PATH}"
@@ -1553,14 +1534,13 @@ class Stocks_info:
                 raise Exception(f"[get_my_cash failed]]{str(res.json())}")
             cash = res.json()['output']['ord_psbl_cash']
             # self.send_msg(f"주문 가능 현금 잔고: {cash}원")
-            return int(cash)
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
-                return 0
+            return int(cash)
 
     ##############################################################
     # 매수
@@ -1737,6 +1717,9 @@ class Stocks_info:
 
     ##############################################################
     # 매수 처리
+    #   TODO?
+    #   envelope 터치 후 양봉에 매수(14:30 이후 양봉)
+    #   손절 : 매수 시 저점 이탈
     ##############################################################
     def handle_buy_stock(self):
         result = True
@@ -2047,9 +2030,9 @@ class Stocks_info:
                             # 전량 체결 완료
                             if stock['sll_buy_dvsn_cd'] == SELL_CODE:
                                 # 매도 체결 완료 시, 손익, 수익률 표시
-                                gain_loss_money = (int(stock['avg_prvs']) - self.stocks[code]['real_avg_buy_price']) * int(stock['tot_ccld_qty'])
-                                if self.stocks[code]['real_avg_buy_price'] > 0:
-                                    gain_loss_p = round(float((int(stock['avg_prvs']) - self.stocks[code]['real_avg_buy_price']) / self.stocks[code]['real_avg_buy_price']) * 100, 2)     # 소스 3째 자리에서 반올림                  
+                                gain_loss_money = (int(stock['avg_prvs']) - self.stocks[code]['avg_buy_price']) * int(stock['tot_ccld_qty'])
+                                if self.stocks[code]['avg_buy_price'] > 0:
+                                    gain_loss_p = round(float((int(stock['avg_prvs']) - self.stocks[code]['avg_buy_price']) / self.stocks[code]['avg_buy_price']) * 100, 2)     # 소스 3째 자리에서 반올림                  
                                     self.send_msg(f"[{stock['prdt_name']}] {stock['avg_prvs']}원 {tot_trade_qty}/{order_qty}주 {buy_sell_order} 전량 체결 완료, 손익:{gain_loss_money} {gain_loss_p}%", True)
                             else:
                                 nth_buy = 0
@@ -2123,15 +2106,18 @@ class Stocks_info:
 
     ##############################################################
     # 주식 일별 주문 체결 조회 종목 정보 리턴
+    # Return    : 주문 체결/미체결 조회 종목 리스트
+    # Parameter :
+    #       trade          전체("00"), 체결("01"), 미체결("02")
     ##############################################################
-    def get_order_list(self):
+    def get_order_list(self, trade="00"):
         result = True
         msg = ""
+        order_list = list()
         try:
             # ex) 20130414
             TODAY_DATE = f"{datetime.datetime.now().strftime('%Y%m%d')}"
 
-            order_list = list()
             PATH = "uapi/domestic-stock/v1/trading/inquire-daily-ccld"
             URL = f"{self.config['URL_BASE']}/{PATH}"
             headers = {"Content-Type": "application/json",
@@ -2149,15 +2135,14 @@ class Stocks_info:
                 "SLL_BUY_DVSN_CD": "00",    # 전체
                 "INQR_DVSN": "00",
                 "PDNO": "",                 # 전체
-                "CCLD_DVSN": "00",          # 전체 : 체결, 미체결 조회
+                "CCLD_DVSN": trade,         # 체결구분
                 "ORD_GNO_BRNO": "",
                 "ODNO": "",
                 "INQR_DVSN_3": "00",
                 "INQR_DVSN_1": "",
                 "CTX_AREA_FK100": "",
                 "CTX_AREA_NK100": ""
-            }            
-            # time.sleep(API_DELAY_S * 10)     # Max retries exceeded with
+            }
             time.sleep(API_DELAY_S)
             res = requests.get(URL, headers=headers, params=params)
             if self.is_request_ok(res) == True:
@@ -2179,7 +2164,8 @@ class Stocks_info:
     def show_order_list(self):
         result = True
         msg = ""
-        try:            
+        not_traded_stock_count = 0
+        try:
             self.send_msg(f"============주문 조회============")
             order_list = self.get_order_list()
             for stock in order_list:
@@ -2189,11 +2175,12 @@ class Stocks_info:
                 tot_trade_qty = int(stock['tot_ccld_qty'])
                 # 전량 체결 완료 주문은 제외
                 if order_qty > tot_trade_qty:
+                    not_traded_stock_count += 1
                     if stock['sll_buy_dvsn_cd'] == BUY_CODE:
                         buy_sell_order = "매수 주문"
                     else:
                         buy_sell_order = "매도 주문"
-                    curr_price = self.get_curr_price(stock['pdno'])            
+                    curr_price = self.get_curr_price(stock['pdno'])
                     self.send_msg(f"{stock['prdt_name']} {buy_sell_order} {stock['ord_unpr']}원 {stock['ord_qty']}주, 현재가 {curr_price}원")
             self.send_msg(f"=================================\n")
         except Exception as ex:
@@ -2202,6 +2189,7 @@ class Stocks_info:
         finally:
             if result == False:
                 self.send_msg_err(msg)
+            return not_traded_stock_count
 
     ##############################################################
     # 체결 조회
@@ -2231,9 +2219,9 @@ class Stocks_info:
                     if buy_sell == stock['sll_buy_dvsn_cd']:
                         gain_loss_p = 0
                         if buy_sell == SELL_CODE:
-                            gain_loss_money = (int(stock['avg_prvs']) - self.stocks[code]['real_avg_buy_price']) * int(stock['tot_ccld_qty'])
-                            if self.stocks[code]['real_avg_buy_price'] > 0:
-                                gain_loss_p = round(float((int(stock['avg_prvs']) - self.stocks[code]['real_avg_buy_price']) / self.stocks[code]['real_avg_buy_price']) * 100, 2)     # 소스 3째 자리에서 반올림                  
+                            gain_loss_money = (int(stock['avg_prvs']) - self.stocks[code]['avg_buy_price']) * int(stock['tot_ccld_qty'])
+                            if self.stocks[code]['avg_buy_price'] > 0:
+                                gain_loss_p = round(float((int(stock['avg_prvs']) - self.stocks[code]['avg_buy_price']) / self.stocks[code]['avg_buy_price']) * 100, 2)     # 소스 3째 자리에서 반올림                  
                         
                         curr_price = self.get_curr_price(code)
                         
@@ -2241,7 +2229,7 @@ class Stocks_info:
                         data['매수/매도'].append(buy_sell_order)
                         data['체결평균가'].append(int(float(stock['avg_prvs'])))
                         if buy_sell == SELL_CODE:
-                            data['평단가'].append(self.stocks[code]['real_avg_buy_price'])
+                            data['평단가'].append(self.stocks[code]['avg_buy_price'])
                             data['손익'].append(gain_loss_money)
                             data['수익률(%)'].append(gain_loss_p)
                         data['수량'].append(stock['tot_ccld_qty'])
@@ -2437,9 +2425,8 @@ class Stocks_info:
     def handle_loss_cut(self):
         result = True
         msg = ""
+        ret = False
         try:
-            ret = False
-            do_loss_cut = False
             today = date.today()
             no_buy_days = 10
             for code in self.my_stocks.keys():
@@ -2471,7 +2458,9 @@ class Stocks_info:
                             self.send_msg(f"손절 주문 성공")
                             self.set_order_done(code, SELL_CODE)
                             self.stocks[code]['loss_cut_order'] = True
-                            ret = True
+
+                if self.stocks[code]['loss_cut_order'] == True:
+                    ret = True
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -2615,7 +2604,7 @@ class Stocks_info:
                 self.stocks[code]['buy_order_done'] = False
                 self.stocks[code]['sell_order_done'] = False
                 if self.stocks[code]['sell_done'] == True:
-                    self.stocks[code]['real_avg_buy_price'] = 0
+                    self.stocks[code]['avg_buy_price'] = 0
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -2632,9 +2621,8 @@ class Stocks_info:
     def get_highest_end_pirce(self, code, days=21):
         result = True
         msg = ""
+        highest_end_price = 0
         try:
-            highest_end_price = 0
-
             if days > 99:
                 PRINT_INFO(f'can read over 99 data. make days to 99')
                 days = 99
@@ -2686,9 +2674,8 @@ class Stocks_info:
     def get_my_stock_count(self):
         result = True
         msg = ""
+        my_stocks_count = 0
         try:
-            my_stocks_count = 0
-
             PATH = "uapi/domestic-stock/v1/trading/inquire-balance"
             URL = f"{self.config['URL_BASE']}/{PATH}"
             headers = {"Content-Type": "application/json",
@@ -2752,7 +2739,7 @@ class Stocks_info:
             self.trade_strategy.max_per = 80                                # PER가 이 값 이상이면 매수 금지            
             
             if self.trade_strategy.invest_risk == INVEST_RISK_HIGH:
-                self.trade_strategy.under_value = -2                        # 저평가가 이 값 미만은 매수 금지
+                self.trade_strategy.under_value = -7                        # 저평가가 이 값 미만은 매수 금지
                 self.trade_strategy.gap_max_sell_target_price_p = 0         # 목표주가GAP 이 이 값 미만은 매수 금지
                 self.trade_strategy.sum_under_value_sell_target_gap = 0     # 저평가 + 목표주가GAP 이 이 값 미만은 매수 금지
                 self.trade_strategy.buyable_market_cap = 5000               # 시총 X 미만 매수 금지(억)
