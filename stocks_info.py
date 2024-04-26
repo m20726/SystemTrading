@@ -61,7 +61,7 @@ INVEST_TYPE = "real_invest"                 # sim_invest : 모의 투자, real_i
 
 if INVEST_TYPE == "real_invest":
     MAX_MY_STOCK_COUNT = 10
-    INVEST_MONEY_PER_STOCK = 300000         # 종목 당 투자 금액(원)
+    INVEST_MONEY_PER_STOCK = 500000         # 종목 당 투자 금액(원)
 else:
     MAX_MY_STOCK_COUNT = 10                 # MAX 보유 주식 수
     INVEST_MONEY_PER_STOCK = 2000000        # 종목 당 투자 금액(원)
@@ -1051,13 +1051,6 @@ class Stocks_info:
                         # 재매수 가능
                         self.stocks[code]['end_price_higher_than_20ma_after_sold'] = True
                         self.stocks[code]['sell_done'] = False
-                
-                # # 평단가
-                # self.stocks[code]['avg_buy_price'] = self.get_avg_buy_price(code)
-                # # 목표가 = 평단가에서 목표% 수익가
-                # self.stocks[code]['sell_target_price'] = self.get_sell_target_price(code)
-                # # 1차 목표가 유지
-                # self.stocks[code]['first_sell_target_price'] = self.get_first_sell_target_price(code)
 
                 # 주식 투자 정보 업데이트(상장 주식 수, 저평가, BPS, PER, EPS)
                 self.stocks[code]['stock_invest_info_valid'] = self.update_stock_invest_info(code)
@@ -1197,25 +1190,27 @@ class Stocks_info:
         result = True
         msg = ""
         try:
+            #### 이미 내 주식이지만 체크할 조건
             # 오늘 주문 완료 시 금지
             if self.already_ordered(code, BUY_CODE) == True:
                 return False
-                        
-            # 이미 내 주식은 무조건 매수
+
+            # last차 매수까지 완료 시 금지
+            if self.stocks[code]['buy_done'][BUY_SPLIT_COUNT-1] == True:
+                return False
+            ####
+            
+            # 이미 내 주식은 매수
             # ex) 2차, 3차 매수
             if self.is_my_stock(code) == True:
                 return True
             
-            # 매수 가능 종목은 무조건 매수
+            # 매수 가능 종목은 매수
             if self.is_buyable_stock(code) == True:
                 return True
 
             # 주식 투자 정보가 valid 하지 않으면 매수 금지
             if self.stocks[code]['stock_invest_info_valid'] == False:
-                return False
-            
-            # last차 매수까지 완료 시 금지
-            if self.stocks[code]['buy_done'][BUY_SPLIT_COUNT-1] == True:
                 return False
 
             # 저평가 조건(X미만 매수 금지)
@@ -2887,12 +2882,12 @@ class Stocks_info:
         try:
             buy_rsi = 0
 
-            if self.stocks[code]['market_cap'] >= 100000:
+            if self.stocks[code]['market_cap'] >= 400000:
                 buy_rsi = 40
-            elif self.stocks[code]['market_cap'] >= 30000:
-                buy_rsi = 37
-            else:
+            if self.stocks[code]['market_cap'] >= 30000:
                 buy_rsi = 35
+            else:
+                buy_rsi = 33
             
             # 60일선 하락 추세면 buy rsi - @
             if self.stocks[code]['ma_trend'] == TREND_DOWN:
