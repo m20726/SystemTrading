@@ -1050,7 +1050,7 @@ class Stocks_info:
                     # 평단가 = 1차 매수가
                     self.stocks[code]['avg_buy_price'] = self.stocks[code]['buy_price'][0]
                     # 목표가
-                    self.stocks[code]['sell_target_price'] = self.get_sell_target_price(self.stocks[code]['code'])
+                    self.stocks[code]['sell_target_price'] = self.get_sell_target_price(code)
 
                 # 주식 투자 정보 업데이트(상장 주식 수, 저평가, BPS, PER, EPS)
                 self.stocks[code]['stock_invest_info_valid'] = self.update_stock_invest_info(code)
@@ -1107,7 +1107,7 @@ class Stocks_info:
                             # 평단가
                             self.stocks[code]['avg_buy_price'] = int(float(stock['pchs_avg_pric']))    # 계좌내 실제 평단가
                             # 목표가
-                            self.stocks[code]['sell_target_price'] = self.get_sell_target_price(self.stocks[code]['code'])
+                            self.stocks[code]['sell_target_price'] = self.get_sell_target_price(code)
                             # 1차 목표가 유지
                             self.stocks[code]['first_sell_target_price'] = self.get_first_sell_target_price(code)
                             # self.my_stocks 업데이트
