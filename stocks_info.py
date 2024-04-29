@@ -51,10 +51,10 @@ INVEST_RISK_HIGH = 2
 
 LOSS_CUT_P = 5                              # last차 매수에서 x% 종가 이탈 시 손절
 
-TAKE_PROFIT_P = 1                           # 익절가 %
+TAKE_PROFIT_P = 0.5                           # 익절가 %
 
 BUY_MARGIN_P = 1                            # ex) 최저가 + x% 에서 매수
-SELL_MARGIN_P = 1                           # ex) 목표가 + x% 에서 매도
+SELL_MARGIN_P = 2                           # ex) 목표가 + x% 에서 매도
 
 INVEST_TYPE = "real_invest"                 # sim_invest : 모의 투자, real_invest : 실전 투자
 # INVEST_TYPE = "sim_invest"
@@ -97,7 +97,7 @@ BUY_CODE = "02"         # 매수
 
 # 주문 구분
 ORDER_TYPE_LIMIT_ORDER = "00"               # 지정가
-ORDER_TYPE_MARGET_ORDER = "01"              # 시장가
+ORDER_TYPE_MARKET_ORDER = "01"              # 시장가
 ORDER_TYPE_MARKETABLE_LIMIT_ORDER = "03"    # 최유리지정가
 ORDER_TYPE_IMMEDIATE_ORDER = "04"           # 최우선지정가
 ORDER_TYPE_BEFORE_MARKET_ORDER = "05"       # 장전 시간외(08:20~08:40)
@@ -856,34 +856,27 @@ class Stocks_info:
                     if row[column] == '-':
                         row[column] = ''
 
-            # PER_E, EPS, BPS, ROE 는 2013.12(E) 기준
+            # PER_E, EPS, BPS, ROE 는 20xx.12(E) 기준
             recent_year_column_text, last_year_column_text, the_year_before_last_column_text = self.get_naver_finance_year_column_texts(code)
             self.stocks[code]['PER_E'] = float(annual_finance[recent_year_column_text]['PER(배)'].replace(",",""))
+            
+            check_year_column_text = recent_year_column_text
+
             if self.stocks[code]['PER_E'] == 0:
                 # _E 자료 없는 경우 작년 데이터로 대체
-                self.stocks[code]['PER_E'] = float(annual_finance[last_year_column_text]['PER(배)'].replace(",",""))
+                check_year_column_text = last_year_column_text
+                self.stocks[code]['PER_E'] = float(annual_finance[check_year_column_text]['PER(배)'].replace(",",""))
 
-            self.stocks[code]['EPS_E'] = int(annual_finance[recent_year_column_text]['EPS(원)'].replace(",",""))
-            if self.stocks[code]['EPS_E'] == 0:
-                # _E 자료 없는 경우 작년 데이터로 대체
-                self.stocks[code]['EPS_E'] = int(annual_finance[last_year_column_text]['EPS(원)'].replace(",",""))
-
-            self.stocks[code]['BPS_E'] = int(annual_finance[recent_year_column_text]['BPS(원)'].replace(",",""))
-            if self.stocks[code]['BPS_E'] == 0:
-                # _E 자료 없는 경우 작년 데이터로 대체
-                self.stocks[code]['BPS_E'] = int(annual_finance[last_year_column_text]['BPS(원)'].replace(",",""))
-
-            self.stocks[code]['ROE_E'] = float(annual_finance[recent_year_column_text]['ROE(지배주주)'].replace(",",""))
-            if self.stocks[code]['ROE_E'] == 0:
-                # _E 자료 없는 경우 작년 데이터로 대체
-                self.stocks[code]['ROE_E'] = float(annual_finance[last_year_column_text]['ROE(지배주주)'].replace(",",""))
+            self.stocks[code]['EPS_E'] = int(annual_finance[check_year_column_text]['EPS(원)'].replace(",",""))
+            self.stocks[code]['BPS_E'] = int(annual_finance[check_year_column_text]['BPS(원)'].replace(",",""))
+            self.stocks[code]['ROE_E'] = float(annual_finance[check_year_column_text]['ROE(지배주주)'].replace(",",""))
 
             self.stocks[code]['industry_PER'] = float(self.crawl_naver_finance_by_selector(code, "#tab_con1 > div:nth-child(6) > table > tbody > tr.strong > td > em").replace(",",""))
-            self.stocks[code]['operating_profit_margin_p'] = float(annual_finance[recent_year_column_text]['영업이익률'])
-            self.stocks[code]['sales_income'] = int(annual_finance[recent_year_column_text]['매출액'].replace(",",""))                   # 올해 예상 매출액, 억원
+            self.stocks[code]['operating_profit_margin_p'] = float(annual_finance[check_year_column_text]['영업이익률'])
+            self.stocks[code]['sales_income'] = int(annual_finance[check_year_column_text]['매출액'].replace(",",""))                   # 올해 예상 매출액, 억원
             self.stocks[code]['last_year_sales_income'] = int(annual_finance[last_year_column_text]['매출액'].replace(",",""))         # 작년 매출액, 억원
             self.stocks[code]['the_year_before_last_sales_income'] = int(annual_finance[the_year_before_last_column_text]['매출액'].replace(",",""))       # 재작년 매출액, 억원
-            self.stocks[code]['curr_profit'] = int(annual_finance[recent_year_column_text]['당기순이익'].replace(",",""))
+            self.stocks[code]['curr_profit'] = int(annual_finance[check_year_column_text]['당기순이익'].replace(",",""))
             # 목표 주가 = 미래 당기순이익(원) * PER_E / 상장주식수
             if total_stock_count > 0:
                 self.stocks[code]['max_target_price'] = int((self.stocks[code]['curr_profit'] * 100000000) * self.stocks[code]['PER_E'] / total_stock_count)
@@ -1051,6 +1044,13 @@ class Stocks_info:
                         # 재매수 가능
                         self.stocks[code]['end_price_higher_than_20ma_after_sold'] = True
                         self.stocks[code]['sell_done'] = False
+
+                # 보유 주식 아닌 경우에 업데이트
+                if self.is_my_stock(code) == False:
+                    # 평단가 = 1차 매수가
+                    self.stocks[code]['avg_buy_price'] = self.stocks[code]['buy_price'][0]
+                    # 목표가
+                    self.stocks[code]['sell_target_price'] = self.get_sell_target_price(self.stocks[code]['code'])
 
                 # 주식 투자 정보 업데이트(상장 주식 수, 저평가, BPS, PER, EPS)
                 self.stocks[code]['stock_invest_info_valid'] = self.update_stock_invest_info(code)
@@ -1646,7 +1646,7 @@ class Stocks_info:
                 return False
             
             # 시장가 주문은 조건 안따진다
-            if order_type != ORDER_TYPE_MARGET_ORDER:
+            if order_type != ORDER_TYPE_MARKET_ORDER:
                 if self.stocks[code]['allow_monitoring_sell'] == False:
                     return False
 
@@ -1770,12 +1770,12 @@ class Stocks_info:
                             or (curr_price >= buy_target_price):
                             # 1차 매수 상태에서 allow_monitoring_buy 가 false 안된 상태에서 2차 매수 들어갈 때
                             # 1차 매수 반복되는 문제 수정
-                            self.send_msg(f"[{self.stocks[code]['name']}] 현재가 : {curr_price}, 매수 목표가 : {buy_target_price}, 저가 : {lowest_price}")
+                            self.send_msg(f"[{self.stocks[code]['name']}] {curr_price}(현재가) {buy_target_price}(매수가) {lowest_price}(저가)")
                             if lowest_price <= buy_target_price:
                                 buy_target_qty = self.get_buy_target_qty(code)
                                 if self.buy(code, curr_price, buy_target_qty, ORDER_TYPE_IMMEDIATE_ORDER) == True:
                                     self.set_order_done(code, BUY_CODE)
-                                    self.send_msg(f"[{self.stocks[code]['name']}] 매수 주문, 현재가 : {curr_price} >= {int(lowest_price * buy_margin)}(저가 : {lowest_price} * {buy_margin})")
+                                    self.send_msg(f"[{self.stocks[code]['name']}] 매수 주문 {curr_price}(현재가) >= {int(lowest_price * buy_margin)}({lowest_price}(저가) * {buy_margin})")
                 else:
                     # 불타기
                     if self.stocks[code]['buy_done'][0] == False:
@@ -1804,12 +1804,12 @@ class Stocks_info:
                                 or (curr_price >= buy_target_price):
                                 # 1차 매수 상태에서 allow_monitoring_buy 가 false 안된 상태에서 2차 매수 들어갈 때
                                 # 1차 매수 반복되는 문제 수정
-                                self.send_msg(f"[{self.stocks[code]['name']}] 현재가 : {curr_price}, 매수 목표가 : {buy_target_price}, 저가 : {lowest_price}")
+                                self.send_msg(f"[{self.stocks[code]['name']}] {curr_price}(현재가) {buy_target_price}(매수가) {lowest_price}(저가)")
                                 if lowest_price <= buy_target_price:
                                     buy_target_qty = self.get_buy_target_qty(code)
                                     if self.buy(code, curr_price, buy_target_qty, ORDER_TYPE_IMMEDIATE_ORDER) == True:
                                         self.set_order_done(code, BUY_CODE)
-                                        self.send_msg(f"[{self.stocks[code]['name']}] 매수 주문, 현재가 : {curr_price} >= {int(lowest_price * buy_margin)}(저가 : {lowest_price} * {buy_margin})")                    
+                                        self.send_msg(f"[{self.stocks[code]['name']}] 매수 주문 {curr_price}(현재가) >= {int(lowest_price * buy_margin)}({lowest_price}(저가) * {buy_margin})")                    
                     else:
                         # 불타기는 2차 매수까지만 진행
                         if self.stocks[code]['buy_done'][1] == False:
@@ -1819,7 +1819,7 @@ class Stocks_info:
                                 buy_target_qty = self.get_buy_target_qty(code)
                                 if self.buy(code, curr_price, buy_target_qty, ORDER_TYPE_IMMEDIATE_ORDER) == True:
                                     self.set_order_done(code, BUY_CODE)
-                                    self.send_msg(f"[{self.stocks[code]['name']}] 매수 주문, 현재가 : {curr_price} >= {int(self.stocks[code]['avg_buy_price'] * 1.02)}")                    
+                                    self.send_msg(f"[{self.stocks[code]['name']}] 매수 주문 {curr_price}(현재가) >= {int(self.stocks[code]['avg_buy_price'] * 1.02)}(평단가+2%)")                    
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -1852,6 +1852,7 @@ class Stocks_info:
                     else:
                         # 익절가 이하 시 매도
                         # 현재가 >= 목표가 + SELL_MARGIN_P% 면 매도
+                        # TODO 하락추세면 1차에 전량 매도?
                         take_profit_price = self.get_take_profit_price(code)
                         if (take_profit_price > 0 and curr_price <= take_profit_price) \
                             or (curr_price >= (sell_target_price * sell_margin)):
@@ -1861,7 +1862,7 @@ class Stocks_info:
                             else:
                                 qty = max(1, int(self.my_stocks[code]['stockholdings'] / 2))
 
-                            if self.sell(code, curr_price, qty, ORDER_TYPE_MARGET_ORDER) == True:
+                            if self.sell(code, curr_price, qty, ORDER_TYPE_IMMEDIATE_ORDER) == True:
                                 self.set_order_done(code, SELL_CODE)
                                 if curr_price >= (sell_target_price * sell_margin):
                                     self.send_msg(f"[{self.stocks[code]['name']}] 매도 주문, 현재가 : {curr_price} >= 목표가 + {SELL_MARGIN_P}% : {int(sell_target_price * sell_margin)}")
@@ -1877,7 +1878,7 @@ class Stocks_info:
                         # 익절은 handle_loss_cut 에서 처리
                         if curr_price >= sell_target_price and sell_target_price > 0:        
                             qty = max(1, int(self.my_stocks[code]['stockholdings'] / 2))
-                            if self.sell(code, curr_price, qty, ORDER_TYPE_MARGET_ORDER) == True:
+                            if self.sell(code, curr_price, qty, ORDER_TYPE_IMMEDIATE_ORDER) == True:
                                 self.set_order_done(code, SELL_CODE)
                                 self.send_msg(f"[{self.stocks[code]['name']}] 매도 주문, 현재가 : {curr_price} >= 목표가 : {sell_target_price}")
                     else:
@@ -1888,7 +1889,7 @@ class Stocks_info:
                                 qty = int(self.my_stocks[code]['stockholdings'])
                             else:
                                 qty = max(1, int(self.my_stocks[code]['stockholdings'] / 2))
-                            if self.sell(code, curr_price, qty, ORDER_TYPE_MARGET_ORDER) == True:
+                            if self.sell(code, curr_price, qty, ORDER_TYPE_IMMEDIATE_ORDER) == True:
                                 self.set_order_done(code, SELL_CODE)
                                 if curr_price >= sell_target_price:
                                     self.send_msg(f"[{self.stocks[code]['name']}] 매도 주문, 현재가 : {curr_price} >= 목표가 : {sell_target_price}")
@@ -2478,7 +2479,7 @@ class Stocks_info:
                     stockholdings = self.stocks[code]['stockholdings']
                     # 주문 안된 경우만 주문
                     if self.stocks[code]['loss_cut_order'] == False:
-                        if self.sell(code, curr_price, stockholdings, ORDER_TYPE_MARGET_ORDER) == True:
+                        if self.sell(code, curr_price, stockholdings, ORDER_TYPE_MARKET_ORDER) == True:
                             self.send_msg(f"손절 주문 성공")
                             self.set_order_done(code, SELL_CODE)
                             self.stocks[code]['loss_cut_order'] = True
@@ -2883,15 +2884,18 @@ class Stocks_info:
             buy_rsi = 0
 
             if self.stocks[code]['market_cap'] >= 400000:
-                buy_rsi = 40
+                buy_rsi = 37
             if self.stocks[code]['market_cap'] >= 30000:
-                buy_rsi = 35
+                buy_rsi = 34
             else:
                 buy_rsi = 33
             
-            # 60일선 하락 추세면 buy rsi - @
             if self.stocks[code]['ma_trend'] == TREND_DOWN:
+                # 60일선 하락 추세면 buy rsi - @
                 buy_rsi -= 3
+            elif self.stocks[code]['ma_trend'] == TREND_UP:
+                # 60일선 상승 추세면 buy rsi + @
+                buy_rsi += 3
 
             return buy_rsi
         except Exception as ex:
