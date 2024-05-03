@@ -1839,6 +1839,16 @@ class Stocks_info:
                 curr_price = self.get_curr_price(code)
                 if curr_price == 0:
                     continue
+
+                # 전날 종가로 손절 안된 경우 처리
+                if self.stocks[code]['loss_cut_order'] == True:
+                    loss_cut_price = self.get_loss_cut_price(code)
+                    if curr_price < loss_cut_price:
+                        self.stocks[code]['allow_monitoring_sell'] = True
+                        stockholdings = self.stocks[code]['stockholdings']
+                        if self.sell(code, curr_price, stockholdings, ORDER_TYPE_MARKET_ORDER) == True:
+                            self.send_msg(f"손절 주문 성공")
+                            self.set_order_done(code, SELL_CODE)
                 
                 if self.stocks[code]['sell_1_done'] == False:
                     # 1차 매도 안된 상태
@@ -2625,7 +2635,8 @@ class Stocks_info:
             for code in self.stocks.keys():
                 self.stocks[code]['allow_monitoring_buy'] = False
                 self.stocks[code]['allow_monitoring_sell'] = False
-                self.stocks[code]['loss_cut_order'] = False
+                # 종가로 손절 안된 경우 다음 날 처리 위해 True 유지
+                # self.stocks[code]['loss_cut_order'] = False
                 self.stocks[code]['buy_order_done'] = False
                 self.stocks[code]['sell_order_done'] = False
                 if self.stocks[code]['sell_done'] == True:
@@ -2884,18 +2895,18 @@ class Stocks_info:
             buy_rsi = 0
 
             if self.stocks[code]['market_cap'] >= 400000:
-                buy_rsi = 37
+                buy_rsi = 40
             if self.stocks[code]['market_cap'] >= 30000:
-                buy_rsi = 34
+                buy_rsi = 35
             else:
                 buy_rsi = 33
             
             if self.stocks[code]['ma_trend'] == TREND_DOWN:
                 # 60일선 하락 추세면 buy rsi - @
                 buy_rsi -= 3
-            elif self.stocks[code]['ma_trend'] == TREND_UP:
-                # 60일선 상승 추세면 buy rsi + @
-                buy_rsi += 3
+            # elif self.stocks[code]['ma_trend'] == TREND_UP:
+            #     # 60일선 상승 추세면 buy rsi + @
+            #     buy_rsi += 0
 
             return buy_rsi
         except Exception as ex:

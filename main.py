@@ -24,8 +24,8 @@ def main():
         t_start = t_now.replace(hour=9, minute=0, second=0, microsecond=0)
         # 장 종료 15:30
         t_market_end = t_now.replace(hour=15, minute=30, second=0, microsecond=0)
-        # 장 종료 후 15:31분에 미체결 주문 없으면 종료 위해 
-        t_market_end_order_check = t_now.replace(hour=15, minute=31, second=0, microsecond=0)
+        # 장 종료 후 15:35분에 미체결 주문 없으면 종료 위해 
+        t_market_end_order_check = t_now.replace(hour=15, minute=35, second=0, microsecond=0)
         # 종가 매매 위해 16:00 에 종료
         t_exit = t_now.replace(hour=16, minute=00, second=0,microsecond=0)
 
