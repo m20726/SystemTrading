@@ -1749,14 +1749,14 @@ class Stocks_info:
                                 rsi = self.get_rsi(code)
                                 buy_rsi = self.get_buy_rsi(code)
                                 if rsi > 0 and rsi < buy_rsi:
-                                    self.send_msg(f"[{self.stocks[code]['name']}] 매수 감시 시작, 현재가 : {curr_price}, 매수 목표가 : {buy_target_price}")
+                                    self.send_msg(f"[{self.stocks[code]['name']}] 매수 감시 시작, {curr_price}(현재가) {buy_target_price}(매수 목표가)")
                                     self.stocks[code]['allow_monitoring_buy'] = True
                                 else:
                                     # self.send_msg(f"Not buy [{self.stocks[code]['name']}] RSI:{rsi} >= BUY RSI:{buy_rsi}")
                                     pass
                             else:
                                 # 2차 매수 이상 경우
-                                self.send_msg(f"[{self.stocks[code]['name']}] 매수 감시 시작, 현재가 : {curr_price}, 매수 목표가 : {buy_target_price}")
+                                self.send_msg(f"[{self.stocks[code]['name']}] 매수 감시 시작, {curr_price}(현재가) {buy_target_price}(매수 목표가)")
                                 self.stocks[code]['allow_monitoring_buy'] = True
                     else:
                         # buy 모니터링 중
@@ -1768,14 +1768,15 @@ class Stocks_info:
                         if ((lowest_price > 0) and curr_price >= (lowest_price * buy_margin)) \
                             or (t_now >= t_buy and curr_price <= buy_target_price) \
                             or (curr_price >= buy_target_price):
-                            # 1차 매수 상태에서 allow_monitoring_buy 가 false 안된 상태에서 2차 매수 들어갈 때
-                            # 1차 매수 반복되는 문제 수정
-                            self.send_msg(f"[{self.stocks[code]['name']}] {curr_price}(현재가) {buy_target_price}(매수가) {lowest_price}(저가)")
-                            if lowest_price <= buy_target_price:
-                                buy_target_qty = self.get_buy_target_qty(code)
-                                if self.buy(code, curr_price, buy_target_qty, ORDER_TYPE_IMMEDIATE_ORDER) == True:
-                                    self.set_order_done(code, BUY_CODE)
-                                    self.send_msg(f"[{self.stocks[code]['name']}] 매수 주문 {curr_price}(현재가) >= {int(lowest_price * buy_margin)}({lowest_price}(저가) * {buy_margin})")
+                            if self.stocks[code]['buy_order_done'] == False:
+                                # 1차 매수 상태에서 allow_monitoring_buy 가 false 안된 상태에서 2차 매수 들어갈 때
+                                # 1차 매수 반복되는 문제 수정
+                                self.send_msg(f"[{self.stocks[code]['name']}] {curr_price}(현재가) {buy_target_price}(매수가) {lowest_price}(저가)")
+                                if lowest_price <= buy_target_price:
+                                    buy_target_qty = self.get_buy_target_qty(code)
+                                    if self.buy(code, curr_price, buy_target_qty, ORDER_TYPE_IMMEDIATE_ORDER) == True:
+                                        self.set_order_done(code, BUY_CODE)
+                                        self.send_msg(f"[{self.stocks[code]['name']}] 매수 주문 {curr_price}(현재가) >= {int(lowest_price * buy_margin)}({lowest_price}(저가) * {buy_margin})")
                 else:
                     # 불타기
                     if self.stocks[code]['buy_done'][0] == False:
@@ -1787,7 +1788,7 @@ class Stocks_info:
                                 rsi = self.get_rsi(code)
                                 buy_rsi = self.get_buy_rsi(code)
                                 if rsi > 0 and rsi < buy_rsi:
-                                    self.send_msg(f"[{self.stocks[code]['name']}] 매수 감시 시작, 현재가 : {curr_price}, 매수 목표가 : {buy_target_price}")
+                                    self.send_msg(f"[{self.stocks[code]['name']}] 매수 감시 시작, {curr_price}(현재가) {buy_target_price}(매수 목표가)")
                                     self.stocks[code]['allow_monitoring_buy'] = True
                                 else:
                                     # self.send_msg(f"Not buy [{self.stocks[code]['name']}] RSI:{rsi} >= BUY RSI:{buy_rsi}")
@@ -1802,24 +1803,26 @@ class Stocks_info:
                             if ((lowest_price > 0) and curr_price >= (lowest_price * buy_margin)) \
                                 or (t_now >= t_buy and curr_price <= buy_target_price) \
                                 or (curr_price >= buy_target_price):
-                                # 1차 매수 상태에서 allow_monitoring_buy 가 false 안된 상태에서 2차 매수 들어갈 때
-                                # 1차 매수 반복되는 문제 수정
-                                self.send_msg(f"[{self.stocks[code]['name']}] {curr_price}(현재가) {buy_target_price}(매수가) {lowest_price}(저가)")
-                                if lowest_price <= buy_target_price:
-                                    buy_target_qty = self.get_buy_target_qty(code)
-                                    if self.buy(code, curr_price, buy_target_qty, ORDER_TYPE_IMMEDIATE_ORDER) == True:
-                                        self.set_order_done(code, BUY_CODE)
-                                        self.send_msg(f"[{self.stocks[code]['name']}] 매수 주문 {curr_price}(현재가) >= {int(lowest_price * buy_margin)}({lowest_price}(저가) * {buy_margin})")                    
+                                if self.stocks[code]['buy_order_done'] == False:
+                                    # 1차 매수 상태에서 allow_monitoring_buy 가 false 안된 상태에서 2차 매수 들어갈 때
+                                    # 1차 매수 반복되는 문제 수정
+                                    self.send_msg(f"[{self.stocks[code]['name']}] {curr_price}(현재가) {buy_target_price}(매수가) {lowest_price}(저가)")
+                                    if lowest_price <= buy_target_price:
+                                        buy_target_qty = self.get_buy_target_qty(code)
+                                        if self.buy(code, curr_price, buy_target_qty, ORDER_TYPE_IMMEDIATE_ORDER) == True:
+                                            self.set_order_done(code, BUY_CODE)
+                                            self.send_msg(f"[{self.stocks[code]['name']}] 매수 주문 {curr_price}(현재가) >= {int(lowest_price * buy_margin)}({lowest_price}(저가) * {buy_margin})")                    
                     else:
                         # 불타기는 2차 매수까지만 진행
                         if self.stocks[code]['buy_done'][1] == False:
                             self.stocks[code]['allow_monitoring_buy'] = True
                             # 1차 매수 완료 경우 평단가 2~2.5% 사이에서 2차 매수(불타기)
-                            if curr_price >= (self.stocks[code]['avg_buy_price'] * 1.02) and curr_price <= (self.stocks[code]['avg_buy_price'] * 1.025):
-                                buy_target_qty = self.get_buy_target_qty(code)
-                                if self.buy(code, curr_price, buy_target_qty, ORDER_TYPE_IMMEDIATE_ORDER) == True:
-                                    self.set_order_done(code, BUY_CODE)
-                                    self.send_msg(f"[{self.stocks[code]['name']}] 매수 주문 {curr_price}(현재가) >= {int(self.stocks[code]['avg_buy_price'] * 1.02)}(평단가+2%)")                    
+                            if self.stocks[code]['buy_order_done'] == False:
+                                if curr_price >= (self.stocks[code]['avg_buy_price'] * 1.02) and curr_price <= (self.stocks[code]['avg_buy_price'] * 1.025):
+                                    buy_target_qty = self.get_buy_target_qty(code)
+                                    if self.buy(code, curr_price, buy_target_qty, ORDER_TYPE_IMMEDIATE_ORDER) == True:
+                                        self.set_order_done(code, BUY_CODE)
+                                        self.send_msg(f"[{self.stocks[code]['name']}] 매수 주문 {curr_price}(현재가) >= {int(self.stocks[code]['avg_buy_price'] * 1.02)}(평단가+2%)")                    
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -1834,6 +1837,9 @@ class Stocks_info:
         result = True
         msg = ""
         try:
+            t_now = datetime.datetime.now()
+            t_loss_cut = t_now.replace(hour=9, minute=1, second=0, microsecond=0)
+
             sell_margin = 1 + self.to_percent(SELL_MARGIN_P)
             for code in self.my_stocks.keys():
                 curr_price = self.get_curr_price(code)
@@ -1842,13 +1848,15 @@ class Stocks_info:
 
                 # 전날 종가로 손절 안된 경우 처리
                 if self.stocks[code]['loss_cut_order'] == True:
-                    loss_cut_price = self.get_loss_cut_price(code)
-                    if curr_price < loss_cut_price:
-                        self.stocks[code]['allow_monitoring_sell'] = True
-                        stockholdings = self.stocks[code]['stockholdings']
-                        if self.sell(code, curr_price, stockholdings, ORDER_TYPE_MARKET_ORDER) == True:
-                            self.send_msg(f"손절 주문 성공")
-                            self.set_order_done(code, SELL_CODE)
+                    # 장 시작시 "시가 > 손절가"인데도 주문 나간다. 09:01 후에 하자
+                    if t_now > t_loss_cut:
+                        loss_cut_price = self.get_loss_cut_price(code)
+                        if curr_price < loss_cut_price:
+                            self.stocks[code]['allow_monitoring_sell'] = True
+                            stockholdings = self.stocks[code]['stockholdings']
+                            if self.sell(code, curr_price, stockholdings, ORDER_TYPE_MARKET_ORDER) == True:
+                                self.send_msg(f"[{self.stocks[code]['name']}] 손절 주문 성공 {curr_price}(현재가) < 손절가({loss_cut_price})")
+                                self.set_order_done(code, SELL_CODE)
                 
                 if self.stocks[code]['sell_1_done'] == False:
                     # 1차 매도 안된 상태
@@ -1857,7 +1865,7 @@ class Stocks_info:
                     if self.stocks[code]['allow_monitoring_sell'] == False:
                         # 목표가 왔다 -> 매도 감시 시작
                         if curr_price >= sell_target_price and sell_target_price > 0:
-                            self.send_msg(f"[{self.stocks[code]['name']}] 매도 감시 시작, 현재가 : {curr_price}, 매도 목표가 : {sell_target_price}")
+                            self.send_msg(f"[{self.stocks[code]['name']}] 매도 감시 시작, {curr_price}(현재가) 매도 목표가({sell_target_price})")
                             self.stocks[code]['allow_monitoring_sell'] = True
                     else:
                         # 익절가 이하 시 매도
@@ -1875,9 +1883,9 @@ class Stocks_info:
                             if self.sell(code, curr_price, qty, ORDER_TYPE_IMMEDIATE_ORDER) == True:
                                 self.set_order_done(code, SELL_CODE)
                                 if curr_price >= (sell_target_price * sell_margin):
-                                    self.send_msg(f"[{self.stocks[code]['name']}] 매도 주문, 현재가 : {curr_price} >= 목표가 + {SELL_MARGIN_P}% : {int(sell_target_price * sell_margin)}")
+                                    self.send_msg(f"[{self.stocks[code]['name']}] 매도 주문, {curr_price}(현재가) >= 목표가 + {SELL_MARGIN_P}% : {int(sell_target_price * sell_margin)}")
                                 else:
-                                    self.send_msg(f"[{self.stocks[code]['name']}] 매도 주문, 현재가 : {curr_price} <= 익절가 : {take_profit_price}, 최고가 : {self.stocks[code]['highest_price_ever']}")
+                                    self.send_msg(f"[{self.stocks[code]['name']}] 매도 주문, {curr_price}(현재가) <= {take_profit_price}(익절가) {self.stocks[code]['highest_price_ever']}(최고가)")
                 else:
                     # 반 매도된 상태
                     # N차 매도가 : N-1차 매도가 * 1.02 (N>=2)
@@ -1890,7 +1898,7 @@ class Stocks_info:
                             qty = max(1, int(self.my_stocks[code]['stockholdings'] / 2))
                             if self.sell(code, curr_price, qty, ORDER_TYPE_IMMEDIATE_ORDER) == True:
                                 self.set_order_done(code, SELL_CODE)
-                                self.send_msg(f"[{self.stocks[code]['name']}] 매도 주문, 현재가 : {curr_price} >= 목표가 : {sell_target_price}")
+                                self.send_msg(f"[{self.stocks[code]['name']}] 매도 주문, {curr_price}(현재가) >= {sell_target_price}(목표가)")
                     else:
                         # "현재가 >= 목표가" or "현재가 <= 1차 목표가" 경우 매도
                         if (curr_price >= sell_target_price and sell_target_price > 0) or curr_price <= self.stocks[code]['first_sell_target_price']:                        
@@ -1902,9 +1910,9 @@ class Stocks_info:
                             if self.sell(code, curr_price, qty, ORDER_TYPE_IMMEDIATE_ORDER) == True:
                                 self.set_order_done(code, SELL_CODE)
                                 if curr_price >= sell_target_price:
-                                    self.send_msg(f"[{self.stocks[code]['name']}] 매도 주문, 현재가 : {curr_price} >= 목표가 : {sell_target_price}")
+                                    self.send_msg(f"[{self.stocks[code]['name']}] 매도 주문, {curr_price}(현재가) >= {sell_target_price}(목표가)")
                                 elif curr_price <= self.stocks[code]['first_sell_target_price']:
-                                    self.send_msg(f"[{self.stocks[code]['name']}] 매도 주문, 현재가 : {curr_price} <= first_sell_target_price : {self.stocks[code]['first_sell_target_price']}")
+                                    self.send_msg(f"[{self.stocks[code]['name']}] 매도 주문, {curr_price}(현재가) <= {self.stocks[code]['first_sell_target_price']}(first_sell_target_price)")
 
         except Exception as ex:
             result = False
