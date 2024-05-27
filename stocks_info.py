@@ -23,7 +23,7 @@ from datetime import date, timedelta
 #   목표가에 반 매도(트레일링스탑)
 #   나머지는 1차 목표가 이탈 시 전량 매도
 #   목표가 올려가며 남은 물량의 1/2 매도
-#      N차 매도가 : N-1차 매도가 * 1.02 (N>=2)
+#      N차 매도가 : N-1차 매도가 * 1.03 (N>=2)
 # 손절
 #   last차 매수가 - 5% 종가 이탈
 #   오늘 > 최근 매수일 + x days, 즉 x 일 동안 매수 없고
@@ -127,7 +127,7 @@ class Trade_strategy:
         self.under_value = 0                                    # 저평가가 이 값 미만은 매수 금지
         self.gap_max_sell_target_price_p = 0                    # 목표주가GAP 이 이 값 미만은 매수 금지
         self.sum_under_value_sell_target_gap = 0                # 저평가 + 목표주가GAP 이 이 값 미만은 매수 금지
-        self.max_per = 40                                       # PER가 이 값 이상이면 매수 금지
+        self.max_per = 80                                       # PER가 이 값 이상이면 매수 금지
         self.buyable_market_cap = 20000                         # 시총 X 미만 매수 금지(억)
         self.buy_split_strategy = BUY_SPLIT_STRATEGY_UP         # 2차 분할 매수 전략(물타기, 불타기)
         self.take_profit_strategy = TAKE_PROFIT_STRATEGY_SLOW   # 익절 전략
@@ -666,8 +666,8 @@ class Stocks_info:
                         price = self.stocks[code]['avg_buy_price'] * (1 + sell_target_p)
             else:
                 # 1차 매도 완료 경우
-                # N차 매도가 : N-1차 매도가 * 1.02 (N>=2)
-                price = self.stocks[code]['recent_sold_price'] * 1.02
+                # N차 매도가 : N-1차 매도가 * 1.03 (N>=2)
+                price = self.stocks[code]['recent_sold_price'] * 1.03
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -1255,10 +1255,11 @@ class Stocks_info:
                 if self.is_ok_to_buy_1(code, self.stocks[code]['buy_price'][0]) == False:
                     return False
 
-            # 이평선 정배열 체크
-            if self.get_multi_ma_status(code, [60,90]) != MA_STATUS_POSITIVE:
-                # PRINT_INFO(f"[{self.stocks[code]['name']}] 정배열 아님")
-                return False
+            # 이평선 정배열 체크는 공격적 전략이 아닐 때
+            if self.trade_strategy.invest_risk != INVEST_RISK_HIGH:
+                if self.get_multi_ma_status(code, [60,90]) != MA_STATUS_POSITIVE:
+                    # PRINT_INFO(f"[{self.stocks[code]['name']}] 정배열 아님")
+                    return False
             
             return True
         except Exception as ex:
@@ -1814,7 +1815,8 @@ class Stocks_info:
                                             self.send_msg(f"[{self.stocks[code]['name']}] 매수 주문 {curr_price}(현재가) >= {int(lowest_price * buy_margin)}({lowest_price}(저가) * {buy_margin})")                    
                     else:
                         # 불타기는 2차 매수까지만 진행
-                        if self.stocks[code]['buy_done'][1] == False:
+                        # 상승 추세 경우만 불타기
+                        if self.stocks[code]['buy_done'][1] == False and self.stocks[code]['ma_trend'] == TREND_UP:
                             self.stocks[code]['allow_monitoring_buy'] = True
                             # 1차 매수 완료 경우 평단가 2~2.5% 사이에서 2차 매수(불타기)
                             if self.stocks[code]['buy_order_done'] == False:
@@ -1888,7 +1890,7 @@ class Stocks_info:
                                     self.send_msg(f"[{self.stocks[code]['name']}] 매도 주문, {curr_price}(현재가) <= {take_profit_price}(익절가) {self.stocks[code]['highest_price_ever']}(최고가)")
                 else:
                     # 반 매도된 상태
-                    # N차 매도가 : N-1차 매도가 * 1.02 (N>=2)
+                    # N차 매도가 : N-1차 매도가 * 1.03 (N>=2)
                     sell_target_price = self.my_stocks[code]['sell_target_price']
 
                     if self.trade_strategy.take_profit_strategy == TAKE_PROFIT_STRATEGY_SLOW:
@@ -2783,10 +2785,10 @@ class Stocks_info:
             self.trade_strategy.max_per = 80                                # PER가 이 값 이상이면 매수 금지            
             
             if self.trade_strategy.invest_risk == INVEST_RISK_HIGH:
-                self.trade_strategy.under_value = -7                        # 저평가가 이 값 미만은 매수 금지
-                self.trade_strategy.gap_max_sell_target_price_p = 0         # 목표주가GAP 이 이 값 미만은 매수 금지
-                self.trade_strategy.sum_under_value_sell_target_gap = 0     # 저평가 + 목표주가GAP 이 이 값 미만은 매수 금지
-                self.trade_strategy.buyable_market_cap = 5000               # 시총 X 미만 매수 금지(억)
+                self.trade_strategy.under_value = -50                       # 저평가가 이 값 미만은 매수 금지
+                self.trade_strategy.gap_max_sell_target_price_p = -50         # 목표주가GAP 이 이 값 미만은 매수 금지
+                self.trade_strategy.sum_under_value_sell_target_gap = -20     # 저평가 + 목표주가GAP 이 이 값 미만은 매수 금지
+                self.trade_strategy.buyable_market_cap = 3000               # 시총 X 미만 매수 금지(억)
             elif self.trade_strategy.invest_risk == INVEST_RISK_MIDDLE:
                 self.trade_strategy.under_value = 2
                 self.trade_strategy.gap_max_sell_target_price_p = 3
@@ -2905,9 +2907,9 @@ class Stocks_info:
             if self.stocks[code]['market_cap'] >= 400000:
                 buy_rsi = 40
             if self.stocks[code]['market_cap'] >= 30000:
-                buy_rsi = 35
+                buy_rsi = 38
             else:
-                buy_rsi = 33
+                buy_rsi = 35
             
             if self.stocks[code]['ma_trend'] == TREND_DOWN:
                 # 60일선 하락 추세면 buy rsi - @
@@ -2915,6 +2917,12 @@ class Stocks_info:
             # elif self.stocks[code]['ma_trend'] == TREND_UP:
             #     # 60일선 상승 추세면 buy rsi + @
             #     buy_rsi += 0
+
+            # 공격적 전략상태에서 60,90일선 정배열 아니면 buy rsi - @
+            # 매수 금지 대신 좀더 보수적으로 매수
+            if self.trade_strategy.invest_risk == INVEST_RISK_HIGH:
+                if self.get_multi_ma_status(code, [60,90]) != MA_STATUS_POSITIVE:
+                    buy_rsi -= 3
 
             return buy_rsi
         except Exception as ex:
