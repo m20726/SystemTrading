@@ -1186,17 +1186,21 @@ class Stocks_info:
     ##############################################################
     # 매수 여부 판단
     ##############################################################
-    def is_ok_to_buy(self, code):
+    def is_ok_to_buy(self, code, print_msg=False):
         result = True
         msg = ""
         try:
             #### 이미 내 주식이지만 체크할 조건
             # 오늘 주문 완료 시 금지
             if self.already_ordered(code, BUY_CODE) == True:
+                if print_msg:
+                    PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 금지, 오늘 주문 완료")
                 return False
 
             # last차 매수까지 완료 시 금지
             if self.stocks[code]['buy_done'][BUY_SPLIT_COUNT-1] == True:
+                if print_msg:
+                    PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 금지, last차 매수까지 완료")                
                 return False
             ####
             
@@ -1211,54 +1215,75 @@ class Stocks_info:
 
             # 주식 투자 정보가 valid 하지 않으면 매수 금지
             if self.stocks[code]['stock_invest_info_valid'] == False:
+                if print_msg:
+                    PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 금지, 주식 투자 정보가 not valid")                   
                 return False
 
             # 저평가 조건(X미만 매수 금지)
             if self.stocks[code]['undervalue'] < self.trade_strategy.under_value:
+                if print_msg:
+                    PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 금지, 저평가 조건")                  
                 return False
             
             # 목표 주가 GAP = (목표 주가 - 목표가) / 목표가 < X% 미만 매수 금지
             if self.stocks[code]['gap_max_sell_target_price_p'] < self.trade_strategy.gap_max_sell_target_price_p:
+                if print_msg:
+                    PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 금지, 목표 주가 GAP")                 
                 return False
 
             # 저평가 + 목표주가GAP < X 미만 매수 금지
             if (self.stocks[code]['undervalue'] + self.stocks[code]['gap_max_sell_target_price_p']) < self.trade_strategy.sum_under_value_sell_target_gap:
+                if print_msg:
+                    PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 금지, 저평가 + 목표주가GAP < {self.trade_strategy.sum_under_value_sell_target_gap}")
                 return False
             
             # PER 매수 금지
             if self.stocks[code]['PER'] < 0 or self.stocks[code]['PER'] >= self.trade_strategy.max_per or self.stocks[code]['PER_E'] < 0 or self.stocks[code]['PER'] >= self.stocks[code]['industry_PER'] * 2:
+                if print_msg:
+                    PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 금지, PER")
                 return False
             
             # EPS_E 매수 금지
             if self.stocks[code]['EPS_E'] < 0:
+                if print_msg:
+                    PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 금지, EPS_E")                
                 return False
 
             # 보유현금에 맞게 종목개수 매수
             #   ex) 총 보유금액이 300만원이고 종목당 총 100만원 매수 시 총 2종목 매수
             if (self.get_available_buy_stock_count() == 0 or len(self.my_stocks) >= MAX_MY_STOCK_COUNT) and self.is_my_stock(code) == False:
+                if print_msg:
+                    PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 금지, 보유현금에 맞게 종목개수 매수")                   
                 return False
             
             # 매도 후 종가 > 20ma 체크
             if self.stocks[code]['sell_done'] == True:
                 # 어제 종가 <= 어제 20ma 상태면 매수 금지
                 if self.stocks[code]['end_price_higher_than_20ma_after_sold'] == False:
+                    if print_msg:
+                        PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 금지, 매도 후 종가 > 20ma 체크")                       
                     return False
             else:
                 pass
             
             # 시총 체크
             if self.stocks[code]['market_cap'] < self.trade_strategy.buyable_market_cap:
+                if print_msg:
+                    PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 금지, 시총 체크")                 
                 return False
             
             # 1차 매수할 지 여부
             if self.stocks[code]['buy_done'][0] == False:
                 if self.is_ok_to_buy_1(code, self.stocks[code]['buy_price'][0]) == False:
+                    if print_msg:
+                        PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 금지, 1차 매수 조건 실패")
                     return False
 
             # 이평선 정배열 체크는 공격적 전략이 아닐 때
             if self.trade_strategy.invest_risk != INVEST_RISK_HIGH:
                 if self.get_multi_ma_status(code, [60,90]) != MA_STATUS_POSITIVE:
-                    # PRINT_INFO(f"[{self.stocks[code]['name']}] 정배열 아님")
+                    if print_msg:
+                        PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 금지, 이평선 정배열 아님")
                     return False
             
             return True
@@ -2541,7 +2566,7 @@ class Stocks_info:
         try:
             self.buyable_stocks.clear()
             for code in self.stocks.keys():
-                if (self.is_my_stock(code) and self.stocks[code]['buy_done'][BUY_SPLIT_COUNT-1] == False) or self.is_ok_to_buy(code):
+                if (self.is_my_stock(code) and self.stocks[code]['buy_done'][BUY_SPLIT_COUNT-1] == False) or self.is_ok_to_buy(code, True):
                     curr_price = self.get_curr_price(code)
                     if curr_price == 0:
                         continue
@@ -2560,6 +2585,8 @@ class Stocks_info:
                         if gap_p < BUYABLE_GAP or need_buy == True:
                             temp_stock = copy.deepcopy({code: self.stocks[code]})
                             self.buyable_stocks[code] = temp_stock[code]
+                        else:
+                            PRINT_INFO(f"[{self.stocks[code]['name']}] is not buyable gap({gap_p}) >= buyable_gap({BUYABLE_GAP})")
             
             # '저평가'값이 큰 순으로 최대 x개 까지만 유지하고 나머지는 제외
             buyable_count = min(BUYABLE_COUNT, len(self.buyable_stocks))
