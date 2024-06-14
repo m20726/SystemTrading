@@ -658,12 +658,12 @@ class Stocks_info:
                     price = self.stocks[code]['avg_buy_price'] * (1 + sell_target_p)
                 else:
                     # 불타기 경우
-                    # 2차 매수 된 경우 기존 목표가 유지
-                    if self.stocks[code]['buy_done'][1] == True:
-                        price = self.stocks[code]['sell_target_price']
-                    else:
-                        # 2차 매수 안된 경우
+                    # 1차 매수 시 목표가 유지
+                    # 2,3차 매수 했다고 목표가 업데이트하지 않는다.
+                    if self.stocks[code]['sell_target_price'] == 0 or self.stocks[code]['buy_done'][0] == False:
                         price = self.stocks[code]['avg_buy_price'] * (1 + sell_target_p)
+                    else:
+                        price = self.stocks[code]['sell_target_price']
             else:
                 # 1차 매도 완료 경우
                 # N차 매도가 : N-1차 매도가 * 1.03 (N>=2)
@@ -995,6 +995,8 @@ class Stocks_info:
 
                 # 1차 매수 안된 경우만 업데이트
                 if self.stocks[code]['buy_done'][0] == False:
+                    self.stocks[code]['sell_target_p'] = 5
+
                     # envelope
                     # ex) 시총 >= 10조 면 10
                     if self.stocks[code]['market_cap'] >= 100000:
@@ -1005,8 +1007,6 @@ class Stocks_info:
                         self.stocks[code]['envelope_p'] = 13
                     else:
                         self.stocks[code]['envelope_p'] = 14
-
-                    self.stocks[code]['sell_target_p'] = 5
 
                     # 60일선 하락 추세면 envelope_p + @
                     self.stocks[code]['ma_trend'] = self.get_ma_trend(code)
@@ -2812,10 +2812,10 @@ class Stocks_info:
             self.trade_strategy.max_per = 80                                # PER가 이 값 이상이면 매수 금지            
             
             if self.trade_strategy.invest_risk == INVEST_RISK_HIGH:
-                self.trade_strategy.under_value = -50                       # 저평가가 이 값 미만은 매수 금지
-                self.trade_strategy.gap_max_sell_target_price_p = -50         # 목표주가GAP 이 이 값 미만은 매수 금지
-                self.trade_strategy.sum_under_value_sell_target_gap = -20     # 저평가 + 목표주가GAP 이 이 값 미만은 매수 금지
-                self.trade_strategy.buyable_market_cap = 3000               # 시총 X 미만 매수 금지(억)
+                self.trade_strategy.under_value = -30                       # 저평가가 이 값 미만은 매수 금지
+                self.trade_strategy.gap_max_sell_target_price_p = -10         # 목표주가GAP 이 이 값 미만은 매수 금지
+                self.trade_strategy.sum_under_value_sell_target_gap = -30     # 저평가 + 목표주가GAP 이 이 값 미만은 매수 금지
+                self.trade_strategy.buyable_market_cap = 5000               # 시총 X 미만 매수 금지(억)
             elif self.trade_strategy.invest_risk == INVEST_RISK_MIDDLE:
                 self.trade_strategy.under_value = 2
                 self.trade_strategy.gap_max_sell_target_price_p = 3
@@ -2941,9 +2941,9 @@ class Stocks_info:
             if self.stocks[code]['ma_trend'] == TREND_DOWN:
                 # 60일선 하락 추세면 buy rsi - @
                 buy_rsi -= 3
-            # elif self.stocks[code]['ma_trend'] == TREND_UP:
-            #     # 60일선 상승 추세면 buy rsi + @
-            #     buy_rsi += 0
+            elif self.stocks[code]['ma_trend'] == TREND_UP:
+                # 60일선 상승 추세면 buy rsi + @
+                buy_rsi += 3
 
             # 공격적 전략상태에서 60,90일선 정배열 아니면 buy rsi - @
             # 매수 금지 대신 좀더 보수적으로 매수
