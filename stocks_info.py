@@ -1015,7 +1015,7 @@ class Stocks_info:
                         PRINT_INFO(f"[{self.stocks[code]['name']}] 60일선 하락 추세")
                     # 60일선 상승 추세면 목표가 + @
                     elif self.stocks[code]['ma_trend'] == TREND_UP:
-                        self.stocks[code]['sell_target_p'] += 2
+                        self.stocks[code]['sell_target_p'] += 1
                         PRINT_INFO(f"{self.stocks[code]['name']}")
                     else:
                         # 60일선 보합
@@ -1253,7 +1253,7 @@ class Stocks_info:
             #   ex) 총 보유금액이 300만원이고 종목당 총 100만원 매수 시 총 2종목 매수
             if (self.get_available_buy_stock_count() == 0 or len(self.my_stocks) >= MAX_MY_STOCK_COUNT) and self.is_my_stock(code) == False:
                 if print_msg:
-                    PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 금지, 보유현금에 맞게 종목개수 매수")                   
+                    PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 금지, 보유현금({self.my_cash})에 맞게 종목개수 매수")                   
                 return False
             
             # 매도 후 종가 > 20ma 체크
@@ -2586,7 +2586,7 @@ class Stocks_info:
                             temp_stock = copy.deepcopy({code: self.stocks[code]})
                             self.buyable_stocks[code] = temp_stock[code]
                         else:
-                            PRINT_INFO(f"[{self.stocks[code]['name']}] is not buyable gap({gap_p}) >= buyable_gap({BUYABLE_GAP})")
+                            PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 금지, buyable gap({gap_p})")
             
             # '저평가'값이 큰 순으로 최대 x개 까지만 유지하고 나머지는 제외
             buyable_count = min(BUYABLE_COUNT, len(self.buyable_stocks))
@@ -2608,10 +2608,10 @@ class Stocks_info:
     def show_buyable_stocks(self):
         result = True
         msg = ""
-        try:                
+        try:
             temp_stocks = copy.deepcopy(self.buyable_stocks)
             sorted_data = dict(sorted(temp_stocks.items(), key=lambda x: x[1]['undervalue'], reverse=True))
-            data = {'종목명':[], '저평가':[], '목표주가GAP(%)':[], '매수가':[], '현재가':[], '매수가GAP(%)':[]}
+            data = {'종목명':[], '저평가':[], '목표주가GAP(%)':[], '매수가':[], '현재가':[], '매수가GAP(%)':[], 'RSI':[], 'BUY_RSI':[]}
             for code in sorted_data.keys():
                 curr_price = self.get_curr_price(code)
                 buy_target_price = self.get_buy_target_price(code)
@@ -2625,6 +2625,11 @@ class Stocks_info:
                 data['매수가'].append(buy_target_price)
                 data['현재가'].append(curr_price)
                 data['매수가GAP(%)'].append(gap_p)
+                if gap_p <= 0:
+                    data['RSI'].append(self.get_rsi(code))
+                else:
+                    data['RSI'].append(0)
+                data['BUY_RSI'].append(self.get_buy_rsi(code))
 
             # PrettyTable 객체 생성 및 데이터 추가
             table = PrettyTable()
@@ -2910,7 +2915,7 @@ class Stocks_info:
                 rsi_list.insert(0, au_list[i]/(au_list[i]+ad_list[i])*100)
 
             # PRINT_INFO(f"{self.stocks[code]['name']} RSI:{rsi_list[past_day]}, past_day:{past_day}")
-            return rsi_list[past_day]
+            return int(rsi_list[past_day])
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
