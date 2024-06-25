@@ -1001,8 +1001,10 @@ class Stocks_info:
                     # ex) 시총 >= 40조 면 10
                     if self.stocks[code]['market_cap'] >= 400000:
                         self.stocks[code]['envelope_p'] = 10
-                    else: 
+                    elif self.stocks[code]['market_cap'] >= 10000:
                         self.stocks[code]['envelope_p'] = 12
+                    else:
+                        self.stocks[code]['envelope_p'] = 14
 
                     self.stocks[code]['ma_trend'] = self.get_ma_trend(code)
 
@@ -2504,7 +2506,7 @@ class Stocks_info:
                     continue
 
                 # 1차 매도 된 경우는 시간지났다고 손절 금지
-                if self.stocks[code]['buy_done'][0] == False:
+                if self.stocks[code]['sell_1_done'] == False:
                     days_diff = (today - recent_buy_date).days
                     # 손실 상태에서 x일간 지지부진하면 손절
                     if days_diff > no_buy_days:
