@@ -998,29 +998,26 @@ class Stocks_info:
                     self.stocks[code]['sell_target_p'] = 5
 
                     # envelope
-                    # ex) 시총 >= 10조 면 10
-                    if self.stocks[code]['market_cap'] >= 100000:
+                    # ex) 시총 >= 40조 면 10
+                    if self.stocks[code]['market_cap'] >= 400000:
                         self.stocks[code]['envelope_p'] = 10
-                    elif self.stocks[code]['market_cap'] >= 30000:
+                    else: 
                         self.stocks[code]['envelope_p'] = 12
-                    elif self.stocks[code]['market_cap'] >= 20000:
-                        self.stocks[code]['envelope_p'] = 13
-                    else:
-                        self.stocks[code]['envelope_p'] = 14
 
-                    # 60일선 하락 추세면 envelope_p + @
                     self.stocks[code]['ma_trend'] = self.get_ma_trend(code)
-                    if self.stocks[code]['ma_trend'] == TREND_DOWN:
-                        self.stocks[code]['envelope_p'] += 3
-                        PRINT_INFO(f"[{self.stocks[code]['name']}] 60일선 하락 추세")
-                    # 60일선 상승 추세면 목표가 + @
-                    elif self.stocks[code]['ma_trend'] == TREND_UP:
-                        self.stocks[code]['sell_target_p'] += 1
+
+                    if self.stocks[code]['ma_trend'] == TREND_UP:
+                        # 60일선 상승 추세
+                        self.stocks[code]['sell_target_p'] += 1         # 목표가 up
+                        PRINT_INFO(f"{self.stocks[code]['name']}")
+                    elif self.stocks[code]['ma_trend'] == TREND_SIDE:
+                        # 60일선 보합 추세
+                        self.stocks[code]['envelope_p'] += 2            # envelope up
                         PRINT_INFO(f"{self.stocks[code]['name']}")
                     else:
-                        # 60일선 보합
-                        self.stocks[code]['envelope_p'] += 1
-                        PRINT_INFO(f"{self.stocks[code]['name']}")
+                        # 60일선 하락 추세
+                        self.stocks[code]['envelope_p'] += 3            # envelope up
+                        PRINT_INFO(f"[{self.stocks[code]['name']}] 60일선 하락 추세")
 
                     # PER
                     if self.stocks[code]['PER'] >= 50:
@@ -1238,7 +1235,7 @@ class Stocks_info:
                 return False
             
             # PER 매수 금지
-            if self.stocks[code]['PER'] < 0 or self.stocks[code]['PER'] >= self.trade_strategy.max_per or self.stocks[code]['PER_E'] < 0 or self.stocks[code]['PER'] >= self.stocks[code]['industry_PER'] * 2:
+            if self.stocks[code]['PER'] < 0 or self.stocks[code]['PER'] >= self.trade_strategy.max_per or self.stocks[code]['PER_E'] < 0:
                 if print_msg:
                     PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 금지, PER")
                 return False
@@ -2731,7 +2728,7 @@ class Stocks_info:
         try:
             # 한 달은 약 21일
             highest_end_price = self.get_highest_end_pirce(code, 21)
-            margine_p = self.stocks[code]['envelope_p'] * 1.6
+            margine_p = self.stocks[code]['envelope_p'] * 1.7
             check_price = int(price * (1 + self.to_percent(margine_p)))
             if highest_end_price > check_price:
                 return True
@@ -2934,21 +2931,19 @@ class Stocks_info:
         result = True
         msg = ""
         try:
-            buy_rsi = 0
-
-            if self.stocks[code]['market_cap'] >= 400000:
-                buy_rsi = 40
-            if self.stocks[code]['market_cap'] >= 30000:
-                buy_rsi = 38
-            else:
-                buy_rsi = 35
+            buy_rsi = 40        # 60일선 상승 추세 기준
             
-            if self.stocks[code]['ma_trend'] == TREND_DOWN:
-                # 60일선 하락 추세면 buy rsi - @
-                buy_rsi -= 3
-            elif self.stocks[code]['ma_trend'] == TREND_UP:
-                # 60일선 상승 추세면 buy rsi + @
-                buy_rsi += 3
+            self.stocks[code]['ma_trend'] = self.get_ma_trend(code)
+
+            if self.stocks[code]['ma_trend'] == TREND_UP:
+                # 60일선 상승 추세
+                pass
+            elif self.stocks[code]['ma_trend'] == TREND_SIDE:
+                # 60일선 보합 추세
+                buy_rsi -= 2
+            else:
+                # 60일선 하락 추세
+                buy_rsi -= 4
 
             # 공격적 전략상태에서 60,90일선 정배열 아니면 buy rsi - @
             # 매수 금지 대신 좀더 보수적으로 매수
