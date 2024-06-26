@@ -997,10 +997,11 @@ class Stocks_info:
                 if self.stocks[code]['buy_done'][0] == False:
                     self.stocks[code]['sell_target_p'] = 5
 
-                    # envelope
                     # ex) 시총 >= 40조 면 10
                     if self.stocks[code]['market_cap'] >= 400000:
                         self.stocks[code]['envelope_p'] = 10
+                    elif self.stocks[code]['market_cap'] >= 100000:
+                        self.stocks[code]['envelope_p'] = 11
                     elif self.stocks[code]['market_cap'] >= 10000:
                         self.stocks[code]['envelope_p'] = 12
                     else:
@@ -1010,16 +1011,21 @@ class Stocks_info:
 
                     if self.stocks[code]['ma_trend'] == TREND_UP:
                         # 60일선 상승 추세
-                        self.stocks[code]['sell_target_p'] += 1         # 목표가 up
                         PRINT_INFO(f"{self.stocks[code]['name']}")
                     elif self.stocks[code]['ma_trend'] == TREND_SIDE:
                         # 60일선 보합 추세
-                        self.stocks[code]['envelope_p'] += 2            # envelope up
+                        self.stocks[code]['envelope_p'] += 1            # envelope up
                         PRINT_INFO(f"{self.stocks[code]['name']}")
                     else:
                         # 60일선 하락 추세
-                        self.stocks[code]['envelope_p'] += 3            # envelope up
+                        self.stocks[code]['envelope_p'] += 2            # envelope up
                         PRINT_INFO(f"[{self.stocks[code]['name']}] 60일선 하락 추세")
+
+                    # 공격적 전략상태에서 60,90일선 정배열 아니면 envelope up
+                    # 매수 금지 대신 좀더 보수적으로 매수
+                    if self.trade_strategy.invest_risk == INVEST_RISK_HIGH:
+                        if self.get_multi_ma_status(code, [60,90]) != MA_STATUS_POSITIVE:
+                            self.stocks[code]['envelope_p'] += 2
 
                     # PER
                     if self.stocks[code]['PER'] >= 50:
@@ -2192,10 +2198,10 @@ class Stocks_info:
                 "ACNT_PRDT_CD": self.config['ACNT_PRDT_CD'],
                 "INQR_STRT_DT": TODAY_DATE,
                 "INQR_END_DT": TODAY_DATE,
-                "SLL_BUY_DVSN_CD": "00",    # 전체
-                "INQR_DVSN": "00",
-                "PDNO": "",                 # 전체
-                "CCLD_DVSN": trade,         # 체결구분
+                "SLL_BUY_DVSN_CD": "00",    # 00 : 전체, 01 : 매도, 02 : 매수
+                "INQR_DVSN": "00",          # 조회구분 - 00 : 역순, 01 : 정순
+                "PDNO": "",                 # 종목번호(6자리), 공란 : 전체 조회
+                "CCLD_DVSN": trade,         # 체결구분 - 00 : 전체, 01 : 체결 , 02 : 미체결
                 "ORD_GNO_BRNO": "",
                 "ODNO": "",
                 "INQR_DVSN_3": "00",
