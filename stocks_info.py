@@ -2736,7 +2736,7 @@ class Stocks_info:
         try:
             # 한 달은 약 21일
             highest_end_price = self.get_highest_end_pirce(code, 21)
-            margine_p = self.stocks[code]['envelope_p'] * 1.7
+            margine_p = min(20, self.stocks[code]['envelope_p'] * 1.6)
             check_price = int(price * (1 + self.to_percent(margine_p)))
             if highest_end_price > check_price:
                 return True
