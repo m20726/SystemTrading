@@ -13,7 +13,7 @@ PERIODIC_PRINT_TIME_M = 30      # 30분마다 주기적으로 출력
 def main():
     try:
         stocks_info = Stocks_info()
-        stocks_info.initialize()
+        stocks_info.initialize()        
 
         today = datetime.datetime.today().weekday()
         if today == SATURDAY or today == SUNDAY:  # 토요일이나 일요일이면 자동 종료
@@ -33,10 +33,13 @@ def main():
         if t_now < t_start:
             stocks_info.update_stocks_trade_info()
             stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
-        
+        # else:
+        #     stocks_info.update_stocks_trade_info()
+        #     stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)            
+
         stocks_info.update_my_stocks()            # 보유 주식 업데이트
         stocks_info.update_buyable_stocks()
-        stocks_info.show_stocks_by_undervalue()
+        stocks_info.show_stocks(False, SORT_BY_UNDER_VALUE)
         stocks_info.get_stock_balance()        
         stocks_info.show_buyable_stocks()
 
@@ -98,7 +101,7 @@ def main():
         
         # 장 종료
         stocks_info.update_my_stocks()
-        stocks_info.show_stocks_by_undervalue(True)
+        stocks_info.show_stocks(True)
         stocks_info.show_trade_done_stocks(BUY_CODE)
         stocks_info.show_trade_done_stocks(SELL_CODE)
         stocks_info.get_stock_balance(True)

@@ -119,6 +119,10 @@ TREND_UP = 2        # 상승
 MA_STATUS_NEGATIVE = 0      # 역배열
 MA_STATUS_SOSO = 1          # 정배열도 역배열도 아님
 MA_STATUS_POSITIVE = 2      # 정배열
+
+# sort by
+SORT_BY_NAME = 0
+SORT_BY_UNDER_VALUE = 1
 ##############################################################
 
 class Trade_strategy:
@@ -2343,14 +2347,25 @@ class Stocks_info:
                 self.send_msg_err(msg)
 
     ##############################################################
-    # 저평가 높은 순으로 출력
+    # 종목 정보 출력
+    # Parameter :
+    #       sort_by     SORT_BY_NAME : 이름순 오름차순
+    #                   SORT_BY_UNDER_VALUE : undervalue 내림차순
     ##############################################################
-    def show_stocks_by_undervalue(self, send_discode = False):
+    def show_stocks(self, send_discode = False, sort_by=SORT_BY_NAME):
         result = True
         msg = ""
-        try:                
+        try:
             temp_stocks = copy.deepcopy(self.stocks)
-            sorted_data = dict(sorted(temp_stocks.items(), key=lambda x: x[1]['undervalue'], reverse=True))
+
+            sort_by_filed = 'name'
+            reverse_value = False
+            if sort_by == SORT_BY_UNDER_VALUE:
+                sort_by_filed = 'undervalue'
+                reverse_value = True
+
+            # sorted_data = dict(sorted(temp_stocks.items(), key=lambda x: x[1]['undervalue'], reverse=True))
+            sorted_data = dict(sorted(temp_stocks.items(), key=lambda x: x[1][sort_by_filed], reverse=reverse_value))
             data = {'종목명':[], '저평가':[], '목표주가GAP':[], 'PER':[]}
             for code in sorted_data.keys():
                 if sorted_data[code]["stock_invest_info_valid"] == True:
