@@ -998,7 +998,7 @@ class Stocks_info:
                     self.stocks[code]['sell_target_p'] = 5
 
                     # ex) 시총 >= 40조 면 10
-                    if self.stocks[code]['market_cap'] >= 400000:
+                    if self.stocks[code]['market_cap'] >= 200000:
                         self.stocks[code]['envelope_p'] = 10
                     elif self.stocks[code]['market_cap'] >= 100000:
                         self.stocks[code]['envelope_p'] = 11
@@ -1018,7 +1018,7 @@ class Stocks_info:
                         PRINT_INFO(f"{self.stocks[code]['name']}")
                     else:
                         # 60일선 하락 추세
-                        self.stocks[code]['envelope_p'] += 2            # envelope up
+                        self.stocks[code]['envelope_p'] += 3            # envelope up
                         PRINT_INFO(f"[{self.stocks[code]['name']}] 60일선 하락 추세")
 
                     # 공격적 전략상태에서 60,90일선 정배열 아니면 envelope up
@@ -2939,25 +2939,10 @@ class Stocks_info:
         result = True
         msg = ""
         try:
-            buy_rsi = 40        # 60일선 상승 추세 기준
-            
-            self.stocks[code]['ma_trend'] = self.get_ma_trend(code)
+            buy_rsi = int(430 / self.stocks[code]['envelope_p'])
 
             if self.stocks[code]['ma_trend'] == TREND_UP:
-                # 60일선 상승 추세
-                pass
-            elif self.stocks[code]['ma_trend'] == TREND_SIDE:
-                # 60일선 보합 추세
-                buy_rsi -= 2
-            else:
-                # 60일선 하락 추세
-                buy_rsi -= 4
-
-            # 공격적 전략상태에서 60,90일선 정배열 아니면 buy rsi - @
-            # 매수 금지 대신 좀더 보수적으로 매수
-            if self.trade_strategy.invest_risk == INVEST_RISK_HIGH:
-                if self.get_multi_ma_status(code, [60,90]) != MA_STATUS_POSITIVE:
-                    buy_rsi -= 3
+                buy_rsi += 8
 
             return buy_rsi
         except Exception as ex:
@@ -2993,6 +2978,13 @@ class Stocks_info:
             ma_price = self.get_ma(code, ma, past_day, period)
             start_day = past_day+1
             last_day = past_day+consecutive_days
+
+            # 이평선 기울기 구하기 위해 last, recent ma price 구한다
+            recent_ma_price = ma_price
+            last_ma_price = self.get_ma(code, ma, consecutive_days + past_day - 1, period)
+            ma_diff = abs(1 - (recent_ma_price/last_ma_price))
+            trend_up_down_diff = 0.02       # ex) 기울기 2% 이상되어야 추세 up dwon
+            
             for i in range(start_day, last_day):
                 if i < last_day:
                     yesterdat_ma_price = self.get_ma(code, ma, i, period)
@@ -3002,9 +2994,10 @@ class Stocks_info:
                         trand_down_count += 1
                     ma_price = yesterdat_ma_price
             
-            if trand_up_count >= (consecutive_days - 1):
+            # PRINT_INFO(f"[{self.stocks[code]['name']}] ma_diff({ma_diff}) recent_ma_price({recent_ma_price}) last_ma_price({last_ma_price})")
+            if trand_up_count >= (consecutive_days - 1) and ma_diff > trend_up_down_diff:
                 ma_trend = TREND_UP
-            elif trand_down_count >= (consecutive_days - 1):
+            elif trand_down_count >= (consecutive_days - 1) and ma_diff > trend_up_down_diff:
                 ma_trend = TREND_DOWN
             else:
                 ma_trend = TREND_SIDE
