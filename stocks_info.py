@@ -1007,7 +1007,7 @@ class Stocks_info:
                     elif self.stocks[code]['market_cap'] >= 100000:
                         self.stocks[code]['envelope_p'] = 11
                     elif self.stocks[code]['market_cap'] >= 10000:
-                        self.stocks[code]['envelope_p'] = 12
+                        self.stocks[code]['envelope_p'] = 13
                     else:
                         self.stocks[code]['envelope_p'] = 14
 
@@ -1029,7 +1029,7 @@ class Stocks_info:
                     # 매수 금지 대신 좀더 보수적으로 매수
                     if self.trade_strategy.invest_risk == INVEST_RISK_HIGH:
                         if self.get_multi_ma_status(code, [60,90]) != MA_STATUS_POSITIVE:
-                            self.stocks[code]['envelope_p'] += 2
+                            self.stocks[code]['envelope_p'] += 1
 
                     # PER
                     if self.stocks[code]['PER'] >= 50:
@@ -1906,15 +1906,10 @@ class Stocks_info:
                     else:
                         # 익절가 이하 시 매도
                         # 현재가 >= 목표가 + SELL_MARGIN_P% 면 매도
-                        # TODO 하락추세면 1차에 전량 매도?
                         take_profit_price = self.get_take_profit_price(code)
                         if (take_profit_price > 0 and curr_price <= take_profit_price) \
                             or (curr_price >= (sell_target_price * sell_margin)):
-                            # curr_price < sell_target_price 경우, 즉 1차 매도에서 현재가가 1차 목표가 아래 경우 전량 매도
-                            if curr_price < sell_target_price:
-                                qty = int(self.my_stocks[code]['stockholdings'])
-                            else:
-                                qty = max(1, int(self.my_stocks[code]['stockholdings'] / 2))
+                            qty = max(1, int(self.my_stocks[code]['stockholdings'] / 2))
 
                             if self.sell(code, curr_price, qty, ORDER_TYPE_IMMEDIATE_ORDER) == True:
                                 self.set_order_done(code, SELL_CODE)
@@ -2477,6 +2472,7 @@ class Stocks_info:
         price = 0
         try:
             if self.trade_strategy.buy_split_strategy == BUY_SPLIT_STRATEGY_DOWN:
+                # 물타기
                 last_split_buy_index = len(self.stocks[code]['buy_price']) - 1
                 price = self.stocks[code]['buy_price'][last_split_buy_index] * (1 - self.to_percent(LOSS_CUT_P))
             else:
