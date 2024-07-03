@@ -30,12 +30,9 @@ def main():
         t_exit = t_now.replace(hour=16, minute=00, second=0,microsecond=0)
 
         # 주식 정보 업데이트는 장 시작전에, 약 1시간 정도 걸림
-        if t_now < t_start:
+        if t_now < t_start or t_now > t_market_end_order_check:
             stocks_info.update_stocks_trade_info()
-            stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
-        # else:
-        #     stocks_info.update_stocks_trade_info()
-        #     stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)            
+            stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)          
 
         stocks_info.update_my_stocks()            # 보유 주식 업데이트
         stocks_info.update_buyable_stocks()
