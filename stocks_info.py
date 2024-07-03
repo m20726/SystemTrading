@@ -18,10 +18,10 @@ from datetime import date, timedelta
 # 매수
 #   트레일링스탑 매수
 #   1차 매수 : envelope 지지
-#   2차 매수 : 불타기, 1차매수가에서 2% 이상 상승 시
+#   2차 매수 : 불타기, 1차 매수가에서 2% 이상 상승 시
 # 매도
-#   목표가에 반 매도(트레일링스탑)
-#   나머지는 1차 목표가 이탈 시 전량 매도
+#   목표가에 반 매도
+#   나머지는 익절가 이탈 시 전량 매도
 #   목표가 올려가며 남은 물량의 1/2 매도
 #      N차 매도가 : N-1차 매도가 * 1.03 (N>=2)
 # 손절
@@ -129,8 +129,8 @@ class Trade_strategy:
     def __init__(self) -> None:
         self.invest_risk = INVEST_RISK_LOW                      # 투자 전략, high : 공격적, middle : 중도적, low : 보수적
         self.under_value = 0                                    # 저평가가 이 값 미만은 매수 금지
-        self.gap_max_sell_target_price_p = 0                    # 목표주가GAP 이 이 값 미만은 매수 금지
-        self.sum_under_value_sell_target_gap = 0                # 저평가 + 목표주가GAP 이 이 값 미만은 매수 금지
+        self.gap_max_sell_target_price_p = 0                    # 목표가GAP 이 이 값 미만은 매수 금지
+        self.sum_under_value_sell_target_gap = 0                # 저평가 + 목표가GAP 이 이 값 미만은 매수 금지
         self.max_per = 80                                       # PER가 이 값 이상이면 매수 금지
         self.buyable_market_cap = 20000                         # 시총 X 미만 매수 금지(억)
         self.buy_split_strategy = BUY_SPLIT_STRATEGY_UP         # 2차 분할 매수 전략(물타기, 불타기)
@@ -1242,10 +1242,10 @@ class Stocks_info:
                     PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 금지, 목표 주가 GAP")                 
                 return False
 
-            # 저평가 + 목표주가GAP < X 미만 매수 금지
+            # 저평가 + 목표가GAP < X 미만 매수 금지
             if (self.stocks[code]['undervalue'] + self.stocks[code]['gap_max_sell_target_price_p']) < self.trade_strategy.sum_under_value_sell_target_gap:
                 if print_msg:
-                    PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 금지, 저평가 + 목표주가GAP < {self.trade_strategy.sum_under_value_sell_target_gap}")
+                    PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 금지, 저평가 + 목표가GAP < {self.trade_strategy.sum_under_value_sell_target_gap}")
                 return False
             
             # PER 매수 금지
@@ -2172,6 +2172,7 @@ class Stocks_info:
                 self.get_stock_balance()
                 # 종목 체결로 종목 수 변경 가능성 있음으로 전략 업데이트
                 self.init_trade_strategy()
+                self.update_buyable_stocks()
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -2371,12 +2372,12 @@ class Stocks_info:
 
             # sorted_data = dict(sorted(temp_stocks.items(), key=lambda x: x[1]['undervalue'], reverse=True))
             sorted_data = dict(sorted(temp_stocks.items(), key=lambda x: x[1][sort_by_filed], reverse=reverse_value))
-            data = {'종목명':[], '저평가':[], '목표주가GAP':[], 'PER':[]}
+            data = {'종목명':[], '저평가':[], '목표가GAP':[], 'PER':[]}
             for code in sorted_data.keys():
                 if sorted_data[code]["stock_invest_info_valid"] == True:
                     data['종목명'].append(sorted_data[code]['name'])
                     data['저평가'].append(sorted_data[code]['undervalue'])
-                    data['목표주가GAP'].append(sorted_data[code]['gap_max_sell_target_price_p'])
+                    data['목표가GAP'].append(sorted_data[code]['gap_max_sell_target_price_p'])
                     data['PER'].append(sorted_data[code]['PER'])
 
             # PrettyTable 객체 생성 및 데이터 추가
@@ -2584,7 +2585,7 @@ class Stocks_info:
     ##############################################################
     # 매수 가능 종목 업데이트
     #   last차수 매수 완료 종목은 제외
-    #   저평가, 목표주가GAP, 현재가-매수가GAP
+    #   저평가, 목표가GAP, 현재가-매수가GAP
     ##############################################################
     def update_buyable_stocks(self):
         result = True
@@ -2637,7 +2638,7 @@ class Stocks_info:
         try:
             temp_stocks = copy.deepcopy(self.buyable_stocks)
             sorted_data = dict(sorted(temp_stocks.items(), key=lambda x: x[1]['undervalue'], reverse=True))
-            data = {'종목명':[], '저평가':[], '목표주가GAP(%)':[], '매수가':[], '현재가':[], '매수가GAP(%)':[], 'RSI':[], 'BUY_RSI':[]}
+            data = {'종목명':[], '저평가':[], '목표가GAP(%)':[], '매수가':[], '현재가':[], '매수가GAP(%)':[], 'Envelope':[], 'RSI':[], 'BUY_RSI':[], '60일선추세':[]}
             for code in sorted_data.keys():
                 curr_price = self.get_curr_price(code)
                 buy_target_price = self.get_buy_target_price(code)
@@ -2647,15 +2648,25 @@ class Stocks_info:
                     gap_p = 0
                 data['종목명'].append(sorted_data[code]['name'])
                 data['저평가'].append(sorted_data[code]['undervalue'])
-                data['목표주가GAP(%)'].append(sorted_data[code]['gap_max_sell_target_price_p'])
+                data['목표가GAP(%)'].append(sorted_data[code]['gap_max_sell_target_price_p'])
                 data['매수가'].append(buy_target_price)
                 data['현재가'].append(curr_price)
                 data['매수가GAP(%)'].append(gap_p)
+                data['Envelope'].append(sorted_data[code]['envelope_p'])
                 if gap_p <= 0:
                     data['RSI'].append(self.get_rsi(code))
                 else:
                     data['RSI'].append(0)
                 data['BUY_RSI'].append(self.get_buy_rsi(code))
+ 
+                trend_str = ""             
+                if sorted_data[code]['ma_trend'] == TREND_DOWN:
+                    trend_str = '하락'
+                elif sorted_data[code]['ma_trend'] == TREND_SIDE:
+                    trend_str = '보합'
+                elif sorted_data[code]['ma_trend'] == TREND_UP:
+                    trend_str = '상승'
+                data['60일선추세'].append(trend_str)
 
             # PrettyTable 객체 생성 및 데이터 추가
             table = PrettyTable()
@@ -2844,8 +2855,8 @@ class Stocks_info:
             
             if self.trade_strategy.invest_risk == INVEST_RISK_HIGH:
                 self.trade_strategy.under_value = -30                       # 저평가가 이 값 미만은 매수 금지
-                self.trade_strategy.gap_max_sell_target_price_p = -10         # 목표주가GAP 이 이 값 미만은 매수 금지
-                self.trade_strategy.sum_under_value_sell_target_gap = -30     # 저평가 + 목표주가GAP 이 이 값 미만은 매수 금지
+                self.trade_strategy.gap_max_sell_target_price_p = -10         # 목표가GAP 이 이 값 미만은 매수 금지
+                self.trade_strategy.sum_under_value_sell_target_gap = -30     # 저평가 + 목표가GAP 이 이 값 미만은 매수 금지
                 self.trade_strategy.buyable_market_cap = 5000               # 시총 X 미만 매수 금지(억)
             elif self.trade_strategy.invest_risk == INVEST_RISK_MIDDLE:
                 self.trade_strategy.under_value = 2
