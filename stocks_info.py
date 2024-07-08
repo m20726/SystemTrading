@@ -627,7 +627,7 @@ class Stocks_info:
                 self.stocks[code]['buy_qty'].append(0)
                 self.stocks[code]['buy_done'].append(False)
 
-            self.stocks[code]['sell_target_p'] = 5
+            self.stocks[code]['sell_target_p'] = 0
             self.stocks[code]['sell_target_price'] = 0
             self.stocks[code]['stockholdings'] = 0
             self.stocks[code]['allow_monitoring_buy'] = False
@@ -1003,40 +1003,7 @@ class Stocks_info:
                 if self.stocks[code]['buy_done'][0] == False:
                     self.stocks[code]['sell_target_p'] = 5
 
-                    # ex) 시총 >= 40조 면 10
-                    if self.stocks[code]['market_cap'] >= 200000:
-                        self.stocks[code]['envelope_p'] = 10
-                    elif self.stocks[code]['market_cap'] >= 100000:
-                        self.stocks[code]['envelope_p'] = 11
-                    elif self.stocks[code]['market_cap'] >= 10000:
-                        self.stocks[code]['envelope_p'] = 13
-                    else:
-                        self.stocks[code]['envelope_p'] = 14
-
-                    self.stocks[code]['ma_trend'] = self.get_ma_trend(code)
-
-                    if self.stocks[code]['ma_trend'] == TREND_UP:
-                        # 60일선 상승 추세
-                        PRINT_INFO(f"{self.stocks[code]['name']}")
-                    elif self.stocks[code]['ma_trend'] == TREND_SIDE:
-                        # 60일선 보합 추세
-                        self.stocks[code]['envelope_p'] += 1            # envelope up
-                        PRINT_INFO(f"{self.stocks[code]['name']}")
-                    else:
-                        # 60일선 하락 추세
-                        self.stocks[code]['envelope_p'] += 3            # envelope up
-                        PRINT_INFO(f"[{self.stocks[code]['name']}] 60일선 하락 추세")
-
-                    # 공격적 전략상태에서 60,90일선 정배열 아니면 envelope up
-                    # 매수 금지 대신 좀더 보수적으로 매수
-                    if self.trade_strategy.invest_risk == INVEST_RISK_HIGH:
-                        if self.get_multi_ma_status(code, [60,90]) != MA_STATUS_POSITIVE:
-                            self.stocks[code]['envelope_p'] += 1
-
-                    # PER
-                    if self.stocks[code]['PER'] >= 50:
-                        self.stocks[code]['envelope_p'] += 3
-                        PRINT_INFO(f"[{self.stocks[code]['name']}] PER {self.stocks[code]['PER']}, envelope +3")
+                    self.stocks[code]['envelope_p'] = self.get_envelope_p(code)
 
                     # 매수가 세팅
                     self.set_buy_price(code)
@@ -2572,7 +2539,7 @@ class Stocks_info:
     def update_highest_price_ever(self, code):
         result = True
         msg = ""
-        try:                
+        try:
             highest_price = self.get_highest_price(code)
             self.stocks[code]['highest_price_ever'] = max(self.stocks[code]['highest_price_ever'], highest_price)
         except Exception as ex:
@@ -2768,7 +2735,7 @@ class Stocks_info:
         try:
             # 한 달은 약 21일
             highest_end_price = self.get_highest_end_pirce(code, 21)
-            margine_p = min(20, self.stocks[code]['envelope_p'] * 1.6)
+            margine_p = max(20, self.stocks[code]['envelope_p'] * 1.6)
             check_price = int(price * (1 + self.to_percent(margine_p)))
             if highest_end_price > check_price:
                 return True
@@ -2971,11 +2938,16 @@ class Stocks_info:
         result = True
         msg = ""
         try:
-            buy_rsi = int(430 / self.stocks[code]['envelope_p'])
+            buy_rsi = int(490 / self.stocks[code]['envelope_p'])
+            market_cap = max(1, int(self.stocks[code]['market_cap'] / 10000))
 
             if self.stocks[code]['ma_trend'] == TREND_UP:
-                buy_rsi += 8
-
+                # 조단위 시총
+                # 시총에 따라 buy rsi 변경
+                buy_rsi += min(8, market_cap*2)
+            elif self.stocks[code]['ma_trend'] == TREND_SIDE:
+                buy_rsi += min(6, market_cap)
+            buy_rsi = max(30, buy_rsi)
             return buy_rsi
         except Exception as ex:
             result = False
@@ -3102,3 +3074,54 @@ class Stocks_info:
             if result == False:
                 self.send_msg_err(msg)
             return self.get_stock_asking_price(int(price))
+        
+    ##############################################################
+    # 상황에 따른 envelope_p 계산하여 리턴
+    ##############################################################
+    def get_envelope_p(self, code):
+        result = True
+        msg = ""
+        price = 0
+        try:
+            # ex) 시총 >= 40조 면 10
+            if self.stocks[code]['market_cap'] >= 200000:
+                self.stocks[code]['envelope_p'] = 10
+            elif self.stocks[code]['market_cap'] >= 100000:
+                self.stocks[code]['envelope_p'] = 11
+            elif self.stocks[code]['market_cap'] >= 20000:
+                self.stocks[code]['envelope_p'] = 13
+            else:
+                self.stocks[code]['envelope_p'] = 14
+
+            self.stocks[code]['ma_trend'] = self.get_ma_trend(code)
+
+            if self.stocks[code]['ma_trend'] == TREND_UP:
+                # 60일선 상승 추세
+                PRINT_INFO(f"{self.stocks[code]['name']}")
+            elif self.stocks[code]['ma_trend'] == TREND_SIDE:
+                # 60일선 보합 추세
+                self.stocks[code]['envelope_p'] += 1            # envelope up
+                PRINT_INFO(f"{self.stocks[code]['name']}")
+            else:
+                # 60일선 하락 추세
+                self.stocks[code]['envelope_p'] += 3            # envelope up
+                PRINT_INFO(f"[{self.stocks[code]['name']}] 60일선 하락 추세")
+
+            # 공격적 전략상태에서 60,90일선 정배열 아니면 envelope up
+            # 매수 금지 대신 좀더 보수적으로 매수
+            if self.trade_strategy.invest_risk == INVEST_RISK_HIGH:
+                if self.get_multi_ma_status(code, [60,90]) != MA_STATUS_POSITIVE:
+                    self.stocks[code]['envelope_p'] += 1
+
+            # PER
+            if self.stocks[code]['PER'] >= 50:
+                self.stocks[code]['envelope_p'] += 3
+                PRINT_INFO(f"[{self.stocks[code]['name']}] PER {self.stocks[code]['PER']}, envelope +3")
+        except Exception as ex:
+            result = False
+            msg = "{}".format(traceback.format_exc())
+        finally:
+            if result == False:
+                self.send_msg_err(msg)
+            # 주식 호가 단위로 가격 변경
+            return self.get_stock_asking_price(int(price))        
