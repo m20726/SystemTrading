@@ -3081,17 +3081,18 @@ class Stocks_info:
     def get_envelope_p(self, code):
         result = True
         msg = ""
-        price = 0
         try:
+            envelope_p = 20
+
             # ex) 시총 >= 40조 면 10
             if self.stocks[code]['market_cap'] >= 200000:
-                self.stocks[code]['envelope_p'] = 10
+                envelope_p = 10
             elif self.stocks[code]['market_cap'] >= 100000:
-                self.stocks[code]['envelope_p'] = 11
+                envelope_p = 11
             elif self.stocks[code]['market_cap'] >= 20000:
-                self.stocks[code]['envelope_p'] = 13
+                envelope_p = 13
             else:
-                self.stocks[code]['envelope_p'] = 14
+                envelope_p = 14
 
             self.stocks[code]['ma_trend'] = self.get_ma_trend(code)
 
@@ -3100,22 +3101,22 @@ class Stocks_info:
                 PRINT_INFO(f"{self.stocks[code]['name']}")
             elif self.stocks[code]['ma_trend'] == TREND_SIDE:
                 # 60일선 보합 추세
-                self.stocks[code]['envelope_p'] += 1            # envelope up
+                envelope_p += 1            # envelope up
                 PRINT_INFO(f"{self.stocks[code]['name']}")
             else:
                 # 60일선 하락 추세
-                self.stocks[code]['envelope_p'] += 3            # envelope up
+                envelope_p += 3            # envelope up
                 PRINT_INFO(f"[{self.stocks[code]['name']}] 60일선 하락 추세")
 
             # 공격적 전략상태에서 60,90일선 정배열 아니면 envelope up
             # 매수 금지 대신 좀더 보수적으로 매수
             if self.trade_strategy.invest_risk == INVEST_RISK_HIGH:
                 if self.get_multi_ma_status(code, [60,90]) != MA_STATUS_POSITIVE:
-                    self.stocks[code]['envelope_p'] += 1
+                    envelope_p += 1
 
             # PER
             if self.stocks[code]['PER'] >= 50:
-                self.stocks[code]['envelope_p'] += 3
+                envelope_p += 3
                 PRINT_INFO(f"[{self.stocks[code]['name']}] PER {self.stocks[code]['PER']}, envelope +3")
         except Exception as ex:
             result = False
@@ -3123,5 +3124,4 @@ class Stocks_info:
         finally:
             if result == False:
                 self.send_msg_err(msg)
-            # 주식 호가 단위로 가격 변경
-            return self.get_stock_asking_price(int(price))        
+            return envelope_p
