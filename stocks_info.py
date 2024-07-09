@@ -563,7 +563,7 @@ class Stocks_info:
         msg = ""
         try:
             PRINT_INFO(f"{self.stocks[code]['name']} 매도가({sold_price})")
-            
+
             self.stocks[code]['sell_order_done'] = False
             if self.is_my_stock(code) == True:
                 if self.stocks[code]['sell_1_done'] == False:
@@ -2743,7 +2743,7 @@ class Stocks_info:
     ##############################################################
     # 1차 매수할 지 여부 체크
     #   단기간에 급락해야 매수
-    #   ex) "한 달 내 최고 종가 > 1차 매수가 * X" 경우
+    #   ex) 한 달 내 최고 종가 - x% > 1차 매수가
     #   retun True 아니면 False
     #   즉, 떨어진 폭이 기준보다 적으면 매수 안함
     # param :
@@ -2756,9 +2756,9 @@ class Stocks_info:
         try:
             # 한 달은 약 21일
             highest_end_price = self.get_highest_end_pirce(code, 21)
-            margine_p = max(20, self.stocks[code]['envelope_p'] * 1.6)
-            check_price = int(price * (1 + self.to_percent(margine_p)))
-            if highest_end_price > check_price:
+            # 최고 종가에서 최소 20% 폭락
+            margine_p = self.to_percent(max(20, self.stocks[code]['envelope_p'] * 1.6))
+            if highest_end_price * (1 - margine_p) > price:
                 return True
             
             # PRINT_INFO(f"[{self.stocks[code]['name']}] Do not buy first, highest_end_price:{highest_end_price} <= {check_price}")

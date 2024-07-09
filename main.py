@@ -42,6 +42,8 @@ def main():
         t_start = t_now.replace(hour=9, minute=0, second=0, microsecond=0)
         # 장 종료 15:30
         t_market_end = t_now.replace(hour=15, minute=30, second=0, microsecond=0)
+        # 손절 주문 체크 시간 15:31, t_market_end 로 체크했더니 15:29 시간의 price 로 비교되어 안전하게 15:31 이후 체크
+        t_loss_cut = t_now.replace(hour=15, minute=31, second=0, microsecond=0)
         # 장 종료 후 15:35분에 미체결 주문 없으면 종료 위해 
         t_market_end_order_check = t_now.replace(hour=15, minute=35, second=0, microsecond=0)
         # 종가 매매 위해 16:00 에 종료
@@ -71,7 +73,7 @@ def main():
                 if t_exit < t_now:  # 종료
                     stocks_info.send_msg(f"=== Exit loop {t_now} ===")
                     break
-                elif t_market_end < t_now:  # 종가 매매
+                elif t_loss_cut < t_now:  # 종가 매매
                     stocks_info.handle_loss_cut()
 
                 if t_market_end_order_check < t_now:
