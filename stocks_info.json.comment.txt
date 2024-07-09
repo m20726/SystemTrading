@@ -59,10 +59,12 @@
             false,
             false
         ],
-        "market_cap": 0,                                         시가총액(억)
-        "recent_buy_date": null,                                 최근 매수 날짜
-        "ma_trend":0,                                            이평선 추세, default 60일선
-        "recent_sold_price":0,                                   직전 차수 매도가
-        "first_sell_target_price": 0,                            1차 매도가
+        "market_cap": 0,                                        시가총액(억)
+        "recent_buy_date": null,                                최근 매수 날짜
+        "ma_trend":0,                                           이평선 추세, default 60일선
+        "recent_sold_price":0,                                  직전 차수 매도가
+        "first_sell_target_price": 0,                           1차 매도가
+        "buy_order_price": 0,                                   매수 주문가
+        "sell_order_price": 0,                                  매도 주문가
     }
 }

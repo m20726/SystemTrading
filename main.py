@@ -15,6 +15,24 @@ def main():
         stocks_info = Stocks_info()
         stocks_info.initialize()        
 
+        # # stocks_info.json 에 추가
+        # for code in stocks_info.stocks.keys():
+        #     stocks_info.stocks[code]['buy_order_price'] = 0
+        #     stocks_info.stocks[code]['sell_order_price'] = 0
+        # stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
+        
+        # # stocks_info.json 에 key 제거
+        # for code in stocks_info.stocks.keys():
+        #     del stocks_info.stocks[code]['real_avg_buy_price']
+        # stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
+
+        # # # stocks_info.json 변경
+        # for code in stocks_info.stocks.keys():
+        #     stocks_info.stocks[code]['buy_price'] = [0, 0]
+        #     stocks_info.stocks[code]['buy_qty'] = [0, 0]
+        #     stocks_info.stocks[code]['buy_done'] = [False, False]
+        # stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
+
         today = datetime.datetime.today().weekday()
         if today == SATURDAY or today == SUNDAY:  # 토요일이나 일요일이면 자동 종료
             stocks_info.send_msg("Weekend, program end")
@@ -40,22 +58,6 @@ def main():
         stocks_info.get_stock_balance()        
         stocks_info.show_buyable_stocks()
 
-        # # stocks_info.json 에 추가
-        # for code in stocks_info.stocks.keys():
-        #     stocks_info.stocks[code]['first_sell_target_price'] = 0
-        # stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
-        
-        # # stocks_info.json 에 key 제거
-        # for code in stocks_info.stocks.keys():
-        #     del stocks_info.stocks[code]['real_avg_buy_price']
-        # stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
-
-        # # # stocks_info.json 변경
-        # for code in stocks_info.stocks.keys():
-        #     stocks_info.stocks[code]['buy_price'] = [0, 0]
-        #     stocks_info.stocks[code]['buy_qty'] = [0, 0]
-        #     stocks_info.stocks[code]['buy_done'] = [False, False]
-        # stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
         
         stocks_info.send_msg("=== Program Start ===")
         pre_stocks = copy.deepcopy(stocks_info.stocks)
