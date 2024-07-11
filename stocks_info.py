@@ -500,7 +500,7 @@ class Stocks_info:
     #       code            종목 코드
     #       bought_price    체결가     
     ##############################################################
-    def set_buy_done(self, code, bought_price=0):
+    def set_buy_done(self, code, bought_price):
         result = True
         msg = ""
         try:
@@ -558,7 +558,7 @@ class Stocks_info:
     #       code            종목 코드
     #       sold_price      체결가     
     ##############################################################
-    def set_sell_done(self, code, sold_price=0):
+    def set_sell_done(self, code, sold_price):
         result = True
         msg = ""
         try:
@@ -996,7 +996,7 @@ class Stocks_info:
             else:
                 past_day = 1        # 어제 기준
 
-            for code in self.stocks.keys():                
+            for code in self.stocks.keys():
                 # 순서 변경 금지
                 # ex) 목표가를 구하기 위해선 평단가가 먼저 있어야한다
                 # 시가 총액
@@ -1084,7 +1084,6 @@ class Stocks_info:
                 for stock in stocks:
                     if int(stock['hldg_qty']) > 0:
                         code = stock['pdno']
-                        # DB 에 없는 종목 제외 ex) 공모주
                         if code in self.stocks.keys():
                             # 보유 수량
                             self.stocks[code]['stockholdings'] = int(stock['hldg_qty'])
@@ -1098,7 +1097,7 @@ class Stocks_info:
                             temp_stock = copy.deepcopy({code: self.stocks[code]})
                             self.my_stocks[code] = temp_stock[code]
                         else:
-                            # 보유는 하지만 DB 에 없는 종목
+                            # 보유는 하지만 DB 에 없는 종목 제외 ex) 공모주
                             # self.send_msg(f"DB 에 없는 종목({stock['prdt_name']})은 업데이트 skip")
                             pass
             else:
@@ -1487,15 +1486,15 @@ class Stocks_info:
                     data['평가금액'].append(int(stock['evlu_amt'].replace(",","")))
                     data['손익금액'].append(stock['evlu_pfls_amt'])
                     data['평단가'].append(int(float(stock['pchs_avg_pric'].replace(",",""))))
-                    data['현재가'].append(int(stock['prpr'].replace(",","")))
-                    # DB 에 없는 종목 제외 ex) 공모주
+                    data['현재가'].append(int(stock['prpr'].replace(",","")))                    
                     code = stock['pdno']
                     if code in self.stocks.keys():
                         data['목표가'].append(int(self.stocks[code]['sell_target_price']))
                         data['손절가'].append(int(self.get_loss_cut_price(code)))
                     else:
+                        # 보유는 하지만 DB 에 없는 종목 표시
                         data['목표가'].append(0)
-                        data['손절가'].append(0)       
+                        data['손절가'].append(0)
 
             # PrettyTable 객체 생성 및 데이터 추가
             table = PrettyTable()
@@ -1907,7 +1906,7 @@ class Stocks_info:
                                 self.send_msg(f"[{self.stocks[code]['name']}] 매도 주문, {curr_price}(현재가) >= {sell_target_price}(목표가)")
                 else:
                     # 반 매도된 상태
-                    # N차 매도가 : N-1차 매도가 * 1.03 (N>=2)
+                    # N차 매도가 : N-1차 매도가 * x (N>=2)
                     sell_target_price = self.my_stocks[code]['sell_target_price']
 
                     if self.trade_strategy.take_profit_strategy == TAKE_PROFIT_STRATEGY_SLOW:
@@ -2058,6 +2057,9 @@ class Stocks_info:
         result = True
         msg = ""
         try:
+            if code not in self.stocks.keys():
+                # 보유는 하지만 DB 에 없는 종목 제외 ex) 공모주
+                return False
             order_list = self.get_order_list()
             for stock in order_list:
                 if stock['pdno'] == code:
@@ -2114,6 +2116,7 @@ class Stocks_info:
                 else:
                     # 해당 종목 아님
                     pass
+
             return False
         except Exception as ex:
             result = False
@@ -2135,23 +2138,29 @@ class Stocks_info:
             order_list = self.get_order_list()
             for stock in order_list:
                 code = stock['pdno']
-                buy_sell = stock['sll_buy_dvsn_cd']
-                if self.check_trade_done(code, buy_sell) == True:
-                    is_trade_done = True
-                    # 평균 체결가
-                    avg_price = int(stock['avg_prvs'])
-                    if stock['sll_buy_dvsn_cd'] == BUY_CODE:
-                        # 최우선지정가 주문시 stock['avg_prvs'] 가 0 이라서 
-                        # 이후 sell_target_price 이 0 이 되는것 방지위해 주문가로 세팅
-                        if avg_price == 0:
-                            avg_price = self.stocks[code]['buy_order_price']
-                        self.set_buy_done(code, avg_price)
-                    else:
-                        # 최우선지정가 주문시 stock['avg_prvs'] 가 0 이라서 
-                        # 이후 sell_target_price 이 0 이 되는것 방지위해 주문가로 세팅
-                        if avg_price == 0:
-                            avg_price = self.stocks[code]['sell_order_price']
-                        self.set_sell_done(code, avg_price)
+                if code in self.stocks.keys():
+                    buy_sell = stock['sll_buy_dvsn_cd']
+                    if self.check_trade_done(code, buy_sell) == True:
+                        is_trade_done = True
+                        # 평균 체결가
+                        avg_price = int(stock['avg_prvs'])
+                        if stock['sll_buy_dvsn_cd'] == BUY_CODE:
+                            # 최우선지정가 주문시 stock['avg_prvs'] 가 0 이라서 
+                            # 이후 sell_target_price 이 0 이 되는것 방지위해 주문가로 세팅
+                            if avg_price == 0:
+                                PRINT_INFO(f"{self.stocks[code]['name']} stock['avg_prvs'] == 0 이라서 self.stocks[code]['buy_order_price'] 사용")
+                                avg_price = self.stocks[code]['buy_order_price']
+                            self.set_buy_done(code, avg_price)
+                        else:
+                            # 최우선지정가 주문시 stock['avg_prvs'] 가 0 이라서 
+                            # 이후 sell_target_price 이 0 이 되는것 방지위해 주문가로 세팅
+                            if avg_price == 0:
+                                PRINT_INFO(f"{self.stocks[code]['name']} stock['avg_prvs'] == 0 이라서 self.stocks[code]['sell_order_price'] 사용")
+                                avg_price = self.stocks[code]['sell_order_price']
+                            self.set_sell_done(code, avg_price)
+                else:
+                    # 보유는 하지만 DB 에 없는 종목 제외 ex) 공모주
+                    pass
             
             # 여러 종목 체결되도 결과는 한 번만 출력
             if is_trade_done == True:
@@ -2280,24 +2289,28 @@ class Stocks_info:
             for stock in order_list:
                 if int(stock['tot_ccld_qty']) > 0:
                     code = stock['pdno']
-                    if buy_sell == stock['sll_buy_dvsn_cd']:
-                        gain_loss_p = 0
-                        if buy_sell == SELL_CODE:
-                            gain_loss_money = (int(stock['avg_prvs']) - self.stocks[code]['avg_buy_price']) * int(stock['tot_ccld_qty'])
-                            if self.stocks[code]['avg_buy_price'] > 0:
-                                gain_loss_p = round(float((int(stock['avg_prvs']) - self.stocks[code]['avg_buy_price']) / self.stocks[code]['avg_buy_price']) * 100, 2)     # 소스 3째 자리에서 반올림                  
-                        
-                        curr_price = self.get_curr_price(code)
-                        
-                        data['종목명'].append(stock['prdt_name'])
-                        data['매수/매도'].append(buy_sell_order)
-                        data['체결평균가'].append(int(float(stock['avg_prvs'])))
-                        if buy_sell == SELL_CODE:
-                            data['평단가'].append(self.stocks[code]['avg_buy_price'])
-                            data['손익'].append(gain_loss_money)
-                            data['수익률(%)'].append(gain_loss_p)
-                        data['수량'].append(stock['tot_ccld_qty'])
-                        data['현재가'].append(curr_price)
+                    if code in self.stocks.keys():
+                        if buy_sell == stock['sll_buy_dvsn_cd']:
+                            gain_loss_p = 0
+                            if buy_sell == SELL_CODE:
+                                gain_loss_money = (int(stock['avg_prvs']) - self.stocks[code]['avg_buy_price']) * int(stock['tot_ccld_qty'])
+                                if self.stocks[code]['avg_buy_price'] > 0:
+                                    gain_loss_p = round(float((int(stock['avg_prvs']) - self.stocks[code]['avg_buy_price']) / self.stocks[code]['avg_buy_price']) * 100, 2)     # 소스 3째 자리에서 반올림                  
+                            
+                            curr_price = self.get_curr_price(code)
+                            
+                            data['종목명'].append(stock['prdt_name'])
+                            data['매수/매도'].append(buy_sell_order)
+                            data['체결평균가'].append(int(float(stock['avg_prvs'])))
+                            if buy_sell == SELL_CODE:
+                                data['평단가'].append(self.stocks[code]['avg_buy_price'])
+                                data['손익'].append(gain_loss_money)
+                                data['수익률(%)'].append(gain_loss_p)
+                            data['수량'].append(stock['tot_ccld_qty'])
+                            data['현재가'].append(curr_price)
+                    else:
+                        # 보유는 하지만 DB 에 없는 종목 제외 ex) 공모주
+                        pass
 
             # PrettyTable 객체 생성 및 데이터 추가
             table = PrettyTable()
@@ -2756,12 +2769,12 @@ class Stocks_info:
         try:
             # 한 달은 약 21일
             highest_end_price = self.get_highest_end_pirce(code, 21)
-            # 최고 종가에서 최소 20% 폭락
-            margine_p = self.to_percent(max(20, self.stocks[code]['envelope_p'] * 1.6))
+            # 최고 종가에서 최소 X% 폭락
+            margine_p = self.to_percent(max(18, self.stocks[code]['envelope_p'] * 1.5))
             if highest_end_price * (1 - margine_p) > price:
                 return True
             
-            # PRINT_INFO(f"[{self.stocks[code]['name']}] Do not buy first, highest_end_price:{highest_end_price} <= {check_price}")
+            # PRINT_INFO(f"[{self.stocks[code]['name']}] 1차 매수 금지, 최고 종가({highest_end_price}) 1차 매수가({price})")
             return False
         except Exception as ex:
             result = False
