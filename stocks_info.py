@@ -10,6 +10,7 @@ from libs.debug import *
 import datetime
 import traceback
 from datetime import date, timedelta
+import inspect
 
 
 ##############################################################
@@ -51,7 +52,7 @@ INVEST_RISK_HIGH = 2
 
 LOSS_CUT_P = 5                              # last차 매수에서 x% 종가 이탈 시 손절
 
-TAKE_PROFIT_P = 0.5                           # 익절가 %
+TAKE_PROFIT_P = 0.5                         # 익절가 %
 
 BUY_MARGIN_P = 1                            # ex) 최저가 + x% 에서 매수
 SELL_MARGIN_P = 2                           # ex) 목표가 + x% 에서 매도
@@ -68,7 +69,7 @@ else:
 
 # "현재가 - 매수가 GAP" 이 X% 미만 경우만 매수 가능 종목으로 처리
 # GAP 이 클수록 종목이 많아 실시간 처리가 느려진다
-BUYABLE_GAP = 8
+BUYABLE_GAP = 7
 BUYABLE_COUNT = 30                          # 상위 몇개 종목까지 매수 가능 종목으로 유지
 
 # 손절 후 종가가 20일선 위로 올라와야 매수 여부
@@ -207,7 +208,14 @@ class Stocks_info:
         try:
             REQUESTS_POST_MAX_SIZE = 2000
 
-            # now = datetime.datetime.now()
+            # 메세지 실행 func, line 출력
+            f = inspect.currentframe()
+            if send_discode == True and err == True:
+                i = inspect.getframeinfo(f.f_back.f_back)
+            else:
+                i = inspect.getframeinfo(f.f_back)
+            msg = '[' + i.function + '] [' + str(i.lineno) + '] ' + msg
+
             if send_discode == True:
                 msg = str(msg)
                 # 데이터를 REQUESTS_POST_MAX_SIZE 바이트씩 나누기
@@ -758,8 +766,8 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
+                msg = self.stocks[code]['name'] + " " + msg
                 self.send_msg_err(msg)
-                PRINT_ERR(f"{self.stocks[code]['name']}")
             return price
 
     ##############################################################
@@ -1379,19 +1387,22 @@ class Stocks_info:
         result = True
         msg = ""
         try:
+            end_price = 0
+
             if past_day > 99:
                 PRINT_INFO(f'can read over 99 data. make past_day to 99')
                 past_day = 99
                 
             end_price_list = self.get_end_price_list(code)
-            return int(end_price_list[past_day])   # 종가
+            end_price = int(end_price_list[past_day])
+            return end_price   # 종가
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
-                return 0
+                return end_price
 
     ##############################################################
     # 토큰 발급
@@ -3140,7 +3151,7 @@ class Stocks_info:
             else:
                 # 60일선 하락 추세
                 envelope_p += 3            # envelope up
-                PRINT_INFO(f"{self.stocks[code]['name']} 60일선 하락 추세")
+                PRINT_INFO(f"{self.stocks[code]['name']} 60일선 하락 추세, envelope +3")
 
             # 공격적 전략상태에서 60,90일선 정배열 아니면 envelope up
             # 매수 금지 대신 좀더 보수적으로 매수
