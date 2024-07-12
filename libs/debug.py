@@ -5,6 +5,7 @@ from PyQt5 import QtWidgets
 import logging
 import sys
 from logging.handlers import RotatingFileHandler
+import colorlog     # 터미널에 텍스트 color 세팅
 
 PRINT_LEVEL_DEBUG       = 10
 PRINT_LEVEL_INFO        = 20
@@ -12,18 +13,30 @@ PRINT_LEVEL_WARNING     = 30
 PRINT_LEVEL_ERROR       = 40
 PRINT_LEVEL_CRITICAL    = 50
 
+# 로그 형식 설정
+# logging.basicConfig(format='%(message)s')
+
 # Create logger
 logger = logging.getLogger()
 
 # 로그 레벨 설정 (DEBUG, INFO, WARNING, ERROR, CRITICAL), 세팅 LEVEL 이상만 logging
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 # output format
 formatter = logging.Formatter('%(message)s')
 
 # stream handler
 streamHandler = logging.StreamHandler(sys.stdout)
-streamHandler.setFormatter(formatter)
+streamHandler.setFormatter(colorlog.ColoredFormatter(
+    "%(log_color)s%(message)s",
+    log_colors={
+        'DEBUG': 'white',
+        'INFO': 'green',
+        'WARNING': 'white',
+        'ERROR': 'yellow',
+        'CRITICAL': 'red,bg_white',
+    }
+))
 
 LOG_FOLDER = '.\\log'
 LOG_FILE = LOG_FOLDER + '\\SystemTrading.log'
@@ -84,7 +97,7 @@ def PrintMsg(msg: str, print_level: int):
         # PRINT_LEVEL_INFO 이상만 ouput widget 에 msg 출력
         msg = datetime.now().strftime("[%m/%d %H:%M:%S]") + ' [' + os.path.basename(i.filename) + '] [' + i.function + '] [' + str(i.lineno) + '] ' + msg
         # 터미널에는 출력
-        print(msg)
+        # print(msg)
     
     if print_level == PRINT_LEVEL_CRITICAL:
         logger.critical(msg)
