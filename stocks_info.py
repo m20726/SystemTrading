@@ -208,6 +208,8 @@ class Stocks_info:
         try:
             REQUESTS_POST_MAX_SIZE = 2000
 
+            msg = str(msg)
+
             # 메세지 실행 func, line 출력
             f = inspect.currentframe()
             if send_discode == True and err == True:
@@ -217,7 +219,6 @@ class Stocks_info:
             msg = '[' + i.function + '] [' + str(i.lineno) + '] ' + msg
 
             if send_discode == True:
-                msg = str(msg)
                 # 데이터를 REQUESTS_POST_MAX_SIZE 바이트씩 나누기
                 # ex) post message length 가 2000 보다 크면 에러
                 chunks = [msg[i:i + REQUESTS_POST_MAX_SIZE] for i in range(0, len(msg), REQUESTS_POST_MAX_SIZE)]
@@ -231,9 +232,9 @@ class Stocks_info:
                         PRINT_ERR(f'requests.post err {response.status_code}')
 
             if err == True:
-                PRINT_ERR(f"{str(msg)}")
+                PRINT_ERR(f"{msg}")
             else:
-                PRINT_INFO(f"{str(msg)}")
+                PRINT_INFO(f"{msg}")
         except Exception as ex:
             result = False
             ex_msg = "{}".format(traceback.format_exc())
