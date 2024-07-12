@@ -55,6 +55,12 @@ fileHandler.setFormatter(formatter)
 logger.addHandler(streamHandler)
 logger.addHandler(fileHandler)
 
+# Suppress logs from urllib3 and requests
+# urllib3 및 requests 로거의 로그 레벨을 WARNING으로 설정하여 DEBUG 및 INFO 수준의 메시지가 표시되지 않도록 합니다. 
+# 이를 통해 "Starting new HTTPS connection"과 같은 메시지를 비활성화할 수 있습니다.
+logging.getLogger('urllib3').setLevel(logging.WARNING)
+logging.getLogger('requests').setLevel(logging.WARNING)
+
 global outputh
 outputh: QtWidgets.QTextBrowser = None    
 
