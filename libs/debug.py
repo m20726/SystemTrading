@@ -13,9 +13,6 @@ PRINT_LEVEL_WARNING     = 30
 PRINT_LEVEL_ERROR       = 40
 PRINT_LEVEL_CRITICAL    = 50
 
-# 로그 형식 설정
-# logging.basicConfig(format='%(message)s')
-
 # Create logger
 logger = logging.getLogger()
 

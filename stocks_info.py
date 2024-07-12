@@ -188,16 +188,16 @@ class Stocks_info:
     # 전략 출력
     ##############################################################
     def print_strategy(self):
-        PRINT_INFO('===============================')
+        PRINT_DEBUG('===============================')
         invest_risk_msg = dict()
         invest_risk_msg[INVEST_RISK_LOW] = "보수적 전략"
         invest_risk_msg[INVEST_RISK_MIDDLE] = "중도적 전략"
         invest_risk_msg[INVEST_RISK_HIGH] = "공격적 전략"
-        PRINT_INFO(f'{invest_risk_msg[self.trade_strategy.invest_risk]}')
+        PRINT_DEBUG(f'{invest_risk_msg[self.trade_strategy.invest_risk]}')
 
         if BUY_QTY_1 == True:
-            PRINT_INFO('1주만 매수')
-        PRINT_INFO('===============================')
+            PRINT_DEBUG('1주만 매수')
+        PRINT_DEBUG('===============================')
 
     ##############################################################
     # Print and send discode
@@ -2786,7 +2786,6 @@ class Stocks_info:
             if highest_end_price * (1 - margine_p) > price:
                 return True
             
-            # PRINT_INFO(f"[{self.stocks[code]['name']}] 1차 매수 금지, 최고 종가({highest_end_price}) 1차 매수가({price})")
             return False
         except Exception as ex:
             result = False
@@ -2964,7 +2963,6 @@ class Stocks_info:
                 # RSI = AU/(AU+AD)*100
                 rsi_list.insert(0, au_list[i]/(au_list[i]+ad_list[i])*100)
 
-            # PRINT_INFO(f"{self.stocks[code]['name']} RSI:{rsi_list[past_day]}, past_day:{past_day}")
             return int(rsi_list[past_day])
         except Exception as ex:
             result = False
@@ -3044,7 +3042,6 @@ class Stocks_info:
                         trand_down_count += 1
                     ma_price = yesterdat_ma_price
             
-            # PRINT_INFO(f"[{self.stocks[code]['name']}] ma_diff({ma_diff}) recent_ma_price({recent_ma_price}) last_ma_price({last_ma_price})")
             if trand_up_count >= (consecutive_days - 1) and ma_diff > trend_up_down_diff:
                 ma_trend = TREND_UP
             elif trand_down_count >= (consecutive_days - 1) and ma_diff > trend_up_down_diff:
@@ -3144,11 +3141,11 @@ class Stocks_info:
 
             if self.stocks[code]['ma_trend'] == TREND_UP:
                 # 60일선 상승 추세
-                PRINT_INFO(f"{self.stocks[code]['name']}")
+                PRINT_DEBUG(f"{self.stocks[code]['name']}")
             elif self.stocks[code]['ma_trend'] == TREND_SIDE:
                 # 60일선 보합 추세
                 envelope_p += 1            # envelope up
-                PRINT_INFO(f"{self.stocks[code]['name']}")
+                PRINT_DEBUG(f"{self.stocks[code]['name']}")
             else:
                 # 60일선 하락 추세
                 envelope_p += 3            # envelope up
