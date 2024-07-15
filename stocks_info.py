@@ -234,7 +234,7 @@ class Stocks_info:
             if err == True:
                 PRINT_ERR(f"{msg}")
             else:
-                PRINT_INFO(f"{msg}")
+                PRINT_DEBUG(f"{msg}")
         except Exception as ex:
             result = False
             ex_msg = "{}".format(traceback.format_exc())
