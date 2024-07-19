@@ -446,7 +446,8 @@ class Stocks_info:
                 envelope_p = self.to_percent(self.stocks[code]['envelope_p'])
                 envelope_support_line = self.stocks[code]['yesterday_20ma'] * (1 - envelope_p)
 
-                self.stocks[code]['buy_price'][0] = int(envelope_support_line * MARGIN_20MA)                
+                # 1차 매수가는 단기간에 급락한 가격 이하여야한다.
+                self.stocks[code]['buy_price'][0] = min(int(envelope_support_line * MARGIN_20MA), self.get_plunge_price(code))
 
                 # 1 ~ (BUY_SPLIT_COUNT-1)
                 for i in range(1, BUY_SPLIT_COUNT):
@@ -513,7 +514,9 @@ class Stocks_info:
         result = True
         msg = ""
         try:
-            PRINT_INFO(f"{self.stocks[code]['name']} 매수가({bought_price})")
+            PRINT_INFO(f"{self.stocks[code]['name']} 매수가 {bought_price}원")
+            if bought_price <= 0:
+                self.send_msg_err(f"{self.stocks[code]['name']} 매수가 오류 {bought_price}원")
 
             # 매수 완료됐으니 평단가, 목표가 업데이트
             self.update_my_stocks()
@@ -571,7 +574,9 @@ class Stocks_info:
         result = True
         msg = ""
         try:
-            PRINT_INFO(f"{self.stocks[code]['name']} 매도가({sold_price})")
+            PRINT_INFO(f"{self.stocks[code]['name']} 매도가 {sold_price}원")
+            if sold_price <= 0:
+                self.send_msg_err(f"{self.stocks[code]['name']} 매도가 오류 {sold_price}원")
 
             self.stocks[code]['sell_order_done'] = False
             if self.is_my_stock(code) == True:
@@ -654,8 +659,6 @@ class Stocks_info:
             self.stocks[code]['ma_trend'] = TREND_DOWN
             self.stocks[code]['recent_sold_price'] = 0
             self.stocks[code]['first_sell_target_price'] = 0
-            self.stocks[code]['buy_order_price'] = 0
-            self.stocks[code]['sell_order_price'] = 0
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -1263,13 +1266,6 @@ class Stocks_info:
                 if print_msg:
                     PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 금지, 시총 체크")                 
                 return False
-            
-            # 1차 매수할 지 여부
-            if self.stocks[code]['buy_done'][0] == False:
-                if self.is_ok_to_buy_1(code, self.stocks[code]['buy_price'][0]) == False:
-                    if print_msg:
-                        PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 금지, 1차 매수 조건 실패")
-                    return False
 
             # 이평선 정배열 체크는 공격적 전략이 아닐 때
             if self.trade_strategy.invest_risk != INVEST_RISK_HIGH:
@@ -1625,7 +1621,6 @@ class Stocks_info:
             res = requests.post(URL, headers=headers, data=json.dumps(data))
             if self.is_request_ok(res) == True:
                 self.send_msg(f"[매수 주문 성공] [{self.stocks[code]['name']}] {price}원 {qty}주")
-                self.stocks[code]['buy_order_price'] = price
                 return True
             else:
                 self.send_msg_err(f"[매수 주문 실패] [{self.stocks[code]['name']}] {price}원 {qty}주 type:{order_type} {str(res.json())}")
@@ -1708,7 +1703,6 @@ class Stocks_info:
             res = requests.post(URL, headers=headers, data=json.dumps(data))
             if self.is_request_ok(res) == True:
                 self.send_msg(f"[매도 주문 성공] [{self.stocks[code]['name']}] {price}원 {qty}주")
-                self.stocks[code]['sell_order_price'] = price
                 return True
             else:
                 self.send_msg_err(f"[매도 주문 실패] [{self.stocks[code]['name']}] {price}원 {qty}주 {str(res.json())}")
@@ -1746,9 +1740,6 @@ class Stocks_info:
 
     ##############################################################
     # 매수 처리
-    #   TODO?
-    #   envelope 터치 후 양봉에 매수(14:30 이후 양봉)
-    #   손절 : 매수 시 저점 이탈
     ##############################################################
     def handle_buy_stock(self):
         result = True
@@ -2157,18 +2148,8 @@ class Stocks_info:
                         # 평균 체결가
                         avg_price = int(stock['avg_prvs'])
                         if stock['sll_buy_dvsn_cd'] == BUY_CODE:
-                            # 최우선지정가 주문시 stock['avg_prvs'] 가 0 이라서 
-                            # 이후 sell_target_price 이 0 이 되는것 방지위해 주문가로 세팅
-                            if avg_price == 0:
-                                PRINT_INFO(f"{self.stocks[code]['name']} stock['avg_prvs'] == 0 이라서 self.stocks[code]['buy_order_price'] 사용")
-                                avg_price = self.stocks[code]['buy_order_price']
                             self.set_buy_done(code, avg_price)
                         else:
-                            # 최우선지정가 주문시 stock['avg_prvs'] 가 0 이라서 
-                            # 이후 sell_target_price 이 0 이 되는것 방지위해 주문가로 세팅
-                            if avg_price == 0:
-                                PRINT_INFO(f"{self.stocks[code]['name']} stock['avg_prvs'] == 0 이라서 self.stocks[code]['sell_order_price'] 사용")
-                                avg_price = self.stocks[code]['sell_order_price']
                             self.set_sell_done(code, avg_price)
                 else:
                     # 보유는 하지만 DB 에 없는 종목 제외 ex) 공모주
@@ -2766,34 +2747,30 @@ class Stocks_info:
             return highest_end_price
 
     ##############################################################
-    # 1차 매수할 지 여부 체크
-    #   단기간에 급락해야 매수
-    #   ex) 한 달 내 최고 종가 - x% > 1차 매수가
-    #   retun True 아니면 False
-    #   즉, 떨어진 폭이 기준보다 적으면 매수 안함
+    # 기간 내 최고 종가에서 급락 가격 리턴
+    #   1차 매수가는 이 가격 이하로
+    #   단기간에 급락해야 매수하기 위함
+    #   ex) 한 달 내 최고 종가 - x%
     # param :
     #   code        종목 코드
-    #   price       1차 매수가
     ##############################################################
-    def is_ok_to_buy_1(self, code, price):  
+    def get_plunge_price(self, code):
         result = True
         msg = ""
         try:
+            price = 0
             # 한 달은 약 21일
             highest_end_price = self.get_highest_end_pirce(code, 21)
-            # 최고 종가에서 최소 X% 폭락
+            # 최고 종가에서 최소 X% 폭락 가격
             margine_p = self.to_percent(max(18, self.stocks[code]['envelope_p'] * 1.5))
-            if highest_end_price * (1 - margine_p) > price:
-                return True
-            
-            return False
+            price = highest_end_price * (1 - margine_p)
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
-                return result
+            return int(price)
 
     ##############################################################
     # 보유 주식 종목 수
