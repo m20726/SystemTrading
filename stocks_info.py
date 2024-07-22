@@ -176,7 +176,6 @@ class Stocks_info:
             self.init_trade_done_order_list()
             self.my_stock_count = self.get_my_stock_count()
             self.init_trade_strategy()                # 매매 전략 세팅
-            self.print_strategy()
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -1274,6 +1273,11 @@ class Stocks_info:
                         PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 금지, 이평선 정배열 아님")
                     return False
             
+            # 하락 추세는 매수 금지
+            if self.stocks[code]['ma_trend'] == TREND_DOWN:
+                PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 금지, 하락 추세")
+                return False
+
             return True
         except Exception as ex:
             result = False
@@ -1792,7 +1796,10 @@ class Stocks_info:
                                     buy_target_qty = self.get_buy_target_qty(code)
                                     if self.buy(code, curr_price, buy_target_qty, ORDER_TYPE_IMMEDIATE_ORDER) == True:
                                         self.set_order_done(code, BUY_CODE)
-                                        self.send_msg(f"[{self.stocks[code]['name']}] 매수 주문 {curr_price}(현재가) >= {int(lowest_price * buy_margin)}({lowest_price}(저가) * {buy_margin})")
+                                        if curr_price >= int(lowest_price * buy_margin):
+                                            self.send_msg(f"[{self.stocks[code]['name']}] 매수 주문 {curr_price}(현재가) >= {int(lowest_price * buy_margin)}({lowest_price}(저가) * {buy_margin})")
+                                        else:
+                                            self.send_msg(f"[{self.stocks[code]['name']}] 매수 주문 {curr_price}(현재가) >= {buy_target_price}(매수 목표가)")
                 else:
                     # 불타기
                     if self.stocks[code]['buy_done'][0] == False:
@@ -1827,7 +1834,10 @@ class Stocks_info:
                                         buy_target_qty = self.get_buy_target_qty(code)
                                         if self.buy(code, curr_price, buy_target_qty, ORDER_TYPE_IMMEDIATE_ORDER) == True:
                                             self.set_order_done(code, BUY_CODE)
-                                            self.send_msg(f"[{self.stocks[code]['name']}] 매수 주문 {curr_price}(현재가) >= {int(lowest_price * buy_margin)}({lowest_price}(저가) * {buy_margin})")                    
+                                            if curr_price >= int(lowest_price * buy_margin):
+                                                self.send_msg(f"[{self.stocks[code]['name']}] 매수 주문 {curr_price}(현재가) >= {int(lowest_price * buy_margin)}({lowest_price}(저가) * {buy_margin})")
+                                            else:
+                                                self.send_msg(f"[{self.stocks[code]['name']}] 매수 주문 {curr_price}(현재가) >= {buy_target_price}(매수 목표가)")                                            
                     else:
                         # 불타기는 2차 매수까지만 진행
                         # 상승 추세 경우만 불타기
@@ -2161,7 +2171,7 @@ class Stocks_info:
                 # 계좌 잔고 조회
                 self.get_stock_balance()
                 # 종목 체결로 종목 수 변경 가능성 있음으로 전략 업데이트
-                self.init_trade_strategy()
+                self.init_trade_strategy()                
                 self.update_buyable_stocks()
         except Exception as ex:
             result = False
@@ -2856,13 +2866,14 @@ class Stocks_info:
                 self.trade_strategy.under_value = 5
                 self.trade_strategy.gap_max_sell_target_price_p = 5
                 self.trade_strategy.sum_under_value_sell_target_gap = 10
-                self.trade_strategy.buyable_market_cap = 20000
+                self.trade_strategy.buyable_market_cap = 20000            
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
+            self.print_strategy()
 
     ##############################################################
     # get RSI
