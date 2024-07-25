@@ -1921,6 +1921,8 @@ class Stocks_info:
                     # 반 매도된 상태
                     # N차 매도가 : N-1차 매도가 * x (N>=2)
                     sell_target_price = self.my_stocks[code]['sell_target_price']
+                    # 1차 매도 후 다음날 매도 가능하게
+                    self.stocks[code]['allow_monitoring_sell'] = True
 
                     if self.trade_strategy.take_profit_strategy == TAKE_PROFIT_STRATEGY_SLOW:
                         # "현재가 >= 목표가" 경우 매도
@@ -2714,7 +2716,7 @@ class Stocks_info:
     def clear_after_market(self):
         result = True
         msg = ""
-        try:                
+        try:
             for code in self.stocks.keys():
                 self.stocks[code]['allow_monitoring_buy'] = False
                 self.stocks[code]['allow_monitoring_sell'] = False

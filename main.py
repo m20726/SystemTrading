@@ -23,7 +23,8 @@ def main():
         
         # # stocks_info.json 에 key 제거
         # for code in stocks_info.stocks.keys():
-        #     del stocks_info.stocks[code]['real_avg_buy_price']
+        #     del stocks_info.stocks[code]['buy_order_price']
+        #     del stocks_info.stocks[code]['sell_order_price']
         # stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
 
         # # # stocks_info.json 변경
@@ -52,8 +53,11 @@ def main():
         # 주식 정보 업데이트는 장 시작전에, 약 1시간 정도 걸림
         if t_now < t_start or t_now > t_market_end_order_check:
             stocks_info.update_stocks_trade_info()
-            stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)          
-
+            stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
+        # else:
+        #     stocks_info.update_stocks_trade_info()
+        #     stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
+            
         stocks_info.update_my_stocks()            # 보유 주식 업데이트
         stocks_info.update_buyable_stocks()
         stocks_info.show_stocks(False, SORT_BY_UNDER_VALUE)
@@ -95,8 +99,6 @@ def main():
                 if (t_now.minute % PERIODIC_PRINT_TIME_M == 0) and (allow_periodic_print == True):
                     allow_periodic_print = False
                     stocks_info.show_buyable_stocks()
-                    # stocks_info.get_stock_balance()
-                    # time.sleep(1)
                 elif t_now.minute % PERIODIC_PRINT_TIME_M == 1:
                     allow_periodic_print = True
         
