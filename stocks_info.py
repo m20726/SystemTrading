@@ -1886,7 +1886,7 @@ class Stocks_info:
                             self.stocks[code]['allow_monitoring_sell'] = True
                             stockholdings = self.stocks[code]['stockholdings']
                             if self.sell(code, curr_price, stockholdings, ORDER_TYPE_MARKET_ORDER) == True:
-                                PRINT_INFO(f"[{self.stocks[code]['name']}] 손절 주문 성공, 현재가({curr_price}) < 손절가({loss_cut_price})")
+                                PRINT_INFO(f"[{self.stocks[code]['name']}] 전날 종가 손절 안된 경우 손절 주문 성공, 현재가({curr_price}) < 손절가({loss_cut_price})")
                                 self.set_order_done(code, SELL_CODE)
                 
                 if self.stocks[code]['sell_1_done'] == False:
@@ -2860,6 +2860,8 @@ class Stocks_info:
             # 1/3 이하 : high(공격적)
             # 2/3 이하 : middle(중도적)
             # 2/3 초과 : low(보수적)
+            self.update_my_stocks()
+
             if self.my_stock_count <= MAX_MY_STOCK_COUNT * 1/3:
                 self.trade_strategy.invest_risk = INVEST_RISK_HIGH 
             elif self.my_stock_count <= MAX_MY_STOCK_COUNT * 2/3:
@@ -2875,9 +2877,9 @@ class Stocks_info:
                 self.trade_strategy.sum_under_value_sell_target_gap = -30     # 저평가 + 목표가GAP 이 이 값 미만은 매수 금지
                 self.trade_strategy.buyable_market_cap = 5000               # 시총 X 미만 매수 금지(억)
             elif self.trade_strategy.invest_risk == INVEST_RISK_MIDDLE:
-                self.trade_strategy.under_value = 1
-                self.trade_strategy.gap_max_sell_target_price_p = 2
-                self.trade_strategy.sum_under_value_sell_target_gap = 3
+                self.trade_strategy.under_value = 0
+                self.trade_strategy.gap_max_sell_target_price_p = 3
+                self.trade_strategy.sum_under_value_sell_target_gap = 5
                 self.trade_strategy.buyable_market_cap = 10000
             else:   # INVEST_RISK_LOW
                 self.trade_strategy.under_value = 2
