@@ -197,6 +197,10 @@ class Stocks_info:
         PRINT_DEBUG(f'목표가GAP {self.trade_strategy.gap_max_sell_target_price_p} 이상')
         PRINT_DEBUG(f'저평가+목표가GAP {self.trade_strategy.sum_under_value_sell_target_gap} 이상')
         PRINT_DEBUG(f'시총 {self.trade_strategy.buyable_market_cap/10000}조 이상')
+        if self.trade_strategy.buy_split_strategy == BUY_SPLIT_STRATEGY_DOWN:
+            PRINT_DEBUG(f'2차 매수 물타기')
+        elif self.trade_strategy.buy_split_strategy == BUY_SPLIT_STRATEGY_UP:
+            PRINT_DEBUG(f'2차 매수 불타기')
 
         if BUY_QTY_1 == True:
             PRINT_DEBUG('1주만 매수')
@@ -589,6 +593,7 @@ class Stocks_info:
                 self.stocks[code]['recent_sold_price'] = sold_price
                 self.update_my_stocks()
                 self.send_msg(f"{self.stocks[code]['name']} 일부 매도", True)
+                PRINT_INFO(f"{self.stocks[code]['name']} 다음 목표가 {self.stocks[code]['sell_target_price']}원")
             else:
                 # 전량 매도 상태는 보유 종목에 없는 상태
                 if self.is_my_stock(code) == False:
@@ -1880,7 +1885,7 @@ class Stocks_info:
                 # 전날 종가로 손절 안된 경우 처리
                 if self.stocks[code]['loss_cut_order'] == True:
                     # 장 시작시 "시가 > 손절가"인데도 주문 나간다. 09:01 후에 하자
-                    if t_now > t_loss_cut:
+                    if t_now >= t_loss_cut:
                         loss_cut_price = self.get_loss_cut_price(code)
                         if curr_price < loss_cut_price:
                             self.stocks[code]['allow_monitoring_sell'] = True
@@ -2169,7 +2174,7 @@ class Stocks_info:
                         # 평균 체결가
                         avg_price = int(stock['avg_prvs'])
                         if avg_price == 0:
-                            self.send_msg_err(f"[{stock['prdt_name']}] 평균 체결가 오류 {avg_price} [{self.stocks[code]['name']}]")
+                            self.send_msg_err(f"{stock['prdt_name']} 평균 체결가 오류 {avg_price} {self.stocks[code]['name']}")
                             # check_trade_done 에서의 체결가로 사용
                             avg_price = trade_done_avg_price
 
