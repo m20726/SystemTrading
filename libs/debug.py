@@ -28,9 +28,9 @@ streamHandler.setFormatter(colorlog.ColoredFormatter(
     "%(log_color)s%(message)s",
     log_colors={
         'DEBUG': 'white',
-        'INFO': 'green',
-        'WARNING': 'white',
-        'ERROR': 'yellow',
+        'INFO': 'light_yellow',
+        'WARNING': 'red',
+        'ERROR': 'light_red',
         'CRITICAL': 'red,bg_white',
     }
 ))
