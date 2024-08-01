@@ -11,6 +11,7 @@ import datetime
 import traceback
 from datetime import date, timedelta
 import inspect
+import threading
 
 
 ##############################################################
@@ -50,7 +51,7 @@ INVEST_RISK_LOW = 0
 INVEST_RISK_MIDDLE = 1
 INVEST_RISK_HIGH = 2
 
-LOSS_CUT_P = 5                              # last차 매수에서 x% 종가 이탈 시 손절
+LOSS_CUT_P = 4                              # last차 매수에서 x% 종가 이탈 시 손절
 
 TAKE_PROFIT_P = 0.5                         # 익절가 %
 
@@ -69,11 +70,8 @@ else:
 
 # "현재가 - 매수가 GAP" 이 X% 미만 경우만 매수 가능 종목으로 처리
 # GAP 이 클수록 종목이 많아 실시간 처리가 느려진다
-BUYABLE_GAP = 7
+BUYABLE_GAP = 8
 BUYABLE_COUNT = 30                          # 상위 몇개 종목까지 매수 가능 종목으로 유지
-
-# 손절 후 종가가 20일선 위로 올라와야 매수 여부
-CHECK_END_PRICE_HIGHER_THAN_20MA_AFTER_LOSS_CUT = True
 
 # 빠른 익절 전략
 # 1차 매도 후 나머지 물량은 익절선을 높여 빠르게 익절한다
@@ -138,6 +136,7 @@ class Trade_strategy:
         self.take_profit_strategy = TAKE_PROFIT_STRATEGY_SLOW   # 익절 전략
         self.buy_trailing_stop = True                           # 매수 시 트레일링 스탑으로 할지
         self.sell_trailing_stop = False                         # 매도 시 트레일링 스탑으로 할지
+        self.trend = TREND_UP                                   # 추세선이 이거 이상이여야 매수
         
 class Stocks_info:
     def __init__(self) -> None:
@@ -154,10 +153,17 @@ class Stocks_info:
             self.buy_split_p.append(100/BUY_SPLIT_COUNT)
 
         self.buy_invest_money = list()
-        self.trade_done_order_list = list()             # 체결 완료 주문 list
+        self.buy_done_order_list = list()               # 매수 체결 완료 주문 list
+        self.sell_done_order_list = list()              # 매도 체결 완료 주문 list
         self.this_year = datetime.datetime.now().year
-        self.my_stock_count = 0                         # 보유 종목 수
         self.trade_strategy = Trade_strategy()
+
+        # 매수 완료 시 handle_buy_stock 은 set_buy_done 완료까지 대기해야
+        # 2차 매수 후 self.stocks[code]['buy_done'][1] = True 되기전에 
+        # handle_buy_stock 가 실행 되어 추가로 매수되는거 방지할 수 있다
+        self.buy_done_event = threading.Event()
+        # 매도 완료 시 handle_sell_stock 은 set_sell_done 완료까지 대기해야
+        self.sell_done_event = threading.Event()
 
     ##############################################################
     # 초기화 시 처리 할 내용
@@ -174,7 +180,6 @@ class Stocks_info:
             self.access_token = self.get_access_token()
             self.my_cash = self.get_my_cash()       # 보유 현금 세팅
             self.init_trade_done_order_list()
-            self.my_stock_count = self.get_my_stock_count()
             self.init_trade_strategy()                # 매매 전략 세팅
         except Exception as ex:
             result = False
@@ -201,6 +206,12 @@ class Stocks_info:
             PRINT_DEBUG(f'2차 매수 물타기')
         elif self.trade_strategy.buy_split_strategy == BUY_SPLIT_STRATEGY_UP:
             PRINT_DEBUG(f'2차 매수 불타기')
+
+        trend_msg = dict()
+        trend_msg[TREND_DOWN] = "하락 추세"
+        trend_msg[TREND_SIDE] = "보합 추세"
+        trend_msg[TREND_UP] = "상승 추세"
+        PRINT_DEBUG(f'60일선 {trend_msg[self.trade_strategy.trend]} 이상 매수')
 
         if BUY_QTY_1 == True:
             PRINT_DEBUG('1주만 매수')
@@ -240,6 +251,8 @@ class Stocks_info:
 
             if err == True:
                 PRINT_ERR(f"{msg}")
+            elif send_discode == True:
+                PRINT_INFO(f"{msg}")
             else:
                 PRINT_DEBUG(f"{msg}")
         except Exception as ex:
@@ -600,10 +613,6 @@ class Stocks_info:
                     self.stocks[code]['sell_done'] = True
                     # 매도 완료 후 종가 > 20ma 체크위해 false 처리
                     self.stocks[code]['end_price_higher_than_20ma_after_sold'] = False
-                    # 보유 종목이 MAX_MY_STOCK_COUNT 인 상태에서 매도가되면 
-                    # 매수 가능 상태가 될 수 있기때문에 매수 가능 종목 업데이트
-                    if len(self.my_stocks) == MAX_MY_STOCK_COUNT:
-                        self.update_buyable_stocks()
                     self.update_my_stocks()
                     if self.stocks[code]['loss_cut_order'] == True:
                         self.set_loss_cut_done(code)
@@ -662,6 +671,7 @@ class Stocks_info:
             self.stocks[code]['sell_1_done'] = False
             # 매도 완료 후 매도 체결 조회 할 수 있기 때문에 초기화하지 않는다
             # self.stocks[code]['avg_buy_price'] = 0
+            self.stocks[code]['loss_cut_price'] = 0
             self.stocks[code]['loss_cut_done'] = False
             self.stocks[code]['recent_buy_date'] = None
             self.stocks[code]['ma_trend'] = TREND_DOWN
@@ -1283,7 +1293,7 @@ class Stocks_info:
                     return False
             
             # 하락 추세는 매수 금지
-            if self.stocks[code]['ma_trend'] == TREND_DOWN:
+            if self.stocks[code]['ma_trend'] < self.trade_strategy.trend:
                 PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 금지, 하락 추세")
                 return False
 
@@ -1630,13 +1640,14 @@ class Stocks_info:
                     "custtype": "P",
                     "hashkey": self.hashkey(data)
                     }
+            order_string = self.get_order_string(order_type)
             time.sleep(API_DELAY_S)
             res = requests.post(URL, headers=headers, data=json.dumps(data))
             if self.is_request_ok(res) == True:
-                self.send_msg(f"[매수 주문 성공] [{self.stocks[code]['name']}] {price}원 {qty}주")
+                self.send_msg(f"[매수 주문 성공] [{self.stocks[code]['name']}] {price}원 {qty}주 {order_string}")
                 return True
             else:
-                self.send_msg_err(f"[매수 주문 실패] [{self.stocks[code]['name']}] {price}원 {qty}주 type:{order_type} {str(res.json())}")
+                self.send_msg_err(f"[매수 주문 실패] [{self.stocks[code]['name']}] {price}원 {qty}주 {order_string} {str(res.json())}")
             return False
         except Exception as ex:
             result = False
@@ -1673,7 +1684,7 @@ class Stocks_info:
 
             # 오늘 주문 완료 시 금지
             if self.already_ordered(code, SELL_CODE) == True:
-                PRINT_INFO(f"오늘 주문 완료 시 sell 금지, {self.stocks[code]['name']}")
+                # PRINT_INFO(f"오늘 주문 완료 시 sell 금지, {self.stocks[code]['name']}")
                 return False
             
             # 시장가 주문은 조건 안따진다
@@ -1712,13 +1723,14 @@ class Stocks_info:
                     "custtype": "P",
                     "hashkey": self.hashkey(data)
                     }
+            order_string = self.get_order_string(order_type)
             time.sleep(API_DELAY_S)
             res = requests.post(URL, headers=headers, data=json.dumps(data))
             if self.is_request_ok(res) == True:
-                self.send_msg(f"[매도 주문 성공] [{self.stocks[code]['name']}] {price}원 {qty}주")
+                self.send_msg(f"[매도 주문 성공] [{self.stocks[code]['name']}] {price}원 {qty}주 {order_string}")
                 return True
             else:
-                self.send_msg_err(f"[매도 주문 실패] [{self.stocks[code]['name']}] {price}원 {qty}주 {str(res.json())}")
+                self.send_msg_err(f"[매도 주문 실패] [{self.stocks[code]['name']}] {price}원 {qty}주 {order_string} {str(res.json())}")
             return False
         except Exception as ex:
             result = False
@@ -1758,6 +1770,8 @@ class Stocks_info:
         result = True
         msg = ""
         try:
+            # check_ordered_stocks_trade_done 완료까지 handle_buy_stock는 대기
+            self.buy_done_event.wait()
             # 매수 가능 종목내에서만 매수
             t_now = datetime.datetime.now()
             t_buy = t_now.replace(hour=15, minute=15, second=0, microsecond=0)                
@@ -1806,9 +1820,9 @@ class Stocks_info:
                                     if self.buy(code, curr_price, buy_target_qty, ORDER_TYPE_IMMEDIATE_ORDER) == True:
                                         self.set_order_done(code, BUY_CODE)
                                         if curr_price >= int(lowest_price * buy_margin):
-                                            PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 주문 {curr_price}(현재가) >= {int(lowest_price * buy_margin)}({lowest_price}(저가) * {buy_margin})")
+                                            PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 주문, {buy_target_qty}주 {curr_price}(현재가) >= {int(lowest_price * buy_margin)}({lowest_price}(저가) * {buy_margin})")
                                         else:
-                                            PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 주문 {curr_price}(현재가) > {buy_target_price}(매수 목표가)")
+                                            PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 주문, {buy_target_qty}주 {curr_price}(현재가) > {buy_target_price}(매수 목표가)")
                 else:
                     # 불타기
                     if self.stocks[code]['buy_done'][0] == False:
@@ -1838,15 +1852,15 @@ class Stocks_info:
                                 if self.stocks[code]['buy_order_done'] == False:
                                     # 1차 매수 상태에서 allow_monitoring_buy 가 false 안된 상태에서 2차 매수 들어갈 때
                                     # 1차 매수 반복되는 문제 수정
-                                    PRINT_INFO(f"[{self.stocks[code]['name']}] {curr_price}(현재가) {buy_target_price}(매수가) {lowest_price}(저가)")
+                                    PRINT_DEBUG(f"[{self.stocks[code]['name']}] {curr_price}(현재가) {buy_target_price}(매수가) {lowest_price}(저가)")
                                     if lowest_price <= buy_target_price:
                                         buy_target_qty = self.get_buy_target_qty(code)
                                         if self.buy(code, curr_price, buy_target_qty, ORDER_TYPE_IMMEDIATE_ORDER) == True:
                                             self.set_order_done(code, BUY_CODE)
                                             if curr_price >= int(lowest_price * buy_margin):
-                                                PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 주문 {curr_price}(현재가) >= {int(lowest_price * buy_margin)}({lowest_price}(저가) * {buy_margin})")
+                                                PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 주문, {buy_target_qty}주 {curr_price}(현재가) >= {int(lowest_price * buy_margin)}({lowest_price}(저가) * {buy_margin})")
                                             else:
-                                                PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 주문 {curr_price}(현재가) > {buy_target_price}(매수 목표가)")                                            
+                                                PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 주문, {buy_target_qty}주 {curr_price}(현재가) > {buy_target_price}(매수 목표가)")                                            
                     else:
                         # 불타기는 2차 매수까지만 진행
                         # 상승 추세 경우만 불타기
@@ -1858,7 +1872,7 @@ class Stocks_info:
                                     buy_target_qty = self.get_buy_target_qty(code)
                                     if self.buy(code, curr_price, buy_target_qty, ORDER_TYPE_IMMEDIATE_ORDER) == True:
                                         self.set_order_done(code, BUY_CODE)
-                                        PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 주문 {curr_price}(현재가) >= {int(self.stocks[code]['avg_buy_price'] * 1.02)}(평단가+2%)")                    
+                                        PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 주문, {buy_target_qty}주 {curr_price}(현재가) >= {int(self.stocks[code]['avg_buy_price'] * 1.02)}(평단가+2%)")                    
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -1873,9 +1887,8 @@ class Stocks_info:
         result = True
         msg = ""
         try:
-            t_now = datetime.datetime.now()
-            t_loss_cut = t_now.replace(hour=9, minute=1, second=0, microsecond=0)
-
+            # check_ordered_stocks_trade_done 완료까지 handle_sell_stock 대기
+            self.sell_done_event.wait()            
             sell_margin = 1 + self.to_percent(SELL_MARGIN_P)
             for code in self.my_stocks.keys():
                 curr_price = self.get_curr_price(code)
@@ -1884,6 +1897,8 @@ class Stocks_info:
 
                 # 전날 종가로 손절 안된 경우 처리
                 if self.stocks[code]['loss_cut_order'] == True:
+                    t_now = datetime.datetime.now()
+                    t_loss_cut = t_now.replace(hour=9, minute=1, second=0, microsecond=0)
                     # 장 시작시 "시가 > 손절가"인데도 주문 나간다. 09:01 후에 하자
                     if t_now >= t_loss_cut:
                         loss_cut_price = self.get_loss_cut_price(code)
@@ -1915,9 +1930,9 @@ class Stocks_info:
                                 if self.sell(code, curr_price, qty, ORDER_TYPE_IMMEDIATE_ORDER) == True:
                                     self.set_order_done(code, SELL_CODE)
                                     if curr_price >= (sell_target_price * sell_margin):
-                                        PRINT_INFO(f"[{self.stocks[code]['name']}] 매도 주문, {curr_price}(현재가) >= 목표가 + {SELL_MARGIN_P}% : {int(sell_target_price * sell_margin)}")
+                                        PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매도 주문, {qty}주 {curr_price}(현재가) >= 목표가 + {SELL_MARGIN_P}% : {int(sell_target_price * sell_margin)}")
                                     else:
-                                        PRINT_INFO(f"[{self.stocks[code]['name']}] 매도 주문, {curr_price}(현재가) <= {take_profit_price}(익절가) {self.stocks[code]['highest_price_ever']}(최고가)")
+                                        PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매도 주문, {qty}주 {curr_price}(현재가) <= {take_profit_price}(익절가) {self.stocks[code]['highest_price_ever']}(최고가)")
                     else:
                         if curr_price >= sell_target_price and sell_target_price > 0:
                             self.stocks[code]['allow_monitoring_sell'] = True
@@ -1925,7 +1940,7 @@ class Stocks_info:
                             # 지정가 매도
                             if self.sell(code, curr_price, qty, ORDER_TYPE_LIMIT_ORDER) == True:
                                 self.set_order_done(code, SELL_CODE)
-                                PRINT_INFO(f"[{self.stocks[code]['name']}] 매도 주문, {curr_price}(현재가) >= {sell_target_price}(목표가)")
+                                PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매도 주문, {qty}주 {curr_price}(현재가) >= {sell_target_price}(목표가)")
                 else:
                     # 반 매도된 상태
                     # N차 매도가 : N-1차 매도가 * x (N>=2)
@@ -1940,7 +1955,7 @@ class Stocks_info:
                             qty = max(1, int(self.my_stocks[code]['stockholdings'] / 2))
                             if self.sell(code, curr_price, qty, ORDER_TYPE_IMMEDIATE_ORDER) == True:
                                 self.set_order_done(code, SELL_CODE)
-                                PRINT_INFO(f"[{self.stocks[code]['name']}] 매도 주문, {curr_price}(현재가) >= {sell_target_price}(목표가)")
+                                PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매도 주문, {qty}주 {curr_price}(현재가) >= {sell_target_price}(목표가)")
                     else:
                         # "현재가 >= 목표가" or "현재가 <= 1차 목표가" 경우 매도
                         if (curr_price >= sell_target_price and sell_target_price > 0) or curr_price <= self.stocks[code]['first_sell_target_price']:
@@ -1954,9 +1969,9 @@ class Stocks_info:
                             if self.sell(code, curr_price, qty, ORDER_TYPE_IMMEDIATE_ORDER) == True:
                                 self.set_order_done(code, SELL_CODE)
                                 if curr_price >= sell_target_price:
-                                    PRINT_INFO(f"[{self.stocks[code]['name']}] 매도 주문, {curr_price}(현재가) >= {sell_target_price}(목표가)")
+                                    PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매도 주문, {qty}주 {curr_price}(현재가) >= {sell_target_price}(목표가)")
                                 elif curr_price <= self.stocks[code]['first_sell_target_price']:
-                                    PRINT_INFO(f"[{self.stocks[code]['name']}] 매도 주문, {curr_price}(현재가) <= {self.stocks[code]['first_sell_target_price']}(first_sell_target_price)")
+                                    PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매도 주문, {qty}주 {curr_price}(현재가) <= {self.stocks[code]['first_sell_target_price']}(first_sell_target_price)")
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -2092,8 +2107,15 @@ class Stocks_info:
             for stock in order_list:
                 if stock['pdno'] == code:
                     # 이미 체결 완료 처리한 주문은 재처리 금지
-                    if stock['odno'] in self.trade_done_order_list:
-                        return False, 0
+                    if buy_sell == BUY_CODE:
+                        if stock['odno'] in self.buy_done_order_list:
+                            return False, 0
+                    elif buy_sell == SELL_CODE:
+                        if stock['odno'] in self.sell_done_order_list:
+                            return False, 0
+                    else:
+                        if stock['odno'] in self.buy_done_order_list or stock['odno'] in self.sell_done_order_list:
+                            return False, 0
 
                     if stock['sll_buy_dvsn_cd'] == buy_sell:
                         if stock['sll_buy_dvsn_cd'] == BUY_CODE:
@@ -2112,21 +2134,23 @@ class Stocks_info:
                         if order_qty == tot_trade_qty:
                             # 전량 체결 완료
                             if stock['sll_buy_dvsn_cd'] == SELL_CODE:
+                                self.sell_done_order_list.append(stock['odno'])
                                 # 매도 체결 완료 시, 손익, 수익률 표시
                                 gain_loss_money = (int(stock['avg_prvs']) - self.stocks[code]['avg_buy_price']) * int(stock['tot_ccld_qty'])
                                 if self.stocks[code]['avg_buy_price'] > 0:
                                     gain_loss_p = round(float((int(stock['avg_prvs']) - self.stocks[code]['avg_buy_price']) / self.stocks[code]['avg_buy_price']) * 100, 2)     # 소스 3째 자리에서 반올림                  
                                     self.send_msg(f"[{self.stocks[code]['name']}] {stock['avg_prvs']}원 {tot_trade_qty}/{order_qty}주 {buy_sell_order} 전량 체결 완료, 손익:{gain_loss_money} {gain_loss_p}%", True)
                             else:
+                                # 체결 완료 체크한 주문은 다시 체크하지 않는다
+                                # while loop 에서 반복적으로 체크하는거 방지
+                                self.buy_done_order_list.append(stock['odno'])                                
                                 nth_buy = 0
                                 for i in range(BUY_SPLIT_COUNT):
                                     if self.stocks[code]['buy_done'][i] == False:
                                         nth_buy = i + 1
                                         break
                                 self.send_msg(f"[{self.stocks[code]['name']}] {stock['avg_prvs']}원 {tot_trade_qty}/{order_qty}주 {nth_buy}차 {buy_sell_order} 전량 체결 완료", True)
-                            # 체결 완료 체크한 주문은 다시 체크하지 않는다
-                            # while loop 에서 반복적으로 체크하는거 방지
-                            self.trade_done_order_list.append(stock['odno'])
+
                             return True, int(stock['avg_prvs'])
                         elif tot_trade_qty == 0:
                             # 미체결
@@ -2162,12 +2186,15 @@ class Stocks_info:
         result = True
         msg = ""
         try:
+            before_trade_done_my_stock_count = self.get_my_stock_count()
+            after_trade_done_my_stock_count = before_trade_done_my_stock_count
             is_trade_done = False
+
             order_list = self.get_order_list()
             for stock in order_list:
                 code = stock['pdno']
                 if code in self.stocks.keys():
-                    buy_sell = stock['sll_buy_dvsn_cd']
+                    buy_sell = stock['sll_buy_dvsn_cd']                    
                     ret, trade_done_avg_price = self.check_trade_done(code, buy_sell)
                     if ret == True:
                         is_trade_done = True
@@ -2182,22 +2209,30 @@ class Stocks_info:
                             self.set_buy_done(code, avg_price)
                         else:
                             self.set_sell_done(code, avg_price)
+                        after_trade_done_my_stock_count = self.get_my_stock_count()
                 else:
                     # 보유는 하지만 DB 에 없는 종목 제외 ex) 공모주
                     pass
+            
+            # check_ordered_stocks_trade_done 완료까지 handle_sell_stock, handle_buy_stock는 대기
+            self.buy_done_event.set()
+            self.sell_done_event.set()
             
             # 여러 종목 체결되도 결과는 한 번만 출력
             if is_trade_done == True:
                 self.show_trade_done_stocks(BUY_CODE)
                 self.show_trade_done_stocks(SELL_CODE)
+                # 종목 체결로 종목 수 변경된 경우 관련 정보 업데이트
+                if before_trade_done_my_stock_count != after_trade_done_my_stock_count:
+                    self.init_trade_strategy()
+                    self.update_buyable_stocks()
                 # 계좌 잔고 조회
                 self.get_stock_balance()
-                # 종목 체결로 종목 수 변경 가능성 있음으로 전략 업데이트
-                self.init_trade_strategy()                
-                self.update_buyable_stocks()
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
+            self.buy_done_event.set() # exception 빠진 경우에 handle_buy_stock 대기되지 않게
+            self.sell_done_event.set() # exception 빠진 경우에 handle_sell_stock 대기되지 않게
         finally:
             if result == False:
                 self.send_msg_err(msg)
@@ -2264,7 +2299,7 @@ class Stocks_info:
         msg = ""
         not_traded_stock_count = 0
         try:
-            self.send_msg(f"============주문 조회============")
+            PRINT_DEBUG(f"============주문 조회============")
             order_list = self.get_order_list()
             for stock in order_list:
                 # 주문 수량
@@ -2279,8 +2314,8 @@ class Stocks_info:
                     else:
                         buy_sell_order = "매도 주문"
                     curr_price = self.get_curr_price(stock['pdno'])
-                    self.send_msg(f"{stock['prdt_name']} {buy_sell_order} {stock['ord_unpr']}원 {stock['ord_qty']}주, 현재가 {curr_price}원")
-            self.send_msg(f"=================================\n")
+                    PRINT_DEBUG(f"{stock['prdt_name']} {buy_sell_order} {stock['ord_unpr']}원 {stock['ord_qty']}주, 현재가 {curr_price}원")
+            PRINT_DEBUG(f"=================================\n")
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -2310,7 +2345,7 @@ class Stocks_info:
             if len(order_list) == 0:
                 return None
 
-            self.send_msg(f"========={buy_sell_order} 체결 조회=========")
+            PRINT_DEBUG(f"========={buy_sell_order} 체결 조회=========")
             for stock in order_list:
                 if int(stock['tot_ccld_qty']) > 0:
                     code = stock['pdno']
@@ -2343,7 +2378,7 @@ class Stocks_info:
             table.align = 'r'  # 우측 정렬
             for row in zip(*data.values()):
                 table.add_row(row)
-            self.send_msg(table)
+            PRINT_DEBUG(table)
             return None
         except Exception as ex:
             result = False
@@ -2476,13 +2511,15 @@ class Stocks_info:
                 self.send_msg_err(msg)
 
     ##############################################################
-    # 금일 매수/매도 체결 완료된 주문번호로 trade_done_order_list 초기화
+    # 금일 매수/매도 체결 완료된 주문번호로 buy_done_order_list, sell_done_order_list 초기화
     ##############################################################    
     def init_trade_done_order_list(self):
         result = True
         msg = ""
         try:
-            self.trade_done_order_list.clear()
+            self.buy_done_order_list.clear()
+            self.sell_done_order_list.clear()
+
             order_list = self.get_order_list()
             for stock in order_list:
                 # 주문 수량
@@ -2491,7 +2528,13 @@ class Stocks_info:
                 tot_trade_qty = int(stock['tot_ccld_qty'])
                 if tot_trade_qty == order_qty:
                     # 체결 완료 주문 번호
-                    self.trade_done_order_list.append(stock['odno'])
+                    if stock['sll_buy_dvsn_cd'] == BUY_CODE:
+                        self.buy_done_order_list.append(stock['odno'])
+                    elif stock['sll_buy_dvsn_cd'] == SELL_CODE:
+                        self.sell_done_order_list.append(stock['odno'])
+                    else:
+                        self.send_msg_err(f"{stock['prdt_name']} not support sll_buy_dvsn_cd {stock['sll_buy_dvsn_cd']}")
+
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -2617,7 +2660,8 @@ class Stocks_info:
         result = True
         msg = ""
         try:
-            self.buyable_stocks.clear()
+            temp_buyable_stocks = dict()
+
             for code in self.stocks.keys():
                 if (self.is_my_stock(code) and self.stocks[code]['buy_done'][BUY_SPLIT_COUNT-1] == False) or self.is_ok_to_buy(code, True):
                     curr_price = self.get_curr_price(code)
@@ -2637,9 +2681,13 @@ class Stocks_info:
 
                         if gap_p < BUYABLE_GAP or need_buy == True:
                             temp_stock = copy.deepcopy({code: self.stocks[code]})
-                            self.buyable_stocks[code] = temp_stock[code]
+                            temp_buyable_stocks[code] = temp_stock[code]
                         else:
                             PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 금지, buyable gap({gap_p})")
+                time.sleep(0.001)   # context switching between threads
+
+            self.buyable_stocks.clear()
+            self.buyable_stocks = copy.deepcopy(temp_buyable_stocks)
             
             # '저평가'값이 큰 순으로 최대 x개 까지만 유지하고 나머지는 제외
             buyable_count = min(BUYABLE_COUNT, len(self.buyable_stocks))
@@ -2701,8 +2749,8 @@ class Stocks_info:
             for row in zip(*data.values()):
                 table.add_row(row)
             
-            self.send_msg("==========매수 가능 종목==========")
-            self.send_msg(table)
+            PRINT_DEBUG("==========매수 가능 종목==========")
+            PRINT_DEBUG(table)
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -2867,9 +2915,11 @@ class Stocks_info:
             # 2/3 초과 : low(보수적)
             self.update_my_stocks()
 
-            if self.my_stock_count <= MAX_MY_STOCK_COUNT * 1/3:
+            my_stock_count = self.get_my_stock_count()
+
+            if my_stock_count <= MAX_MY_STOCK_COUNT * 1/3:
                 self.trade_strategy.invest_risk = INVEST_RISK_HIGH 
-            elif self.my_stock_count <= MAX_MY_STOCK_COUNT * 2/3:
+            elif my_stock_count <= MAX_MY_STOCK_COUNT * 2/3:
                 self.trade_strategy.invest_risk = INVEST_RISK_MIDDLE
             else:
                 self.trade_strategy.invest_risk = INVEST_RISK_LOW
@@ -2877,20 +2927,23 @@ class Stocks_info:
             self.trade_strategy.max_per = 80                                # PER가 이 값 이상이면 매수 금지            
             
             if self.trade_strategy.invest_risk == INVEST_RISK_HIGH:
-                self.trade_strategy.under_value = -30                       # 저평가가 이 값 미만은 매수 금지
-                self.trade_strategy.gap_max_sell_target_price_p = -10         # 목표가GAP 이 이 값 미만은 매수 금지
-                self.trade_strategy.sum_under_value_sell_target_gap = -30     # 저평가 + 목표가GAP 이 이 값 미만은 매수 금지
-                self.trade_strategy.buyable_market_cap = 5000               # 시총 X 미만 매수 금지(억)
+                self.trade_strategy.under_value = -5                       # 저평가가 이 값 미만은 매수 금지
+                self.trade_strategy.gap_max_sell_target_price_p = 0         # 목표가GAP 이 이 값 미만은 매수 금지
+                self.trade_strategy.sum_under_value_sell_target_gap = 0     # 저평가 + 목표가GAP 이 이 값 미만은 매수 금지
+                self.trade_strategy.buyable_market_cap = 10000               # 시총 X 미만 매수 금지(억)
+                self.trade_strategy.trend = TREND_SIDE                      # 추세선이 이거 이상이여야 매수          
             elif self.trade_strategy.invest_risk == INVEST_RISK_MIDDLE:
                 self.trade_strategy.under_value = 0
                 self.trade_strategy.gap_max_sell_target_price_p = 3
                 self.trade_strategy.sum_under_value_sell_target_gap = 5
                 self.trade_strategy.buyable_market_cap = 10000
+                self.trade_strategy.trend = TREND_SIDE
             else:   # INVEST_RISK_LOW
                 self.trade_strategy.under_value = 2
                 self.trade_strategy.gap_max_sell_target_price_p = 3
                 self.trade_strategy.sum_under_value_sell_target_gap = 8
-                self.trade_strategy.buyable_market_cap = 20000            
+                self.trade_strategy.buyable_market_cap = 20000    
+                self.trade_strategy.trend = TREND_UP
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -3181,3 +3234,31 @@ class Stocks_info:
             if result == False:
                 self.send_msg_err(msg)
             return envelope_p
+        
+    ##############################################################
+    # 주문가 문자열 리턴  
+    ##############################################################
+    def get_order_string(self, order_type):
+        result = True
+        msg = ""
+        try:
+            order_string = ""
+            if order_type == ORDER_TYPE_LIMIT_ORDER:
+                order_string = "지정가"
+            elif order_type == ORDER_TYPE_MARKET_ORDER:
+                order_string = "시장가"
+            elif order_type == ORDER_TYPE_MARKETABLE_LIMIT_ORDER:
+                order_string = "최유리지정가"
+            elif order_type == ORDER_TYPE_IMMEDIATE_ORDER:
+                order_string = "최우선지정가"
+            elif order_type == ORDER_TYPE_BEFORE_MARKET_ORDER:
+                order_string = "장전 시간외"
+            elif order_type == ORDER_TYPE_AFTER_MARKET_ORDER:
+                order_string = "장후 시간외"
+        except Exception as ex:
+            result = False
+            msg = "{}".format(traceback.format_exc())
+        finally:
+            if result == False:
+                self.send_msg_err(msg)
+            return order_string      
