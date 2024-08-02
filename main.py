@@ -90,9 +90,11 @@ def main():
         #     stocks_info.update_stocks_trade_info()
         #     stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
 
-        stocks_info.update_my_stocks()            # 보유 주식 업데이트
+        stocks_info.update_my_stocks()              # 보유 주식 업데이트
         stocks_info.show_stocks(False, SORT_BY_UNDER_VALUE)
-        stocks_info.get_stock_balance()        
+        stocks_info.get_stock_balance()
+
+        stocks_info.buyable_stocks_event.set()
         stocks_info.update_buyable_stocks()
         stocks_info.show_buyable_stocks()
 
@@ -114,8 +116,8 @@ def main():
                 if t_exit < t_now:  # 종료
                     PRINT_DEBUG(f"=== Exit loop {t_now} ===")
                     break
-                elif t_loss_cut < t_now:  # 종가 매매
-                    stocks_info.handle_loss_cut()   # todo 장중 손절?
+                elif stocks_info.trade_strategy.loss_cut_time == LOSS_CUT_MARKET_CLOSE and t_loss_cut < t_now:  # 종가 매매
+                    stocks_info.handle_loss_cut()
 
                 if t_market_end_order_check < t_now:
                     # 미체결 주문 없으면 종료
@@ -140,6 +142,11 @@ def main():
                     stocks_info.show_buyable_stocks()
                 elif t_now.minute % PERIODIC_PRINT_TIME_M == 1:
                     allow_periodic_print = True
+
+            # sub task 에서 wait 되지 않게
+            stocks_info.buy_done_event.set()
+            stocks_info.sell_done_event.set()
+            stocks_info.my_stocks_event.set()
 
             time.sleep(0.001)   # context switching between threads
         
