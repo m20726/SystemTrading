@@ -94,7 +94,6 @@ def main():
         stocks_info.show_stocks(False, SORT_BY_UNDER_VALUE)
         stocks_info.get_stock_balance()
 
-        stocks_info.buyable_stocks_event.set()
         stocks_info.update_buyable_stocks()
         stocks_info.show_buyable_stocks()
 
@@ -142,11 +141,6 @@ def main():
                     stocks_info.show_buyable_stocks()
                 elif t_now.minute % PERIODIC_PRINT_TIME_M == 1:
                     allow_periodic_print = True
-
-            # sub task 에서 wait 되지 않게
-            stocks_info.buy_done_event.set()
-            stocks_info.sell_done_event.set()
-            stocks_info.my_stocks_event.set()
 
             time.sleep(0.001)   # context switching between threads
         

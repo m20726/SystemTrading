@@ -165,13 +165,19 @@ class Stocks_info:
         # 매수 완료 시 handle_buy_stock 은 set_buy_done 완료까지 대기해야
         # 2차 매수 후 self.stocks[code]['buy_done'][1] = True 되기전에 
         # handle_buy_stock 가 실행 되어 추가로 매수되는거 방지할 수 있다
-        self.buy_done_event = threading.Event()
+        self.buy_done_lock = threading.Lock()
+
         # 매도 완료 시 handle_sell_stock 은 set_sell_done 완료까지 대기해야
-        self.sell_done_event = threading.Event()
+        self.sell_done_lock = threading.Lock()
+
         # self.my_stocks 를 for loop 으로 접근하는 동안 main thread 에서 update_my_stocks() 등으로 self.my_stocks 를 변경하면 오류 발생한다.
-        # 따라서 for loop 끝날 때까지 self.my_stocks 를 변경하지 못하도록 처리        
-        self.my_stocks_event = threading.Event()
-        self.buyable_stocks_event = threading.Event()
+        # 따라서 for loop 끝날 때까지 self.my_stocks 를 변경하지 못하도록 처리
+        self.my_stocks_lock = threading.Lock()
+
+        self.buyable_stocks_lock = threading.Lock()
+
+        self.before_trade_done_my_stock_count = 0       # 체결 전 보유 종목 수
+        self.after_trade_done_my_stock_count = 0        # 체결 후 보유 종목 수
         
 
     ##############################################################
@@ -543,6 +549,7 @@ class Stocks_info:
         result = True
         msg = ""
         try:
+            self.buy_done_lock.acquire()
             PRINT_INFO(f"[{self.stocks[code]['name']}] 매수가 {bought_price}원")
             if bought_price <= 0:
                 self.send_msg_err(f"[{self.stocks[code]['name']}] 매수가 오류 {bought_price}원")
@@ -590,7 +597,8 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg) 
+                self.send_msg_err(msg)
+            self.buy_done_lock.release()
 
     ##############################################################
     # 매도 완료 시 호출
@@ -603,6 +611,7 @@ class Stocks_info:
         result = True
         msg = ""
         try:
+            self.sell_done_lock.acquire()
             PRINT_INFO(f"[{self.stocks[code]['name']}] 매도가 {sold_price}원")
             if sold_price <= 0:
                 self.send_msg_err(f"[{self.stocks[code]['name']}] 매도가 오류 {sold_price}원")
@@ -632,7 +641,8 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg) 
+                self.send_msg_err(msg)
+            self.sell_done_lock.release()
 
     ##############################################################
     # 손절 완료 시 호출
@@ -1119,6 +1129,7 @@ class Stocks_info:
             res = requests.get(URL, headers=headers, params=params)
             if self.is_request_ok(res) == True:
                 stocks = res.json()['output1']
+                self.my_stocks_lock.acquire()
                 self.my_stocks.clear()
                 for stock in stocks:
                     if int(stock['hldg_qty']) > 0:
@@ -1147,7 +1158,7 @@ class Stocks_info:
         finally:
             if result == False:
                 self.send_msg_err(msg)
-            self.my_stocks_event.set()
+            self.my_stocks_lock.release()
             return result
 
     ##############################################################
@@ -1782,12 +1793,13 @@ class Stocks_info:
         result = True
         msg = ""
         try:
-            # check_ordered_stocks_trade_done 완료까지 handle_buy_stock 대기
-            self.buy_done_event.wait()
+            # set_buy_done 완료까지 handle_buy_stock 대기
+            self.buy_done_lock.acquire()
             # 매수 가능 종목내에서만 매수
             t_now = datetime.datetime.now()
             t_buy = t_now.replace(hour=15, minute=15, second=0, microsecond=0)
-            
+
+            self.buyable_stocks_lock.acquire()         
             for code in self.buyable_stocks.keys():
                 curr_price = self.get_curr_price(code)
                 if curr_price == 0:
@@ -1892,7 +1904,8 @@ class Stocks_info:
         finally:
             if result == False:
                 self.send_msg_err(msg)
-            self.buyable_stocks_event.set()
+            self.buy_done_lock.release()
+            self.buyable_stocks_lock.release()
 
     ##############################################################
     # 매도 처리
@@ -1901,11 +1914,11 @@ class Stocks_info:
         result = True
         msg = ""
         try:
-            # check_ordered_stocks_trade_done 완료까지 handle_sell_stock 대기
-            self.sell_done_event.wait()
+            # set_sell_done 완료까지 handle_sell_stock 대기
+            self.sell_done_lock.acquire()
             sell_margin = 1 + self.to_percent(SELL_MARGIN_P)
 
-            self.my_stocks_event.wait()
+            self.my_stocks_lock.acquire()
             for code in self.my_stocks.keys():
                 curr_price = self.get_curr_price(code)
                 if curr_price == 0:
@@ -1998,6 +2011,7 @@ class Stocks_info:
             
             # 장중 손절
             if self.trade_strategy.loss_cut_time == LOSS_CUT_MARKET_OPEN:
+                self.my_stocks_lock.release()
                 self.handle_loss_cut()
         except Exception as ex:
             result = False
@@ -2005,6 +2019,10 @@ class Stocks_info:
         finally:
             if result == False:
                 self.send_msg_err(msg)
+            self.sell_done_lock.release()
+            # handle_loss_cut() 호출되어 release 된 상태에서 또다시 release 되지 않게
+            if self.my_stocks_lock.acquire(blocking=False):
+                self.my_stocks_lock.release()
 
     ##############################################################
     # 주문 번호 리턴
@@ -2213,8 +2231,6 @@ class Stocks_info:
         result = True
         msg = ""
         try:
-            before_trade_done_my_stock_count = self.get_my_stock_count()
-            after_trade_done_my_stock_count = before_trade_done_my_stock_count
             is_trade_done = False
 
             order_list = self.get_order_list()
@@ -2239,27 +2255,25 @@ class Stocks_info:
                 else:
                     # 보유는 하지만 DB 에 없는 종목 제외 ex) 공모주
                     pass                       
-
-            # check_ordered_stocks_trade_done 완료까지 handle_sell_stock, handle_buy_stock는 대기
-            self.buy_done_event.set()
-            self.sell_done_event.set()
             
             # 여러 종목 체결되도 결과는 한 번만 출력
             if is_trade_done == True:
                 self.show_trade_done_stocks(BUY_CODE)
                 self.show_trade_done_stocks(SELL_CODE)
                 # 종목 체결로 종목 수 변경된 경우 관련 정보 업데이트
-                after_trade_done_my_stock_count = self.get_my_stock_count()
-                if before_trade_done_my_stock_count != after_trade_done_my_stock_count:
+                self.after_trade_done_my_stock_count = self.get_my_stock_count()
+                PRINT_INFO(f"체결전 보유 종목수({self.before_trade_done_my_stock_count}), 체결 후 보유 종목수({self.after_trade_done_my_stock_count})")
+                if self.before_trade_done_my_stock_count != self.after_trade_done_my_stock_count:
                     self.init_trade_strategy()
                     self.update_buyable_stocks()
+                    self.before_trade_done_my_stock_count = self.after_trade_done_my_stock_count
                 # 계좌 잔고 조회
                 self.get_stock_balance()
+            else:
+                self.before_trade_done_my_stock_count = self.get_my_stock_count()
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
-            self.buy_done_event.set() # exception 빠진 경우에 handle_buy_stock 대기되지 않게
-            self.sell_done_event.set() # exception 빠진 경우에 handle_sell_stock 대기되지 않게
         finally:
             if result == False:
                 self.send_msg_err(msg)
@@ -2619,12 +2633,17 @@ class Stocks_info:
         try:
             today = date.today()
             no_buy_days = 10
+            self.my_stocks_lock.acquire()
             for code in self.my_stocks.keys():
                 # PRINT_INFO(f"[{self.stocks[code]['name']}] 손절 체크")
                 # 손실 상태에서 x일간 지지부진하면 손절
                 # 오늘 > 최근 매수일 + x day, 즉 x 일 동안 매수 없고
                 # 1차 매도가 안됐고 last차 매수까지 안된 경우 손절
                 do_loss_cut = False
+
+                # thread 처리로 set_buy_done()에서 set 되기 전 오는 경우 skip
+                if self.stocks[code]['recent_buy_date'] == None:
+                    continue
 
                 recent_buy_date = date.fromisoformat(self.stocks[code]['recent_buy_date'])
                 if recent_buy_date == None:
@@ -2665,6 +2684,7 @@ class Stocks_info:
         finally:
             if result == False:
                 self.send_msg_err(msg)
+            self.my_stocks_lock.release()
             return ret
 
     ##############################################################
@@ -2718,8 +2738,9 @@ class Stocks_info:
                             PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 금지, buyable gap({gap_p})")
                 time.sleep(0.001)   # context switching between threads
 
-            # handle_buy_stock() 등에서 self.buyable_stocks 사용 중이면 사용 완료까지 대기
-            self.buyable_stocks_event.wait()
+            # handle_buy_stock() 등에서 for loop 으로 self.buyable_stocks 사용 중에 self.buyable_stocks 업데이트 금지
+            # 완료 후 업데이트 하도록 대기
+            self.buyable_stocks_lock.acquire()
             self.buyable_stocks.clear()
             self.buyable_stocks = copy.deepcopy(temp_buyable_stocks)
             
@@ -2735,7 +2756,8 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)            
+                self.send_msg_err(msg)
+            self.buyable_stocks_lock.release()
 
     ##############################################################
     # 매수 가능 종목 출력
@@ -2943,6 +2965,10 @@ class Stocks_info:
         result = True
         msg = ""
         try:
+            # TODO 폭락장 대응
+            # 지수가 5%이하 빠지면 보수적 대응(ex: envelope 증가, BUY RSI 감소)
+            # buy 멈추고 evenvelope 증가 -> 매수가 업데이트
+
             # 투자 전략은 보유 주식 수에 따라 자동으로 처리
             # 현재 보유 주식 수가 최대 보유 주식 수의
             # 1/3 이하 : high(공격적)
@@ -2953,7 +2979,10 @@ class Stocks_info:
             my_stock_count = self.get_my_stock_count()
 
             if my_stock_count <= MAX_MY_STOCK_COUNT * 1/3:
-                self.trade_strategy.invest_risk = INVEST_RISK_HIGH 
+                # self.trade_strategy.invest_risk = INVEST_RISK_HIGH
+             
+                # todo 폭락장이라 임시 처리
+                self.trade_strategy.invest_risk = INVEST_RISK_MIDDLE
             elif my_stock_count <= MAX_MY_STOCK_COUNT * 2/3:
                 self.trade_strategy.invest_risk = INVEST_RISK_MIDDLE
             else:
