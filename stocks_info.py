@@ -181,8 +181,9 @@ class Stocks_info:
 
         self.before_trade_done_my_stock_count = 0       # 체결 전 보유 종목 수
         self.after_trade_done_my_stock_count = 0        # 체결 후 보유 종목 수
+        self.my_stock_count = 0             # 보유 종목 수
 
-        self.old_market_profit = 0          # old 코스피 수익률
+        self.lowest_market_profit_p = 0          # 금일 최저 코스피 수익률
         
 
     ##############################################################
@@ -200,6 +201,7 @@ class Stocks_info:
             self.access_token = self.get_access_token()
             self.my_cash = self.get_my_cash()       # 보유 현금 세팅
             self.init_trade_done_order_list()
+            self.my_stock_count = self.get_my_stock_count()
             self.init_trade_strategy()                # 매매 전략 세팅
         except Exception as ex:
             result = False
@@ -481,6 +483,7 @@ class Stocks_info:
                 # 불타기
                 buy_margin = 1.02
 
+            self.buy_done_lock.acquire()
             # 1차 매수 안된 경우 envelope 기반으로 매수가 세팅
             if self.stocks[code]['buy_done'][0] == False:
                 envelope_p = self.to_percent(self.stocks[code]['envelope_p'])
@@ -511,6 +514,7 @@ class Stocks_info:
         finally:
             if result == False:
                 self.send_msg_err(msg)
+            self.buy_done_lock.release()
 
     ##############################################################
     # 매수 수량 세팅
@@ -2266,16 +2270,14 @@ class Stocks_info:
                 self.show_trade_done_stocks(BUY_CODE)
                 self.show_trade_done_stocks(SELL_CODE)
                 # 종목 체결로 종목 수 변경된 경우 관련 정보 업데이트
-                self.after_trade_done_my_stock_count = self.get_my_stock_count()
-                PRINT_INFO(f"체결전 보유 종목수({self.before_trade_done_my_stock_count}), 체결 후 보유 종목수({self.after_trade_done_my_stock_count})")
-                if self.before_trade_done_my_stock_count != self.after_trade_done_my_stock_count:
+                after_trade_done_my_stock_count = self.get_my_stock_count()
+                PRINT_INFO(f"체결전 보유 종목수({self.my_stock_count}), 체결 후 보유 종목수({after_trade_done_my_stock_count})")
+                if self.my_stock_count != after_trade_done_my_stock_count:
                     self.init_trade_strategy()
                     self.update_buyable_stocks()
-                    self.before_trade_done_my_stock_count = self.after_trade_done_my_stock_count
+                    self.my_stock_count = after_trade_done_my_stock_count
                 # 계좌 잔고 조회
                 self.get_stock_balance()
-            else:
-                self.before_trade_done_my_stock_count = self.get_my_stock_count()
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -2969,10 +2971,6 @@ class Stocks_info:
         result = True
         msg = ""
         try:
-            # TODO 폭락장 대응
-            # 지수가 5%이하 빠지면 보수적 대응(ex: envelope 증가, BUY RSI 감소)
-            # buy 멈추고 evenvelope 증가 -> 매수가 업데이트
-
             # 투자 전략은 보유 주식 수에 따라 자동으로 처리
             # 현재 보유 주식 수가 최대 보유 주식 수의
             # 1/3 이하 : high(공격적)
@@ -2980,14 +2978,12 @@ class Stocks_info:
             # 2/3 초과 : low(보수적)
             self.update_my_stocks()
 
-            my_stock_count = self.get_my_stock_count()
+            if self.my_stock_count == 0:
+                self.my_stock_count = self.get_my_stock_count()
 
-            if my_stock_count <= MAX_MY_STOCK_COUNT * 1/3:
-                # self.trade_strategy.invest_risk = INVEST_RISK_HIGH
-             
-                # todo 폭락장이라 임시 처리
-                self.trade_strategy.invest_risk = INVEST_RISK_MIDDLE
-            elif my_stock_count <= MAX_MY_STOCK_COUNT * 2/3:
+            if self.my_stock_count <= MAX_MY_STOCK_COUNT * 1/3:
+                self.trade_strategy.invest_risk = INVEST_RISK_HIGH
+            elif self.my_stock_count <= MAX_MY_STOCK_COUNT * 2/3:
                 self.trade_strategy.invest_risk = INVEST_RISK_MIDDLE
             else:
                 self.trade_strategy.invest_risk = INVEST_RISK_LOW
@@ -3301,9 +3297,7 @@ class Stocks_info:
         finally:
             if result == False:
                 self.send_msg_err(msg)
-            # temp 폭락장이라 임시로 +envelope
-            # return envelope_p
-            return (envelope_p + 6)
+            return envelope_p
         
     ##############################################################
     # 주문가 문자열 리턴  
@@ -3341,11 +3335,12 @@ class Stocks_info:
         result = True
         msg = ""
         try:
-            market_profit = self.get_market_profit()
-            if market_profit <= MARKET_CRASH_PROFIT_P and (self.old_market_profit - market_profit) >= 1:
-                # 시장이 -4%, -5%, -6%, ... 폭락 시 업데이트
-                self.update_stocks_trade_info_market_crash(market_profit)
-            self.old_market_profit = market_profit
+            market_profit_p = self.get_market_profit_p()
+            if market_profit_p <= MARKET_CRASH_PROFIT_P:
+                if market_profit_p < self.lowest_market_profit_p and abs(self.lowest_market_profit_p - market_profit_p) >= 1:
+                    # 시장이 -4%, -5%, -6%, ... 폭락 시 업데이트
+                    self.update_stocks_trade_info_market_crash(market_profit_p)
+                    self.lowest_market_profit_p = market_profit_p
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -3358,19 +3353,19 @@ class Stocks_info:
     # 금일 코스피 지수 수익률(%) 리턴
     #   단위 %, ex) 4% 는 4, 5.2% 는 5.2 리턴
     ##############################################################
-    def get_market_profit(self):
+    def get_market_profit_p(self):
         result = True
         msg = ""
-        market_profit = 0     # 퍼센트
+        market_profit_p = 0     # 퍼센트
         try:
-            market_profit = self.get_sector_data("0001", "BSTP_NMIX_PRDY_CTRT")
+            market_profit_p = self.get_sector_data("0001", "BSTP_NMIX_PRDY_CTRT")
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.send_msg_err(msg)
-            return market_profit
+            return market_profit_p
 
     ##############################################################
     # 국내 주식 업종 기간별 시세
@@ -3429,12 +3424,13 @@ class Stocks_info:
     #   envelope 증가 등으로 보수적으로 접근
     #   1차 매수가를 낮춘다
     # Parameter :
-    #       market_profit       금일 코스피지수 전일 대비율(수익률)
+    #       market_profit_p       금일 코스피지수 전일 대비율(수익률)
     ##############################################################
-    def update_stocks_trade_info_market_crash(self, market_profit):
+    def update_stocks_trade_info_market_crash(self, market_profit_p):     # 20240806 기준 약 2분 30초 소요
         result = True
         msg = ""
         try:
+            PRINT_INFO(F"지수 폭락{market_profit_p}% 으로 envelope 증가하여 1차 매수가 낮춘다")
             for code in self.stocks.keys():
                 # 1차 매수 안된 경우만 업데이트
                 if self.stocks[code]['buy_done'][0] == False:
@@ -3443,12 +3439,12 @@ class Stocks_info:
 
                     # envelope 증가 등으로 보수적으로 접근
                     # ex) 지수가 4% 폭락 시 4/2+1 = 3 을 envelope 증가
-                    self.stocks[code]['envelope_p'] = int(self.stocks[code]['envelope_p'] + (abs(market_profit) / 2 ) + 1)
+                    self.stocks[code]['envelope_p'] = int(self.stocks[code]['envelope_p'] + (abs(market_profit_p) / 2 ) + 1)
 
                     # 매수가 세팅
                     self.set_buy_price(code)
                     # 매수 수량 세팅
-                    self.set_buy_qty(code)
+                    self.set_buy_qty(code)                    
 
                 # 보유 주식 아닌 경우에 업데이트
                 if self.is_my_stock(code) == False:

@@ -124,7 +124,6 @@ def main():
                 
                 # thread start 는 한 번만 호출
                 if worker_thread.is_alive() == False:
-                    # start thread
                     worker_thread.start()
 
                 # 시장 폭락 시 좀 더 보수적으로 대응
