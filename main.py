@@ -49,7 +49,7 @@ def main():
             return
 
         stocks_info = Stocks_info()
-        stocks_info.initialize()        
+        stocks_info.initialize()
 
         # # stocks_info.json 에 추가
         # for code in stocks_info.stocks.keys():
@@ -106,8 +106,6 @@ def main():
         # thread 종료 이벤트 객체 생성
         stop_event = threading.Event()
         worker_thread = threading.Thread(target=buy_sell_task, args=(stocks_info, stop_event))
-        # start thread
-        worker_thread.start()
 
         while True:
             t_now = datetime.datetime.now()
@@ -128,6 +126,9 @@ def main():
                 if worker_thread.is_alive() == False:
                     # start thread
                     worker_thread.start()
+
+                # 시장 폭락 시 좀 더 보수적으로 대응
+                stocks_info.check_market_crash()
 
                 # 매수/매도 체결 여부
                 stocks_info.check_ordered_stocks_trade_done()

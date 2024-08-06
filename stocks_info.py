@@ -125,6 +125,9 @@ SORT_BY_UNDER_VALUE = 1
 
 LOSS_CUT_MARKET_OPEN = 0        # 장중 손절
 LOSS_CUT_MARKET_CLOSE = 1       # 종가 손절
+
+MARKET_CRASH_PROFIT_P = -4       # 주식 시장 폭락 기준% ex) -4 == -4%
+
 ##############################################################
 
 class Trade_strategy:
@@ -178,6 +181,8 @@ class Stocks_info:
 
         self.before_trade_done_my_stock_count = 0       # 체결 전 보유 종목 수
         self.after_trade_done_my_stock_count = 0        # 체결 후 보유 종목 수
+
+        self.old_market_profit = 0          # old 코스피 수익률
         
 
     ##############################################################
@@ -557,6 +562,7 @@ class Stocks_info:
             # 매수 완료됐으니 평단가, 목표가 업데이트
             self.update_my_stocks()
             
+            # 매수 완료됐으니 주문 완료 초기화하여 재주문 방지 가능하게
             self.stocks[code]['buy_order_done'] = False
             
             tot_buy_qty = 0
@@ -616,7 +622,9 @@ class Stocks_info:
             if sold_price <= 0:
                 self.send_msg_err(f"[{self.stocks[code]['name']}] 매도가 오류 {sold_price}원")
 
+            # 매도 완료됐으니 주문 완료 초기화하여 재주문 가능하게
             self.stocks[code]['sell_order_done'] = False
+
             if self.is_my_stock(code) == True:
                 if self.stocks[code]['sell_1_done'] == False:
                     # 1차 매도 완료 상태
@@ -1685,9 +1693,8 @@ class Stocks_info:
     #       price           매도 가격
     #       qty             매도 수량
     #       order_type      매도 타입(지정가, 최유리지정가,...)
-    #       do_sell         조건 안따지고 매도 경우 True, 조건 따지면 False
     ##############################################################
-    def sell(self, code: str, price: str, qty: str, order_type:str = ORDER_TYPE_LIMIT_ORDER, do_sell=False):
+    def sell(self, code: str, price: str, qty: str, order_type:str = ORDER_TYPE_LIMIT_ORDER):
         result = True
         msg = ""
         try:
@@ -1704,17 +1711,16 @@ class Stocks_info:
             if order_type != ORDER_TYPE_LIMIT_ORDER:
                 price = 0
 
-            if do_sell == False:
-                # 당일 매도 주문 완료 후 체결 안됐는데 또 매도 금지
-                if self.already_ordered(code, SELL_CODE) == True:
-                    PRINT_INFO(f"[{self.stocks[code]['name']}] 당일 매도 주문 완료 후 체결 안됐는데 또 매도 금지")
+            # 당일 매도 주문 완료 후 체결 안됐는데 또 매도 금지
+            if self.already_ordered(code, SELL_CODE) == True:
+                PRINT_INFO(f"[{self.stocks[code]['name']}] 당일 매도 주문 완료 후 체결 안됐는데 또 매도 금지")
+                return False
+            
+            # 시장가 주문은 조건 안따진다
+            if order_type != ORDER_TYPE_MARKET_ORDER:
+                if self.stocks[code]['allow_monitoring_sell'] == False:
+                    PRINT_INFO(f"[{self.stocks[code]['name']}]  allow_monitoring_sell == False sell 금지")
                     return False
-                
-                # 시장가 주문은 조건 안따진다
-                if order_type != ORDER_TYPE_MARKET_ORDER:
-                    if self.stocks[code]['allow_monitoring_sell'] == False:
-                        PRINT_INFO(f"[{self.stocks[code]['name']}]  allow_monitoring_sell == False sell 금지")
-                        return False
 
             # 주식 호가 단위로 가격 변경
             price = str(price)
@@ -1937,8 +1943,7 @@ class Stocks_info:
                             if curr_price < loss_cut_price:
                                 self.stocks[code]['allow_monitoring_sell'] = True
                                 stockholdings = self.stocks[code]['stockholdings']
-                                # 손절 주문 시 조건 안따지고 무조건 주문낸다
-                                if self.sell(code, curr_price, stockholdings, ORDER_TYPE_MARKET_ORDER, True) == True:
+                                if self.sell(code, curr_price, stockholdings, ORDER_TYPE_MARKET_ORDER) == True:
                                     PRINT_INFO(f"[{self.stocks[code]['name']}] 전날 종가 손절 안된 경우 손절 주문 성공, 현재가({curr_price}) < 손절가({loss_cut_price})")
                                     self.set_order_done(code, SELL_CODE)
                                     self.stocks[code]['loss_cut_order'] = True
@@ -2668,8 +2673,7 @@ class Stocks_info:
                     stockholdings = self.stocks[code]['stockholdings']
                     # 손절 주문 안된 경우만 주문
                     if self.stocks[code]['loss_cut_order'] == False:
-                        # 손절 주문 시 조건 안따지고 무조건 주문낸다
-                        if self.sell(code, curr_price, stockholdings, ORDER_TYPE_MARKET_ORDER, True) == True:
+                        if self.sell(code, curr_price, stockholdings, ORDER_TYPE_MARKET_ORDER) == True:
                             self.send_msg(f"[{self.stocks[code]['name']}] 손절 주문 성공, 현재가({curr_price}) < 손절가({loss_cut_price})")
                             self.set_order_done(code, SELL_CODE)
                             self.stocks[code]['loss_cut_order'] = True
@@ -3297,7 +3301,9 @@ class Stocks_info:
         finally:
             if result == False:
                 self.send_msg_err(msg)
-            return envelope_p
+            # temp 폭락장이라 임시로 +envelope
+            # return envelope_p
+            return (envelope_p + 6)
         
     ##############################################################
     # 주문가 문자열 리턴  
@@ -3325,4 +3331,134 @@ class Stocks_info:
         finally:
             if result == False:
                 self.send_msg_err(msg)
-            return order_string      
+            return order_string
+
+    ##############################################################
+    # 시장 폭락 시 처리
+    #   envelope 등을 증가시켜 매수가를 낮춘다
+    ##############################################################
+    def check_market_crash(self):
+        result = True
+        msg = ""
+        try:
+            market_profit = self.get_market_profit()
+            if market_profit <= MARKET_CRASH_PROFIT_P and (self.old_market_profit - market_profit) >= 1:
+                # 시장이 -4%, -5%, -6%, ... 폭락 시 업데이트
+                self.update_stocks_trade_info_market_crash(market_profit)
+            self.old_market_profit = market_profit
+        except Exception as ex:
+            result = False
+            msg = "{}".format(traceback.format_exc())
+        finally:
+            if result == False:
+                self.send_msg_err(msg)
+
+
+    ##############################################################
+    # 금일 코스피 지수 수익률(%) 리턴
+    #   단위 %, ex) 4% 는 4, 5.2% 는 5.2 리턴
+    ##############################################################
+    def get_market_profit(self):
+        result = True
+        msg = ""
+        market_profit = 0     # 퍼센트
+        try:
+            market_profit = self.get_sector_data("0001", "BSTP_NMIX_PRDY_CTRT")
+        except Exception as ex:
+            result = False
+            msg = "{}".format(traceback.format_exc())
+        finally:
+            if result == False:
+                self.send_msg_err(msg)
+            return market_profit
+
+    ##############################################################
+    # 국내 주식 업종 기간별 시세
+    #   return : 성공 시 요청한 시세, 실패 시 0 리턴
+    #   Parameter :
+    #       code            업종 코드 ex) KOSPI는 0001
+    #       type            요청 시세(업종 지수 전일 대비율, 전일 지수, 업종 지수 최고가 ...)
+    #       period          D : 일, W : 주, M : 월, Y : 년
+    ##############################################################
+    def get_sector_data(self, code:str, type:str, period="D"):
+        result = True
+        msg = ""
+        data = 0
+        try:
+            # 조회 종료 날짜(오늘) 구하기
+            end_day_ = datetime.datetime.today()
+            end_day = end_day_.strftime('%Y%m%d')
+            start_day = end_day
+
+            PATH = "uapi/domestic-stock/v1/quotations/inquire-daily-indexchartprice"
+            URL = f"{self.config['URL_BASE']}/{PATH}"
+            headers = {"Content-Type": "application/json",
+                    "authorization": f"Bearer {self.access_token}",
+                    "appKey": self.config['APP_KEY'],
+                    "appSecret": self.config['APP_SECRET'],
+                    "tr_id": "FHKUP03500100"}
+            params = {
+                "fid_cond_mrkt_div_code": "U",
+                "fid_input_iscd": code,
+                # 조회 시작일자 ex) 20220501
+                "fid_input_date_1": start_day,
+                # 조회 종료일자 ex) 20220530
+                "fid_input_date_2": end_day,
+                "fid_period_div_code": period
+            }
+
+            time.sleep(API_DELAY_S * 2) # to fix max retries exceeded
+            res = requests.get(URL, headers=headers, params=params)
+
+            type = type.lower()     # element 는 소문자로 해야 동작
+            if self.is_request_ok(res) == True:
+                data = float(res.json()['output1'][type])
+            else:
+                raise Exception(f"[get_sector_data failed]]{str(res.json())}")
+        except Exception as ex:
+            result = False
+            msg = "{}".format(traceback.format_exc())
+        finally:
+            if result == False:
+                msg = self.stocks[code]['name'] + " " + msg
+                self.send_msg_err(msg)
+            return data
+
+    ##############################################################
+    # 시장 폭락 시 처리
+    #   envelope 증가 등으로 보수적으로 접근
+    #   1차 매수가를 낮춘다
+    # Parameter :
+    #       market_profit       금일 코스피지수 전일 대비율(수익률)
+    ##############################################################
+    def update_stocks_trade_info_market_crash(self, market_profit):
+        result = True
+        msg = ""
+        try:
+            for code in self.stocks.keys():
+                # 1차 매수 안된 경우만 업데이트
+                if self.stocks[code]['buy_done'][0] == False:
+                    if self.stocks[code]['envelope_p'] <= 0:
+                        continue
+
+                    # envelope 증가 등으로 보수적으로 접근
+                    # ex) 지수가 4% 폭락 시 4/2+1 = 3 을 envelope 증가
+                    self.stocks[code]['envelope_p'] = int(self.stocks[code]['envelope_p'] + (abs(market_profit) / 2 ) + 1)
+
+                    # 매수가 세팅
+                    self.set_buy_price(code)
+                    # 매수 수량 세팅
+                    self.set_buy_qty(code)
+
+                # 보유 주식 아닌 경우에 업데이트
+                if self.is_my_stock(code) == False:
+                    # 평단가 = 1차 매수가
+                    self.stocks[code]['avg_buy_price'] = self.stocks[code]['buy_price'][0]
+                    # 목표가
+                    self.stocks[code]['sell_target_price'] = self.get_sell_target_price(code)
+        except Exception as ex:
+            result = False
+            msg = "{}".format(traceback.format_exc())
+        finally:
+            if result == False:
+                self.send_msg_err(msg)
