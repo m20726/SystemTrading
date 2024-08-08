@@ -156,8 +156,10 @@ def main():
         
         # 종료 이벤트 설정하여 thread 종료
         stop_event.set()
-        # thread 완료까지 대기
-        worker_thread.join()
+        
+        if worker_thread.is_alive():
+            # thread 완료까지 대기
+            worker_thread.join()
 
         PRINT_DEBUG("=== Program End ===")
     except Exception as ex:
