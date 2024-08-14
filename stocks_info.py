@@ -25,9 +25,9 @@ import threading
 #   목표가에 반 매도
 #   나머지는 익절가 이탈 시 전량 매도
 #   목표가 올려가며 남은 물량의 1/2 매도
-#      N차 매도가 : N-1차 매도가 * 1.03 (N>=2)
+#      N차 매도가 : N-1차 매도가 * 1.025 (N>=2)
 # 손절
-#   last차 매수가 - 5% 종가 이탈
+#   last차 매수가 - 5% 장중 이탈
 #   오늘 > 최근 매수일 + x days, 즉 x 일 동안 매수 없고
 #   1차 매도가 안됐고 last차 매수까지 안된 경우 손절
 
@@ -102,7 +102,11 @@ ORDER_TYPE_IMMEDIATE_ORDER = "04"           # 최우선지정가
 ORDER_TYPE_BEFORE_MARKET_ORDER = "05"       # 장전 시간외(08:20~08:40)
 ORDER_TYPE_AFTER_MARKET_ORDER = "06"        # 장후 시간외(15:30~16:00)
 
-API_DELAY_S = 0.07                          # 초당 API 20회 제한
+# 아래 mount 옵션 추가로 REST API 호출오류 이슈를 해결한 사례가 있어 공유드립니다. 
+# rs = requests.session()
+# rs.mount('https://', requests.adapters.HTTPAdapter(pool_connections=3, pool_maxsize=10, max_retries=3))
+# res = rs.get(URL, headers=headers, params=params)
+API_DELAY_S = 0.05                          # 실전 투자 계좌 : 초당 API 20회 제한, 모의 투자 계좌 초당 2회
 
 # 체결 미체결 구분 코드
 TRADE_ANY_CODE = "00"           # 체결 미체결 전체
@@ -813,8 +817,7 @@ class Stocks_info:
                 "fid_cond_mrkt_div_code": "J",
                 "fid_input_iscd": code,
             }
-            time.sleep(API_DELAY_S * 2) # to fix max retries exceeded
-            res = requests.get(URL, headers=headers, params=params)
+            res = self.requests_get(URL, headers, params)
             if self.is_request_ok(res) == True:
                 price = int(float(res.json()['output'][type]))
             else:
@@ -915,8 +918,8 @@ class Stocks_info:
                 "fid_cond_mrkt_div_code": "J",
                 "fid_input_iscd": code,
             }
-            time.sleep(API_DELAY_S)
-            res = requests.get(URL, headers=headers, params=params)
+            res = self.requests_get(URL, headers, params)
+
             total_stock_count = 0
             if self.is_request_ok(res) == True:
                 # 현재 PER
@@ -1142,8 +1145,7 @@ class Stocks_info:
                 "CTX_AREA_FK100": "",
                 "CTX_AREA_NK100": ""
             }
-            time.sleep(API_DELAY_S)
-            res = requests.get(URL, headers=headers, params=params)
+            res = self.requests_get(URL, headers, params)
             if self.is_request_ok(res) == True:
                 stocks = res.json()['output1']
                 self.my_stocks_lock.acquire()
@@ -1389,8 +1391,7 @@ class Stocks_info:
                 # Y : 년봉
                 "fid_period_div_code": period
             }
-            time.sleep(API_DELAY_S)
-            res = requests.get(URL, headers=headers, params=params)
+            res = self.requests_get(URL, headers, params)
             if self.is_request_ok(res) == False:
                 raise Exception(f"[get_ma_trend failed]]{str(res.json())}")
             
@@ -1545,8 +1546,7 @@ class Stocks_info:
                 "CTX_AREA_FK100": "",
                 "CTX_AREA_NK100": ""
             }
-            time.sleep(API_DELAY_S)
-            res = requests.get(URL, headers=headers, params=params)
+            res = self.requests_get(URL, headers, params)
             if self.is_request_ok(res) == False:
                 raise Exception(f"[get_stock_balance failed]]{str(res.json())}")
             stock_list = res.json()['output1']
@@ -1616,8 +1616,7 @@ class Stocks_info:
                 "CMA_EVLU_AMT_ICLD_YN": "Y",
                 "OVRS_ICLD_YN": "Y"
             }
-            time.sleep(API_DELAY_S)
-            res = requests.get(URL, headers=headers, params=params)
+            res = self.requests_get(URL, headers, params)
             if self.is_request_ok(res) == False:
                 raise Exception(f"[get_my_cash failed]]{str(res.json())}")
             cash = res.json()['output']['ord_psbl_cash']
@@ -2336,8 +2335,7 @@ class Stocks_info:
                 "CTX_AREA_FK100": "",
                 "CTX_AREA_NK100": ""
             }
-            time.sleep(API_DELAY_S)
-            res = requests.get(URL, headers=headers, params=params)
+            res = self.requests_get(URL, headers, params)
             if self.is_request_ok(res) == True:
                 order_list = res.json()['output1']
             else:
@@ -2485,7 +2483,6 @@ class Stocks_info:
                 sort_by_filed = 'undervalue'
                 reverse_value = True
 
-            # sorted_data = dict(sorted(temp_stocks.items(), key=lambda x: x[1]['undervalue'], reverse=True))
             sorted_data = dict(sorted(temp_stocks.items(), key=lambda x: x[1][sort_by_filed], reverse=reverse_value))
             data = {'종목명':[], '저평가':[], '목표가GAP':[], 'PER':[]}
             for code in sorted_data.keys():
@@ -2516,7 +2513,7 @@ class Stocks_info:
     def show_envelope(self, send_discode = False):
         result = True
         msg = ""
-        try:                
+        try:
             temp_stocks = copy.deepcopy(self.stocks)
             sorted_data = dict(sorted(temp_stocks.items(), key=lambda x: x[1]['undervalue'], reverse=True))
             data = {'종목명':[], 'code':[], 'envelope_p':[], 'sell_target_p':[]}
@@ -2953,8 +2950,7 @@ class Stocks_info:
                 "CTX_AREA_FK100": "",
                 "CTX_AREA_NK100": ""
             }
-            time.sleep(API_DELAY_S)
-            res = requests.get(URL, headers=headers, params=params)
+            res = self.requests_get(URL, headers, params)
             if self.is_request_ok(res) == True:
                 stocks = res.json()['output1']
                 for stock in stocks:
@@ -3409,8 +3405,7 @@ class Stocks_info:
                 "fid_period_div_code": period
             }
 
-            time.sleep(API_DELAY_S * 2) # to fix max retries exceeded
-            res = requests.get(URL, headers=headers, params=params)
+            res = self.requests_get(URL, headers, params)
 
             type = type.lower()     # element 는 소문자로 해야 동작
             if self.is_request_ok(res) == True:
@@ -3459,6 +3454,35 @@ class Stocks_info:
                     self.stocks[code]['avg_buy_price'] = self.stocks[code]['buy_price'][0]
                     # 목표가
                     self.stocks[code]['sell_target_price'] = self.get_sell_target_price(code)
+        except Exception as ex:
+            result = False
+            msg = "{}".format(traceback.format_exc())
+        finally:
+            if result == False:
+                self.send_msg_err(msg)
+
+    ##############################################################
+    # 서버에 get 요청 개선
+    #   REST API 호출 오류 해결
+    #   세션 객체는 요청 간에 쿠키나 연결 상태를 유지합니다. 
+    #   이를 통해 서버와의 지속적인 연결을 유지하고, 같은 서버로의 반복적인 요청을 효율적으로 처리할 수 있습니다.
+    #   여러 번의 요청을 할 때 더 효율적이며, 특히 쿠키를 유지해야 하거나 서버와의 연결을 재사용해야 하는 경우 유리합니다.
+    ##############################################################
+    def requests_get(self, URL, headers, params):
+        result = True
+        msg = ""
+        try:
+            time.sleep(API_DELAY_S)
+            # requests.Session()을 사용하여 세션 객체를 생성하고(rs), 그 세션을 통해 get 요청을 보내는 것입니다.
+            # 세션 객체는 요청 간에 쿠키나 연결 상태를 유지합니다. 이를 통해 서버와의 지속적인 연결을 유지하고, 
+            # 같은 서버로의 반복적인 요청을 효율적으로 처리할 수 있습니다.
+            rs = requests.session()
+            # HTTPAdapter를 통해 HTTP 연결 풀의 크기 및 재시도 횟수를 설정합니다
+            # pool_connections=3: 연결 풀에 최대 3개의 연결을 유지합니다.
+            # pool_maxsize=10: 이 세션을 통해 최대 10개의 연결을 동시에 처리할 수 있습니다
+            # max_retries=3: 요청이 실패했을 때 최대 3번 재시도합니다.
+            rs.mount('https://', requests.adapters.HTTPAdapter(pool_connections=3, pool_maxsize=10, max_retries=3))
+            return rs.get(URL, headers=headers, params=params)
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
