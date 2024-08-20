@@ -82,7 +82,7 @@ def main():
         # 종가 매매 위해 16:00 에 종료
         t_exit = t_now.replace(hour=16, minute=00, second=0,microsecond=0)
 
-        # 주식 정보 업데이트는 장 시작전에, 약 1시간 정도 걸림
+        # 주식 정보 업데이트는 장 전후
         if t_now < t_start or t_now > t_market_end_order_check:
             stocks_info.update_stocks_trade_info()
             stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
@@ -127,7 +127,13 @@ def main():
                     worker_thread.start()
 
                 # 시장 폭락 시 좀 더 보수적으로 대응
-                stocks_info.check_market_crash()
+                # 폭락에 가까울 때 자주 체크
+                if stocks_info.market_profit_p < (stocks_info.market_crash_profit_p/2):
+                    stocks_info.check_market_crash()
+                else:
+                    # 폭락 전에는 PERIODIC_PRINT_TIME_M 단위로 체크, 자주 체크할 필요 없다
+                    if t_now.minute % PERIODIC_PRINT_TIME_M == 0:
+                        stocks_info.check_market_crash()
 
                 # 매수/매도 체결 여부
                 stocks_info.check_ordered_stocks_trade_done()
