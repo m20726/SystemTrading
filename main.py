@@ -34,7 +34,7 @@ def buy_sell_task(stocks_info: Stocks_info, stop_event: threading.Event):
         msg = "{}".format(traceback.format_exc())
     finally:
         if result == False:
-            stocks_info.send_msg_err(msg)
+            stocks_info.SEND_MSG_ERR(msg)
 
 ##############################################################
 def main():
@@ -91,7 +91,7 @@ def main():
         #     stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
 
         stocks_info.update_my_stocks()              # 보유 주식 업데이트
-        stocks_info.show_stocks(False, SORT_BY_UNDER_VALUE)
+        stocks_info.show_stocks(False)
         stocks_info.get_stock_balance()
 
         stocks_info.update_buyable_stocks()
@@ -173,7 +173,7 @@ def main():
         msg = "{}".format(traceback.format_exc())
     finally:
         if result == False:
-            stocks_info.send_msg_err(msg)        
+            stocks_info.SEND_MSG_ERR(msg)        
         time.sleep(1)
 
 if __name__ == "__main__":

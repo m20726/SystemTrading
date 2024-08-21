@@ -228,7 +228,7 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
 
     ##############################################################
     # 전략 출력
@@ -260,9 +260,26 @@ class Stocks_info:
         PRINT_DEBUG('===============================')
 
     ##############################################################
-    # Print and send discode
+    # SEND_MSG_XXX
+    #   send msg macro
     ##############################################################
-    def send_msg(self, msg, send_discode:bool = False, err:bool = False):
+    def SEND_MSG_DEBUG(self, msg, send_discode:bool = False):
+        self.send_msg(msg, PRINT_LEVEL_DEBUG, send_discode, False)
+        
+    def SEND_MSG_INFO(self, msg, send_discode:bool = False):
+        self.send_msg(msg, PRINT_LEVEL_INFO, send_discode, False)
+        
+    def SEND_MSG_ERR(self, msg, send_discode:bool = True):
+        self.send_msg(msg, PRINT_LEVEL_ERROR, send_discode, True)
+
+    ##############################################################
+    # Print and send discode
+    # Parameter :
+    #       msg             출력 메세지
+    #       print_level     PRINT LEVEL(DEBUG, INFO, ERR)
+    #       send_discode    N차 매수 체결가, 0 인 경우    
+    ##############################################################
+    def send_msg(self, msg, print_level=PRINT_LEVEL_DEBUG, send_discode:bool = False, err:bool = False):
         result = True
         ex_msg = ""
         try:
@@ -291,9 +308,9 @@ class Stocks_info:
                     if response.status_code < 200 or response.status_code > 204:
                         PRINT_ERR(f'requests.post err {response.status_code}')
 
-            if err == True:
+            if print_level >= PRINT_LEVEL_ERROR or err == True:
                 PRINT_ERR(f"{msg}")
-            elif send_discode == True:
+            elif print_level == PRINT_LEVEL_INFO:
                 PRINT_INFO(f"{msg}")
             else:
                 PRINT_DEBUG(f"{msg}")
@@ -304,10 +321,7 @@ class Stocks_info:
             if result == False:
                 PRINT_ERR(ex_msg)
                 message = {"content": f"{ex_msg}"}
-                requests.post(self.config['DISCORD_WEBHOOK_URL'], data=message)                
-
-    def send_msg_err(self, msg):
-        self.send_msg(msg, True, True)
+                requests.post(self.config['DISCORD_WEBHOOK_URL'], data=message)
         
     ##############################################################
     # 네이버 증권 기업실적분석 정보 얻기
@@ -346,7 +360,7 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
 
     ##############################################################
     # 네이버 증권 기업실적분석 년도 가져오기
@@ -385,7 +399,7 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
 
     ##############################################################
     # requests 성공 여부
@@ -441,7 +455,7 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)        
+                self.SEND_MSG_ERR(msg)        
 
     ##############################################################
     # stocks 에서 code 에 해당하는 stock 리턴
@@ -450,7 +464,7 @@ class Stocks_info:
         try:
             return self.stocks[code]
         except KeyError:
-            self.send_msg_err(f'KeyError : {code} is not found')
+            self.SEND_MSG_ERR(f'KeyError : {code} is not found')
             return None
 
     ##############################################################
@@ -466,7 +480,7 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
 
     ##############################################################
     # stocks 정보를 stocks file 에 저장
@@ -481,7 +495,7 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
 
     ##############################################################
     # 매수가 세팅
@@ -532,7 +546,7 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
 
     ##############################################################
     # 매수 수량 세팅
@@ -561,7 +575,7 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
 
     ##############################################################
     # 매수 완료 시 호출
@@ -579,7 +593,7 @@ class Stocks_info:
             self.buy_done_lock.acquire()
             PRINT_INFO(f"[{self.stocks[code]['name']}] 매수가 {bought_price}원")
             if bought_price <= 0:
-                self.send_msg_err(f"[{self.stocks[code]['name']}] 매수가 오류 {bought_price}원")
+                self.SEND_MSG_ERR(f"[{self.stocks[code]['name']}] 매수가 오류 {bought_price}원")
 
             # 매수 완료됐으니 평단가, 목표가 업데이트
             self.update_my_stocks()
@@ -613,7 +627,7 @@ class Stocks_info:
                 # 최소 목표가
                 if self.stocks[code]['sell_target_p'] < 4:
                     self.stocks[code]['sell_target_p'] = 4
-            
+
             # 2차 매수(불타기) 후 손절가 업데이트
 
             # 다음 매수 조건 체크위해 allow_monitoring_buy 초기화
@@ -627,7 +641,7 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
             self.buy_done_lock.release()
 
     ##############################################################
@@ -644,7 +658,7 @@ class Stocks_info:
             self.sell_done_lock.acquire()
             PRINT_INFO(f"[{self.stocks[code]['name']}] 매도가 {sold_price}원")
             if sold_price <= 0:
-                self.send_msg_err(f"[{self.stocks[code]['name']}] 매도가 오류 {sold_price}원")
+                self.SEND_MSG_ERR(f"[{self.stocks[code]['name']}] 매도가 오류 {sold_price}원")
 
             # 매도 완료됐으니 주문 완료 초기화하여 재주문 가능하게
             self.stocks[code]['sell_order_done'] = False
@@ -655,7 +669,7 @@ class Stocks_info:
                     self.stocks[code]['sell_1_done'] = True
                 self.stocks[code]['recent_sold_price'] = sold_price
                 self.update_my_stocks()
-                self.send_msg(f"[{self.stocks[code]['name']}] 일부 매도", True)
+                self.SEND_MSG_INFO(f"[{self.stocks[code]['name']}] 일부 매도", True)
                 PRINT_INFO(f"[{self.stocks[code]['name']}] 다음 목표가 {self.stocks[code]['sell_target_price']}원")
             else:
                 # 전량 매도 상태는 보유 종목에 없는 상태
@@ -673,7 +687,7 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
             self.sell_done_lock.release()
 
     ##############################################################
@@ -694,7 +708,7 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg) 
+                self.SEND_MSG_ERR(msg) 
 
     ##############################################################
     # 매도 완료등으로 매수/매도 관려 정보 초기화 시 호출
@@ -733,7 +747,7 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
 
     ##############################################################
     # 목표가 = 평단가 * (1 + 목표%)
@@ -766,7 +780,7 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
             # 주식 호가 단위로 가격 변경
             return self.get_stock_asking_price(int(price))
 
@@ -830,7 +844,7 @@ class Stocks_info:
             }
             res = self.requests_get(URL, headers, params)
             if self.is_request_ok(res) == True:
-                price = int(float(res.json()['output'][type]))
+                price = float(res.json()['output'][type])
             else:
                 raise Exception(f"[get_price failed]]{str(res.json())}")
         except Exception as ex:
@@ -843,64 +857,61 @@ class Stocks_info:
                 if self.request_retry_count < MAX_REQUEST_RETRY_COUNT:
                     time.sleep(1)
                     self.request_retry_count = self.request_retry_count + 1
+                    PRINT_ERR(f"get_price failed retry count({self.request_retry_count})")
                     self.get_price(code, type)
                 else:
                     self.request_retry_count = 0
                     msg = self.stocks[code]['name'] + " " + msg
-                    self.send_msg_err(msg)
+                    self.SEND_MSG_ERR(msg)
             else:
                 self.request_retry_count = 0
-            return price
+            return int(price)
 
     ##############################################################
     # 매수가 리턴
     #   1차 매수, 2차 매수 상태에 따라 매수가 리턴
-    #   2차 매수까지 완료면 0 리턴
+    #   last차까지 매수 완료 경우 return 0
     ##############################################################
     def get_buy_target_price(self, code):
         result = True
         msg = ""
+        # last차까지 매수 완료 경우 return 0
+        buy_target_price = 0
         try:
-            # last차까지 매수 완료 경우
-            buy_target_price = 0
-
             for i in range(BUY_SPLIT_COUNT):
                 if self.stocks[code]['buy_done'][i] == False:
                     buy_target_price = self.stocks[code]['buy_price'][i]
                     break
-
-            return int(buy_target_price)
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
+            return self.get_stock_asking_price(int(buy_target_price))
 
     ##############################################################
     # 매수 수량 리턴
     #   1차 매수, 2차 매수 상태에 따라 매수 수량 리턴
-    #   2차 매수까지 완료면 0 리턴
+    #   last차까지 매수 완료 경우 return 0
     ##############################################################
     def get_buy_target_qty(self, code):
         result = True
         msg = ""
+        # last차까지 매수 완료 경우 return 0
+        buy_target_qty = 0
         try:
-            # last차까지 매수 완료 경우
-            buy_target_qty = 0
-
             for i in range(BUY_SPLIT_COUNT):
                 if self.stocks[code]['buy_done'][i] == False:
                     buy_target_qty = self.stocks[code]['buy_qty'][i]
                     break
-
-            return int(buy_target_qty)
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
+            return int(buy_target_qty)
 
     ##############################################################
     # 네이버 증권에서 특정 값 얻기
@@ -919,7 +930,8 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
+                return 0
 
     ##############################################################
     # 주식 투자 정보 업데이트(시가 총액, 상장 주식 수, 저평가, BPS, PER, EPS)
@@ -993,7 +1005,7 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
             return result
 
     ##############################################################
@@ -1068,7 +1080,7 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
 
     ##############################################################
     # 매수/매도 위한 주식 정보 업데이트
@@ -1133,7 +1145,7 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
 
     ##############################################################
     # 보유 주식 정보 업데이트
@@ -1188,7 +1200,6 @@ class Stocks_info:
                             self.my_stocks[code] = temp_stock[code]
                         else:
                             # 보유는 하지만 DB 에 없는 종목 제외 ex) 공모주
-                            # self.send_msg(f"DB 에 없는 종목({stock['prdt_name']})은 업데이트 skip")
                             pass
             else:
                 raise Exception(f"[계좌 조회 실패]{str(res.json())}")
@@ -1197,7 +1208,7 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
             self.my_stocks_lock.release()
             return result
 
@@ -1209,17 +1220,17 @@ class Stocks_info:
     def get_available_buy_stock_count(self):
         result = True
         msg = ""
+        ret = 0
         try:
-            ret = 0
             if INVEST_MONEY_PER_STOCK > 0:
                 ret = int(self.my_cash / INVEST_MONEY_PER_STOCK)
-            return ret
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
+            return ret
 
     ##############################################################
     # 보유 종목인지 체크
@@ -1237,7 +1248,8 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
+                return False
 
     ##############################################################
     # 매수 가능 종목인지 체크
@@ -1255,7 +1267,8 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
+                return False
 
     ##############################################################
     # 매수 여부 판단
@@ -1370,7 +1383,8 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
+                return False
 
     ##############################################################
     # 금일(index 0) 기준 100건의 종가 리스트 리턴
@@ -1424,7 +1438,7 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
             return end_price_list
 
     ##############################################################
@@ -1459,7 +1473,7 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
             return int(value_ma)
 
     ##############################################################
@@ -1472,23 +1486,21 @@ class Stocks_info:
     def get_end_price(self, code: str, past_day=0):
         result = True
         msg = ""
+        end_price = 0
         try:
-            end_price = 0
-
             if past_day > 99:
                 PRINT_INFO(f'can read over 99 data. make past_day to 99')
                 past_day = 99
                 
             end_price_list = self.get_end_price_list(code)
-            end_price = int(end_price_list[past_day])
-            return end_price   # 종가
+            end_price = end_price_list[past_day]
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
-                return end_price
+                self.SEND_MSG_ERR(msg)
+            return int(end_price)
 
     ##############################################################
     # 토큰 발급
@@ -1496,6 +1508,7 @@ class Stocks_info:
     def get_access_token(self):
         result = True
         msg = ""
+        ret = None
         try:            
             headers = {"content-type": "application/json"}
             body = {"grant_type": "client_credentials",
@@ -1505,13 +1518,14 @@ class Stocks_info:
             URL = f"{self.config['URL_BASE']}/{PATH}"
             time.sleep(API_DELAY_S)
             res = requests.post(URL, headers=headers, data=json.dumps(body))
-            return res.json()["access_token"]
+            ret = res.json()["access_token"]
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
+            return ret
 
     ##############################################################
     # 암호화
@@ -1519,6 +1533,7 @@ class Stocks_info:
     def hashkey(self, data):
         result = True
         msg = ""
+        ret = None
         try:
             PATH = "uapi/hashkey"
             URL = f"{self.config['URL_BASE']}/{PATH}"
@@ -1529,14 +1544,14 @@ class Stocks_info:
             }
             time.sleep(API_DELAY_S)
             res = requests.post(URL, headers=headers, data=json.dumps(data))
-            hashkey = res.json()["HASH"]
-            return hashkey
+            ret = res.json()["HASH"]
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
+            return ret
 
     ##############################################################
     # 주식 잔고조회
@@ -1544,6 +1559,7 @@ class Stocks_info:
     def get_stock_balance(self, send_discode:bool = False):
         result = True
         msg = ""
+        stock_list = []
         try:
             PATH = "uapi/domestic-stock/v1/trading/inquire-balance"
             URL = f"{self.config['URL_BASE']}/{PATH}"
@@ -1573,7 +1589,7 @@ class Stocks_info:
             stock_list = res.json()['output1']
             evaluation = res.json()['output2']
             data = {'종목명':[], '수익률(%)':[], '수량':[], '평가금액':[], '손익금액':[], '평단가':[], '현재가':[], '목표가':[], '손절가':[]}
-            self.send_msg(f"==========주식 보유잔고==========", send_discode)
+            self.SEND_MSG_INFO(f"==========주식 보유잔고==========", send_discode)
             for stock in stock_list:
                 if int(stock['hldg_qty']) > 0:
                     data['종목명'].append(stock['prdt_name'])
@@ -1598,18 +1614,17 @@ class Stocks_info:
             table.align = 'r'  # 우측 정렬
             for row in zip(*data.values()):
                 table.add_row(row)
-            self.send_msg(f"{table}", send_discode)
-            self.send_msg(f"주식 평가 금액: {evaluation[0]['scts_evlu_amt']}원", send_discode)
-            self.send_msg(f"평가 손익 합계: {evaluation[0]['evlu_pfls_smtl_amt']}원", send_discode)
-            self.send_msg(f"총 평가 금액: {evaluation[0]['tot_evlu_amt']}원", send_discode)            
-            return stock_list
+            self.SEND_MSG_INFO(f"{table}", send_discode)
+            self.SEND_MSG_INFO(f"주식 평가 금액: {evaluation[0]['scts_evlu_amt']}원", send_discode)
+            self.SEND_MSG_INFO(f"평가 손익 합계: {evaluation[0]['evlu_pfls_smtl_amt']}원", send_discode)
+            self.SEND_MSG_INFO(f"총 평가 금액: {evaluation[0]['tot_evlu_amt']}원", send_discode)            
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
-                return []
+                self.SEND_MSG_ERR(msg)
+            return stock_list
 
     ##############################################################
     # 현금 잔고 조회
@@ -1641,13 +1656,12 @@ class Stocks_info:
             if self.is_request_ok(res) == False:
                 raise Exception(f"[get_my_cash failed]]{str(res.json())}")
             cash = res.json()['output']['ord_psbl_cash']
-            # self.send_msg(f"주문 가능 현금 잔고: {cash}원")
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
             return int(cash)
 
     ##############################################################
@@ -1711,14 +1725,15 @@ class Stocks_info:
                 PRINT_INFO(f"[매수 주문 성공] [{self.stocks[code]['name']}] {price}원 {qty}주 {order_string}")
                 return True
             else:
-                self.send_msg_err(f"[매수 주문 실패] [{self.stocks[code]['name']}] {price}원 {qty}주 {order_string} {str(res.json())}")
+                self.SEND_MSG_ERR(f"[매수 주문 실패] [{self.stocks[code]['name']}] {price}원 {qty}주 {order_string} {str(res.json())}")
             return False
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
+                return False
 
     ##############################################################
     # 매도
@@ -1795,19 +1810,18 @@ class Stocks_info:
                 PRINT_INFO(f"[매도 주문 성공] [{self.stocks[code]['name']}] {price}원 {qty}주 {order_string}")
                 return True
             else:
-                self.send_msg_err(f"[매도 주문 실패] [{self.stocks[code]['name']}] {price}원 {qty}주 {order_string} {str(res.json())}")
+                self.SEND_MSG_ERR(f"[매도 주문 실패] [{self.stocks[code]['name']}] {price}원 {qty}주 {order_string} {str(res.json())}")
             return False
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
                 return False
 
     ##############################################################
     # 주문 성공 후 처리
-    #   return : 성공 시 True , 실패 시 False
     #   param :
     #       code            종목 코드
     #       buy_sell        "01" : 매도, "02" : 매수
@@ -1815,7 +1829,7 @@ class Stocks_info:
     def set_order_done(self, code, buy_sell):
         result = True
         msg = ""
-        try:           
+        try:
             PRINT_DEBUG(f"[{self.stocks[code]['name']}] {self.buy_sell_msg[buy_sell]}")
             if buy_sell == BUY_CODE:
                 self.stocks[code]['buy_order_done'] = True
@@ -1827,7 +1841,7 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
 
     ##############################################################
     # 매수 처리
@@ -1942,7 +1956,7 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
             self.buy_done_lock.release()
             self.buyable_stocks_lock.release()
 
@@ -1961,6 +1975,7 @@ class Stocks_info:
             for code in self.my_stocks.keys():
                 curr_price = self.get_curr_price(code)
                 if curr_price == 0:
+                    PRINT_ERR(f"[{self.stocks[code]['name']}] curr_price {curr_price}원")
                     continue
 
                 if self.trade_strategy.loss_cut_time == LOSS_CUT_MARKET_CLOSE:
@@ -1981,7 +1996,7 @@ class Stocks_info:
                                     PRINT_INFO(f"[{self.stocks[code]['name']}] 전날 종가 손절 안된 경우 손절 주문 성공, 현재가({curr_price}) < 손절가({loss_cut_price})")
                                     self.stocks[code]['loss_cut_order'] = True
                                 else:
-                                    self.send_msg_err(f"[{self.stocks[code]['name']}] 손절 주문 실패")
+                                    self.SEND_MSG_ERR(f"[{self.stocks[code]['name']}] 손절 주문 실패")
 
                 if self.stocks[code]['sell_1_done'] == False:
                     # 1차 매도 안된 상태
@@ -2059,7 +2074,7 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
             self.sell_done_lock.release()
             # handle_loss_cut() 호출되어 release 된 상태에서 또다시 release 되지 않게
             if self.my_stocks_lock.acquire(blocking=False):
@@ -2105,7 +2120,8 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
+                return False, ""
 
     ##############################################################
     # 주식 주문 전량 취소
@@ -2119,8 +2135,8 @@ class Stocks_info:
     def cancel_order(self, code, buy_sell: str):
         result = True
         msg = ""
+        ret = False
         try:            
-            ret = False
             result, order_num = self.get_order_num(code, buy_sell)
             if result == True:
                 PATH = "uapi/domestic-stock/v1/trading/order-rvsecncl"
@@ -2156,20 +2172,20 @@ class Stocks_info:
                     ret = True
                 else:
                     if self.config['TR_ID_MODIFY_CANCEL_ORDER'] == "VTTC0803U":
-                        self.send_msg_err(f"[주식 주문 전량 취소 주문 실패] [{self.stocks[code]['name']}] 모의 투자 미지원")
+                        self.SEND_MSG_ERR(f"[주식 주문 전량 취소 주문 실패] [{self.stocks[code]['name']}] 모의 투자 미지원")
                     else:
-                        self.send_msg_err(f"[주식 주문 전량 취소 주문 실패] [{self.stocks[code]['name']}] {str(res.json())}")
+                        self.SEND_MSG_ERR(f"[주식 주문 전량 취소 주문 실패] [{self.stocks[code]['name']}] {str(res.json())}")
                     ret = False
             else:
-                self.send_msg_err(f"[cancel_order failed] [{self.stocks[code]['name']}] {self.buy_sell_msg[buy_sell]}")
+                self.SEND_MSG_ERR(f"[cancel_order failed] [{self.stocks[code]['name']}] {self.buy_sell_msg[buy_sell]}")
                 ret = False            
-            return ret
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
+            return ret
 
     ##############################################################
     # 매수/매도 체결 여부 체크
@@ -2221,7 +2237,7 @@ class Stocks_info:
                                 gain_loss_money = (int(stock['avg_prvs']) - self.stocks[code]['avg_buy_price']) * int(stock['tot_ccld_qty'])
                                 if self.stocks[code]['avg_buy_price'] > 0:
                                     gain_loss_p = round(float((int(stock['avg_prvs']) - self.stocks[code]['avg_buy_price']) / self.stocks[code]['avg_buy_price']) * 100, 2)     # 소스 3째 자리에서 반올림                  
-                                    self.send_msg(f"[{self.stocks[code]['name']}] {stock['avg_prvs']}원 {tot_trade_qty}/{order_qty}주 {self.buy_sell_msg[buy_sell]} 전량 체결 완료, 손익:{gain_loss_money} {gain_loss_p}%", True)
+                                    self.SEND_MSG_INFO(f"[{self.stocks[code]['name']}] {stock['avg_prvs']}원 {tot_trade_qty}/{order_qty}주 {self.buy_sell_msg[buy_sell]} 전량 체결 완료, 손익:{gain_loss_money} {gain_loss_p}%", True)
                             else:
                                 # 체결 완료 체크한 주문은 다시 체크하지 않는다
                                 # while loop 에서 반복적으로 체크하는거 방지
@@ -2231,7 +2247,7 @@ class Stocks_info:
                                     if self.stocks[code]['buy_done'][i] == False:
                                         nth_buy = i + 1
                                         break
-                                self.send_msg(f"[{self.stocks[code]['name']}] {stock['avg_prvs']}원 {tot_trade_qty}/{order_qty}주 {nth_buy}차 {self.buy_sell_msg[buy_sell]} 전량 체결 완료", True)
+                                self.SEND_MSG_INFO(f"[{self.stocks[code]['name']}] {stock['avg_prvs']}원 {tot_trade_qty}/{order_qty}주 {nth_buy}차 {self.buy_sell_msg[buy_sell]} 전량 체결 완료", True)
 
                             return True, int(stock['avg_prvs'])
                         elif tot_trade_qty == 0:
@@ -2257,8 +2273,8 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
-                return result, 0
+                self.SEND_MSG_ERR(msg)
+                return False, 0
 
     ##############################################################
     # 체결 여부 체크
@@ -2281,7 +2297,7 @@ class Stocks_info:
                         # 평균 체결가
                         avg_price = int(stock['avg_prvs'])
                         if avg_price == 0:
-                            # self.send_msg_err(f"[{stock['prdt_name']}] 평균 체결가 오류 {avg_price} [{self.stocks[code]['name']}]")
+                            # self.SEND_MSG_ERR(f"[{stock['prdt_name']}] 평균 체결가 오류 {avg_price} [{self.stocks[code]['name']}]")
                             # check_trade_done 에서의 체결가로 사용
                             avg_price = trade_done_avg_price
 
@@ -2311,7 +2327,7 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
 
     ##############################################################
     # 주식 일별 주문 체결 조회 종목 정보 리턴
@@ -2359,7 +2375,7 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
             return order_list
 
     ##############################################################
@@ -2389,7 +2405,7 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
             return not_traded_stock_count
 
     ##############################################################
@@ -2451,7 +2467,7 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
 
     ##############################################################
     # 이미 주문한 종목인지 체크
@@ -2465,19 +2481,19 @@ class Stocks_info:
     def already_ordered(self, code, buy_sell: str):
         result = True
         msg = ""
+        ret = False
         try:
-            ret = False
             if buy_sell == BUY_CODE:
                 ret = self.stocks[code]['buy_order_done']
             else:
                 ret = self.stocks[code]['sell_order_done']
-            return ret
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
+            return ret
 
     ##############################################################
     # 종목 정보 출력
@@ -2513,13 +2529,16 @@ class Stocks_info:
             for row in zip(*data.values()):
                 table.add_row(row)
             
-            self.send_msg(table, send_discode)
+            if send_discode == False:
+                self.SEND_MSG_DEBUG(table, send_discode)
+            else:
+                self.SEND_MSG_INFO(table, send_discode)
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
 
     ##############################################################
     # 저평가 높은 순으로 출력
@@ -2544,13 +2563,13 @@ class Stocks_info:
             for row in zip(*data.values()):
                 table.add_row(row)
             
-            self.send_msg(table, send_discode)
+            self.SEND_MSG_INFO(table, send_discode)
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
 
     ##############################################################
     # stocks 변경있으면 save stocks_info.json
@@ -2567,13 +2586,13 @@ class Stocks_info:
                 pre_stocks.clear()
                 pre_stocks = copy.deepcopy(self.stocks)
 
-            return pre_stocks
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
+            return pre_stocks
 
     ##############################################################
     # 금일 매수/매도 체결 완료된 주문번호로 buy_done_order_list, sell_done_order_list 초기화
@@ -2598,14 +2617,14 @@ class Stocks_info:
                     elif stock['sll_buy_dvsn_cd'] == SELL_CODE:
                         self.sell_done_order_list.append(stock['odno'])
                     else:
-                        self.send_msg_err(f"{stock['prdt_name']} not support sll_buy_dvsn_cd {stock['sll_buy_dvsn_cd']}")
+                        self.SEND_MSG_ERR(f"{stock['prdt_name']} not support sll_buy_dvsn_cd {stock['sll_buy_dvsn_cd']}")
 
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
 
     ##############################################################
     # 손절가
@@ -2638,7 +2657,7 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
             # 주식 호가 단위로 가격 변경
             return self.get_stock_asking_price(int(price))
         
@@ -2698,7 +2717,7 @@ class Stocks_info:
                             PRINT_INFO(f"[{self.stocks[code]['name']}] 손절 주문 성공, 현재가({curr_price}) < 손절가({loss_cut_price})")
                             self.stocks[code]['loss_cut_order'] = True
                         else:
-                            self.send_msg_err(f"[{self.stocks[code]['name']}] 손절 주문 실패")
+                            self.SEND_MSG_ERR(f"[{self.stocks[code]['name']}] 손절 주문 실패")
 
                 if self.stocks[code]['loss_cut_order'] == True:
                     ret = True
@@ -2707,7 +2726,7 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
             self.my_stocks_lock.release()
             return ret
 
@@ -2725,7 +2744,7 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
 
     ##############################################################
     # 매수 가능 종목 업데이트
@@ -2742,6 +2761,7 @@ class Stocks_info:
                 if self.is_ok_to_buy(code, True):
                     curr_price = self.get_curr_price(code)
                     if curr_price == 0:
+                        PRINT_ERR(f"[{self.stocks[code]['name']}] curr_price {curr_price}원")
                         continue
                     buy_target_price = self.get_buy_target_price(code)
                     if buy_target_price > 0:
@@ -2780,7 +2800,7 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
             self.buyable_stocks_lock.release()
 
     ##############################################################
@@ -2836,7 +2856,7 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
 
     ##############################################################
     # 익절가 리턴
@@ -2854,7 +2874,7 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
             return int(price)
 
     ##############################################################
@@ -2881,7 +2901,7 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
  
     ##############################################################
     # 금일 기준 X 일 내 최고 종가 리턴
@@ -2905,7 +2925,7 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
             return highest_end_price
 
     ##############################################################
@@ -2931,7 +2951,7 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
             return int(price)
 
     ##############################################################
@@ -2977,7 +2997,7 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
             return my_stocks_count
 
     ##############################################################
@@ -3030,7 +3050,7 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
             self.print_strategy()
 
     ##############################################################
@@ -3115,7 +3135,7 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
                 return 0
 
     ##############################################################
@@ -3127,6 +3147,7 @@ class Stocks_info:
     def get_buy_rsi(self, code: str):
         result = True
         msg = ""
+        buy_rsi = 0
         try:
             buy_rsi = int(490 / self.stocks[code]['envelope_p'])
             market_cap = max(1, int(self.stocks[code]['market_cap'] / 10000))
@@ -3139,13 +3160,13 @@ class Stocks_info:
                 buy_rsi += min(6, market_cap)
             # 최소 buy_rsi
             buy_rsi = max(37, buy_rsi)
-            return buy_rsi
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
+            return buy_rsi
 
     ##############################################################
     # 이평선의 추세 리턴
@@ -3200,7 +3221,7 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
             return ma_trend
 
     ##############################################################
@@ -3243,7 +3264,7 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
             return ma_status
 
     ##############################################################
@@ -3262,7 +3283,7 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
             return self.get_stock_asking_price(int(price))
         
     ##############################################################
@@ -3271,9 +3292,8 @@ class Stocks_info:
     def get_envelope_p(self, code):
         result = True
         msg = ""
+        envelope_p = 20
         try:
-            envelope_p = 20
-
             # ex) 시총 >= 40조 면 10
             if self.stocks[code]['market_cap'] >= 200000:
                 envelope_p = 10
@@ -3313,7 +3333,7 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
             return envelope_p
         
     ##############################################################
@@ -3322,8 +3342,8 @@ class Stocks_info:
     def get_order_string(self, order_type):
         result = True
         msg = ""
+        order_string = ""
         try:
-            order_string = ""
             if order_type == ORDER_TYPE_LIMIT_ORDER:
                 order_string = "지정가"
             elif order_type == ORDER_TYPE_MARKET_ORDER:
@@ -3341,7 +3361,7 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
             return order_string
 
     ##############################################################
@@ -3363,7 +3383,7 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
 
 
     ##############################################################
@@ -3381,7 +3401,7 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
             return market_profit_p
 
     ##############################################################
@@ -3431,7 +3451,7 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
             return data
 
     ##############################################################
@@ -3441,11 +3461,11 @@ class Stocks_info:
     # Parameter :
     #       market_profit_p       금일 코스피지수 전일 대비율(수익률)
     ##############################################################
-    def update_stocks_trade_info_market_crash(self, market_profit_p):     # 20240806 기준 약 2분 30초 소요
+    def update_stocks_trade_info_market_crash(self, market_profit_p):
         result = True
         msg = ""
         try:
-            PRINT_INFO(F"지수 폭락{market_profit_p}% 으로 envelope 증가하여 1차 매수가 낮춘다")
+            PRINT_INFO(F"지수 폭락{market_profit_p}% 으로 envelope 증가시켜 1차 매수가 낮춘다")
             for code in self.stocks.keys():
                 # 1차 매수 안된 경우만 업데이트
                 if self.stocks[code]['buy_done'][0] == False:
@@ -3472,7 +3492,7 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
 
     ##############################################################
     # 서버에 get 요청 개선
@@ -3484,6 +3504,7 @@ class Stocks_info:
     def requests_get(self, URL, headers, params):
         result = True
         msg = ""
+        ret = None
         try:
             self.request_lock.acquire()
             time.sleep(API_DELAY_S)
@@ -3496,11 +3517,12 @@ class Stocks_info:
             # pool_maxsize=10: 이 세션을 통해 최대 10개의 연결을 동시에 처리할 수 있습니다
             # max_retries=3: 요청이 실패했을 때 최대 3번 재시도합니다.
             rs.mount('https://', requests.adapters.HTTPAdapter(pool_connections=3, pool_maxsize=10, max_retries=3))
-            return rs.get(URL, headers=headers, params=params)
+            ret = rs.get(URL, headers=headers, params=params)
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
-                self.send_msg_err(msg)
+                self.SEND_MSG_ERR(msg)
             self.request_lock.release()
+            return ret
