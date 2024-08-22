@@ -812,7 +812,7 @@ class Stocks_info:
                 if days > 99:
                     PRINT_INFO(f'can read over 99 data. make days to 99')
                     days = 99
-                lowest_price_list = self.get_price_list(code, "D", "stck_lwpr")
+                lowest_price_list = self.get_price_list(code, "D", "stck_lwpr", days)
                 lowest_lowest_price = min(lowest_price_list[:days])
         except Exception as ex:
             result = False
@@ -841,15 +841,12 @@ class Stocks_info:
         msg = ""
         end_price = 0
         try:
-            if past_day == 0:
-                end_price = self.get_price(code, 'stck_clpr')
-            else:            
-                if past_day > 99:
-                    PRINT_INFO(f'can read over 99 data. make past_day to 99')
-                    past_day = 99
-                    
-                end_price_list = self.get_price_list(code, "D", "stck_clpr")
-                end_price = end_price_list[past_day]
+            if past_day > 99:
+                PRINT_INFO(f'can read over 99 data. make past_day to 99')
+                past_day = 99
+                
+            end_price_list = self.get_price_list(code, "D", "stck_clpr", past_day+1)
+            end_price = end_price_list[past_day]
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -1468,7 +1465,7 @@ class Stocks_info:
                 return False
 
     ##############################################################
-    # 금일(index 0) 기준 100건의 종가 리스트 리턴
+    # 금일(index 0) 기준 X건의 type 가격 리스트 리턴
     # param :
     #   code            종목 코드
     #   period          D : 일, W : 주, M : 월, Y : 년
@@ -1476,8 +1473,9 @@ class Stocks_info:
     #                   종가 : stck_clpr
     #                   최저가 : stck_lwpr
     #                   최고가 : stck_hgpr
+    #   data_cnt        몇 건의 가격을 리턴할건가
     ##############################################################
-    def get_price_list(self, code: str, period="D", type="stck_clpr"):
+    def get_price_list(self, code: str, period="D", type="stck_clpr", data_cnt=100):
         result = True
         msg = ""
         end_price_list = []
@@ -1515,7 +1513,7 @@ class Stocks_info:
             if self.is_request_ok(res) == False:
                 raise Exception(f"[get_ma_trend failed]]{str(res.json())}")
             
-            for i in range(len(res.json()['output2'])):
+            for i in range(min(len(res.json()['output2']), data_cnt)):
                 end_price_list.append(int(res.json()['output2'][i][type]))   # 종가      # 최저가 stck_lwpr
 
         except Exception as ex:
@@ -2981,7 +2979,7 @@ class Stocks_info:
             elif days <= 0:
                 days = 1
 
-            end_price_list = self.get_price_list(code, "D", "stck_clpr")
+            end_price_list = self.get_price_list(code, "D", "stck_clpr", days)
             highest_end_price = max(end_price_list[:days])
         except Exception as ex:
             result = False
@@ -3528,7 +3526,7 @@ class Stocks_info:
         result = True
         msg = ""
         try:
-            PRINT_INFO(F"지수 폭락{market_profit_p}% 으로 envelope 증가시켜 1차 매수가 낮춘다")
+            PRINT_INFO(F"지수 폭락({market_profit_p}%)으로 envelope 증가시켜 1차 매수가 낮춘다")
             for code in self.stocks.keys():
                 # 1차 매수 안된 경우만 업데이트
                 if self.stocks[code]['buy_done'][0] == False:
