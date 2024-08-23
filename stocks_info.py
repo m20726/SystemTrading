@@ -104,10 +104,6 @@ ORDER_TYPE_IMMEDIATE_ORDER = "04"           # 최우선지정가
 ORDER_TYPE_BEFORE_MARKET_ORDER = "05"       # 장전 시간외(08:20~08:40)
 ORDER_TYPE_AFTER_MARKET_ORDER = "06"        # 장후 시간외(15:30~16:00)
 
-# 아래 mount 옵션 추가로 REST API 호출오류 이슈를 해결한 사례가 있어 공유드립니다. 
-# rs = requests.session()
-# rs.mount('https://', requests.adapters.HTTPAdapter(pool_connections=3, pool_maxsize=10, max_retries=3))
-# res = rs.get(URL, headers=headers, params=params)
 API_DELAY_S = 0.05                          # 실전 투자 계좌 : 초당 API 20회 제한, 모의 투자 계좌 초당 2회
 
 # 체결 미체결 구분 코드
@@ -854,7 +850,6 @@ class Stocks_info:
             if result == False:
                 self.SEND_MSG_ERR(msg)
             return int(end_price)
-            
 
     ##############################################################
     # 시가총액(market capitalization) 리턴
@@ -1646,7 +1641,6 @@ class Stocks_info:
             stock_list = res.json()['output1']
             evaluation = res.json()['output2']
             data = {'종목명':[], '수익률(%)':[], '수량':[], '평가금액':[], '손익금액':[], '평단가':[], '현재가':[], '목표가':[], '손절가':[]}
-            self.SEND_MSG_INFO(f"==========주식 보유잔고==========", send_discode)
             for stock in stock_list:
                 if int(stock['hldg_qty']) > 0:
                     data['종목명'].append(stock['prdt_name'])
@@ -1671,6 +1665,8 @@ class Stocks_info:
             table.align = 'r'  # 우측 정렬
             for row in zip(*data.values()):
                 table.add_row(row)
+
+            table = "\n==========주식 보유잔고==========\n" + str(table)
             self.SEND_MSG_INFO(f"{table}", send_discode)
             self.SEND_MSG_INFO(f"주식 평가 금액: {evaluation[0]['scts_evlu_amt']}원", send_discode)
             self.SEND_MSG_INFO(f"평가 손익 합계: {evaluation[0]['evlu_pfls_smtl_amt']}원", send_discode)
@@ -2484,7 +2480,7 @@ class Stocks_info:
             if len(order_list) == 0:
                 return None
 
-            PRINT_DEBUG(f"========={self.buy_sell_msg[buy_sell]} 체결 조회=========")
+            # PRINT_DEBUG(f"========={self.buy_sell_msg[buy_sell]} 체결 조회=========")
             for stock in order_list:
                 if int(stock['tot_ccld_qty']) > 0:
                     code = stock['pdno']
@@ -2517,6 +2513,8 @@ class Stocks_info:
             table.align = 'r'  # 우측 정렬
             for row in zip(*data.values()):
                 table.add_row(row)
+
+            table = f"\n========={self.buy_sell_msg[buy_sell]} 체결 조회=========" + str(table)
             PRINT_DEBUG(table)
             return None
         except Exception as ex:
@@ -2585,7 +2583,8 @@ class Stocks_info:
             table.align = 'c'  # 가운데 정렬
             for row in zip(*data.values()):
                 table.add_row(row)
-            
+
+            table = "\n" + str(table)
             if send_discode == False:
                 self.SEND_MSG_DEBUG(table, send_discode)
             else:
@@ -2620,6 +2619,7 @@ class Stocks_info:
             for row in zip(*data.values()):
                 table.add_row(row)
             
+            table = "\n" + str(table)
             self.SEND_MSG_INFO(table, send_discode)
         except Exception as ex:
             result = False
@@ -2906,7 +2906,7 @@ class Stocks_info:
             for row in zip(*data.values()):
                 table.add_row(row)
             
-            PRINT_DEBUG("==========매수 가능 종목==========")
+            table = "\n==========매수 가능 종목==========\n" + str(table)
             PRINT_DEBUG(table)
         except Exception as ex:
             result = False
