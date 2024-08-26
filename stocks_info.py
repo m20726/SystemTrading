@@ -287,10 +287,7 @@ class Stocks_info:
 
             # 메세지 실행 func, line 출력
             f = inspect.currentframe()
-            if send_discode == True and err == True:
-                i = inspect.getframeinfo(f.f_back.f_back)
-            else:
-                i = inspect.getframeinfo(f.f_back)
+            i = inspect.getframeinfo(f.f_back.f_back)
             msg = '[' + i.function + '] [' + str(i.lineno) + '] ' + msg
 
             if send_discode == True:
