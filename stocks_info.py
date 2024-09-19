@@ -792,7 +792,7 @@ class Stocks_info:
     #   code        종목 코드
     #   days        X 일
     #               ex) 1 : 금일 최저가
-    #                   21 : 금일 기준 21일 내(영업일 기준 약 한 달)
+    #                   22 : 금일 기준 22일 내(영업일 기준 약 한 달)
     ##############################################################
     def get_lowest_pirce(self, code, days=1):
         result = True
@@ -1320,7 +1320,7 @@ class Stocks_info:
             first_buy_price = self.stocks[code]['buy_price'][0]
 
             # 최근 한달 내 최저가
-            lowest_lowest_price = self.get_lowest_pirce(code, 21)
+            lowest_lowest_price = self.get_lowest_pirce(code, 22)
 
             if first_buy_price >= lowest_lowest_price:
                 ret = False
@@ -1379,13 +1379,13 @@ class Stocks_info:
             # 저평가 조건(X미만 매수 금지)
             if self.stocks[code]['undervalue'] < self.trade_strategy.under_value:
                 if print_msg:
-                    PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 저평가 조건")                  
+                    PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 저평가 조건({self.stocks[code]['undervalue']})")                  
                 return False
             
             # 목표 주가 GAP = (목표 주가 - 목표가) / 목표가 < X% 미만 매수 금지
             if self.stocks[code]['gap_max_sell_target_price_p'] < self.trade_strategy.gap_max_sell_target_price_p:
                 if print_msg:
-                    PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 목표 주가 GAP")                 
+                    PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 목표 주가 GAP({self.stocks[code]['gap_max_sell_target_price_p']})")                 
                 return False
 
             # 저평가 + 목표가GAP < X 미만 매수 금지
@@ -1397,13 +1397,13 @@ class Stocks_info:
             # PER 매수 금지
             if self.stocks[code]['PER'] < 0 or self.stocks[code]['PER'] >= self.trade_strategy.max_per or self.stocks[code]['PER_E'] < 0:
                 if print_msg:
-                    PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, PER")
+                    PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, PER({self.stocks[code]['PER']})")
                 return False
             
             # EPS_E 매수 금지
             if self.stocks[code]['EPS_E'] < 0:
                 if print_msg:
-                    PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, EPS_E")                
+                    PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, EPS_E({self.stocks[code]['EPS_E']})")                
                 return False
 
             # 보유현금에 맞게 종목개수 매수
@@ -1418,7 +1418,7 @@ class Stocks_info:
                 # 어제 종가 <= 어제 20ma 상태면 매수 금지
                 if self.stocks[code]['end_price_higher_than_20ma_after_sold'] == False:
                     if print_msg:
-                        PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 매도 후 종가 > 20ma 체크")                       
+                        PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 매도 후 종가 <= 20이평선")                       
                     return False
             else:
                 pass
@@ -1426,7 +1426,7 @@ class Stocks_info:
             # 시총 체크
             if self.stocks[code]['market_cap'] < self.trade_strategy.buyable_market_cap:
                 if print_msg:
-                    PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 시총 체크")                 
+                    PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 시총({self.stocks[code]['market_cap']}억)")                 
                 return False
 
             # 이평선 정배열 체크는 공격적 전략이 아닐 때
@@ -1937,7 +1937,7 @@ class Stocks_info:
                         # buy 모니터링 중
                         # "현재가 >= 저가 + BUY_MARGIN_P%" 에서 매수
                         # "15:15" 까지 매수 안됐고 "현재가 <= 매수가"면 매수
-                        lowest_price = self.get_lowest_price(code)
+                        lowest_price = self.get_price(code, 'stck_lwpr')
                         buy_margin = 1 + self.to_percent(BUY_MARGIN_P)
                         if ((lowest_price > 0) and curr_price >= (lowest_price * buy_margin)) \
                             or (t_now >= t_buy and curr_price <= buy_target_price):
@@ -1973,7 +1973,7 @@ class Stocks_info:
                             # buy 모니터링 중
                             # "현재가 >= 저가 + BUY_MARGIN_P%" 에서 매수
                             # "15:15" 까지 매수 안됐고 "현재가 <= 매수가"면 매수
-                            lowest_price = self.get_lowest_price(code)
+                            lowest_price = self.get_price(code, 'stck_lwpr')
                             buy_margin = 1 + self.to_percent(BUY_MARGIN_P)
                             if ((lowest_price > 0) and curr_price >= (lowest_price * buy_margin)) \
                                 or (t_now >= t_buy and curr_price <= buy_target_price):
@@ -2963,9 +2963,9 @@ class Stocks_info:
     #   code        종목 코드
     #   days        X 일
     #               ex) 1 : 금일 종가
-    #                   21 : 금일 기준 21일 내(영업일 기준 약 한 달)    
+    #                   22 : 금일 기준 22 내(영업일 기준 약 한 달)    
     ##############################################################
-    def get_highest_end_pirce(self, code, days=21):
+    def get_highest_end_pirce(self, code, days=22):
         result = True
         msg = ""
         highest_end_price = 0
@@ -3000,7 +3000,7 @@ class Stocks_info:
         try:
             price = 0
             # 한 달은 약 21일
-            highest_end_price = self.get_highest_end_pirce(code, 21)
+            highest_end_price = self.get_highest_end_pirce(code, 22)
             # 최고 종가에서 최소 X% 폭락 가격
             margine_p = self.to_percent(max(18, self.stocks[code]['envelope_p'] * 1.5))
             price = highest_end_price * (1 - margine_p)
@@ -3213,9 +3213,9 @@ class Stocks_info:
             if self.stocks[code]['ma_trend'] == TREND_UP:
                 # 조단위 시총
                 # 시총에 따라 buy rsi 변경
-                buy_rsi += min(8, market_cap*2)
+                buy_rsi += min(6, market_cap*2)
             elif self.stocks[code]['ma_trend'] == TREND_SIDE:
-                buy_rsi += min(6, market_cap)
+                buy_rsi += min(4, market_cap)
             # 최소 buy_rsi
             buy_rsi = max(37, buy_rsi)
         except Exception as ex:
