@@ -1436,16 +1436,10 @@ class Stocks_info:
                     PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 시총({self.stocks[code]['market_cap']}억)")                 
                 return False
 
-            # 20,60 정배열 체크
-            if self.get_multi_ma_status(code, [20,60]) != MA_STATUS_POSITIVE:
+            # 20,60,90 정배열 체크
+            if self.get_multi_ma_status(code, [20,60, 90]) != MA_STATUS_POSITIVE:
                 if print_msg:
-                    PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 20,60 이평선 정배열 아님")
-                return False
-            
-            # 60,90 정배열 체크
-            if self.get_multi_ma_status(code, [60,90]) != MA_STATUS_POSITIVE:
-                if print_msg:
-                    PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 60,90 이평선 정배열 아님")
+                    PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 20,60,90 이평선 정배열 아님")
                 return False
             
             # 60일선 추세 체크
@@ -1920,7 +1914,7 @@ class Stocks_info:
             # 매수 가능 종목내에서만 매수
             self.buyable_stocks_lock.acquire()         
             for code in self.buyable_stocks.keys():
-                # temp 삼성전자 제외
+                #TODO: temp 삼성전자 제외
                 if code == "005930":
                     continue
                 
@@ -2020,7 +2014,7 @@ class Stocks_info:
 
             self.my_stocks_lock.acquire()
             for code in self.my_stocks.keys():
-                # temp 삼성전자 제외
+                #TODO: temp 삼성전자 제외
                 if code == "005930":
                     continue
 
