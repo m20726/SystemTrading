@@ -19,15 +19,19 @@ import threading
 #                           전략                             #
 ##############################################################
 # 매수
-#   1차 매수 : envelope 지지, 트레일링스탑 매수
-#   2차 매수 : 불타기, 상승 추세면서 1차 매수가에서 2% 이상 상승 시
+#   1차 매수
+#       1. 60 상승 추세, 기울기2%
+#       2. 20,60,90 정배열
+#       3. Envel 7 이상 & 90일선 이하에서 트레일링스탑 1차 매수
+#       기타 매수 조건 완화
+#   2차 매수 : 물타기 1차 매수 -10%
 # 매도
 #   목표가에 반 매도
-#   나머지는 익절가 이탈 시 전량 매도
-#   목표가 올려가며 남은 물량의 1/2 매도
-#      N차 매도가 : N-1차 매도가 * 1.025 (N>=2)
+#   나머지는 익절가 이탈 시 전량 매도 or 20일선, 한달내 최고 종가
+#       목표가 올려가며 남은 물량의 1/2 매도
+#       N차 매도가 : N-1차 매도가 * 1.025 (N>=2)
 # 손절
-#   last차 매수가 -4% 장중 이탈
+#   last차 매수가 -5% 장중 이탈
 #   오늘 > 최근 매수일 + x days, 즉 x 일 동안 매수 없고
 #   1차 매도가 안됐고 last차 매수까지 안된 경우 손절
 
@@ -51,8 +55,7 @@ INVEST_RISK_LOW = 0
 INVEST_RISK_MIDDLE = 1
 INVEST_RISK_HIGH = 2
 
-LOSS_CUT_P = 4                              # x% 이탈 시 손절
-#TODO: 4%? LOSS_CUT_P? (LOSS_CUT_P + 1)?
+LOSS_CUT_P = 5                              # x% 이탈 시 손절
 SELL_TARGET_P = 5                           # 1차 매도 목표가 %
 MIN_SELL_TARGET_P = 4                       # 최소 목표가 %
 
@@ -72,7 +75,7 @@ else:
 
 # "현재가 - 매수가 GAP" 이 X% 미만 경우만 매수 가능 종목으로 처리
 # GAP 이 클수록 종목이 많아 실시간 처리가 느려진다
-BUYABLE_GAP = 9
+BUYABLE_GAP = 10
 BUYABLE_COUNT = 30                          # 상위 몇개 종목까지 매수 가능 종목으로 유지
 
 # 빠른 익절 전략
@@ -145,7 +148,7 @@ class Trade_strategy:
         self.sum_under_value_sell_target_gap = 0                # 저평가 + 목표가GAP 이 이 값 미만은 매수 금지
         self.max_per = 0                                        # PER가 이 값 이상이면 매수 금지
         self.buyable_market_cap = 20000                         # 시총 X 미만 매수 금지(억)
-        self.buy_split_strategy = BUY_SPLIT_STRATEGY_UP         # 2차 분할 매수 전략(물타기, 불타기)
+        self.buy_split_strategy = BUY_SPLIT_STRATEGY_DOWN       # 2차 분할 매수 전략(물타기, 불타기)
         self.take_profit_strategy = TAKE_PROFIT_STRATEGY_SLOW   # 익절 전략
         self.buy_trailing_stop = True                           # 매수 시 트레일링 스탑으로 할지
         self.sell_trailing_stop = False                         # 매도 시 트레일링 스탑으로 할지
@@ -517,8 +520,11 @@ class Stocks_info:
                 envelope_p = self.to_percent(self.stocks[code]['envelope_p'])
                 envelope_support_line = self.stocks[code]['yesterday_20ma'] * (1 - envelope_p)
 
-                # 1차 매수가는 단기간에 급락한 가격 이하여야한다.
-                self.stocks[code]['buy_price'][0] = min(int(envelope_support_line * MARGIN_20MA), self.get_plunge_price(code))
+                # # 1차 매수가는 단기간에 급락한 가격 이하여야한다.
+                # self.stocks[code]['buy_price'][0] = min(int(envelope_support_line * MARGIN_20MA), self.get_plunge_price(code))
+
+                # 1차 매수가는 min(envelope 가격, 90일선)
+                self.stocks[code]['buy_price'][0] = min(int(envelope_support_line * MARGIN_20MA), self.get_ma(code, 90))
 
                 # 1 ~ (BUY_SPLIT_COUNT-1)
                 for i in range(1, BUY_SPLIT_COUNT):
@@ -1135,6 +1141,7 @@ class Stocks_info:
                 past_day = 1        # 어제 기준
 
             for code in self.stocks.keys():
+                PRINT_DEBUG(f"[{self.stocks[code]['name']}]")
                 # 순서 변경 금지
                 # ex) 목표가를 구하기 위해선 평단가가 먼저 있어야한다
                 # 시가 총액
@@ -1394,17 +1401,17 @@ class Stocks_info:
                     PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 저평가 + 목표가GAP < {self.trade_strategy.sum_under_value_sell_target_gap}")
                 return False
             
-            # PER 매수 금지
-            if self.stocks[code]['PER'] < 0 or self.stocks[code]['PER'] >= self.trade_strategy.max_per or self.stocks[code]['PER_E'] < 0:
-                if print_msg:
-                    PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, PER({self.stocks[code]['PER']})")
-                return False
+            # # PER 매수 금지
+            # if self.stocks[code]['PER'] < 0 or self.stocks[code]['PER'] >= self.trade_strategy.max_per or self.stocks[code]['PER_E'] < 0:
+            #     if print_msg:
+            #         PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, PER({self.stocks[code]['PER']})")
+            #     return False
             
-            # EPS_E 매수 금지
-            if self.stocks[code]['EPS_E'] < 0:
-                if print_msg:
-                    PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, EPS_E({self.stocks[code]['EPS_E']})")                
-                return False
+            # # EPS_E 매수 금지
+            # if self.stocks[code]['EPS_E'] < 0:
+            #     if print_msg:
+            #         PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, EPS_E({self.stocks[code]['EPS_E']})")                
+            #     return False
 
             # 보유현금에 맞게 종목개수 매수
             #   ex) 총 보유금액이 300만원이고 종목당 총 100만원 매수 시 총 2종목 매수
@@ -1429,23 +1436,28 @@ class Stocks_info:
                     PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 시총({self.stocks[code]['market_cap']}억)")                 
                 return False
 
-            # 이평선 정배열 체크는 공격적 전략이 아닐 때
-            if self.trade_strategy.invest_risk != INVEST_RISK_HIGH:
-                if self.get_multi_ma_status(code, [60,90]) != MA_STATUS_POSITIVE:
-                    if print_msg:
-                        PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 이평선 정배열 아님")
-                    return False
+            # 20,60 정배열 체크
+            if self.get_multi_ma_status(code, [20,60]) != MA_STATUS_POSITIVE:
+                if print_msg:
+                    PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 20,60 이평선 정배열 아님")
+                return False
             
-            # 하락 추세는 매수 금지
+            # 60,90 정배열 체크
+            if self.get_multi_ma_status(code, [60,90]) != MA_STATUS_POSITIVE:
+                if print_msg:
+                    PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 60,90 이평선 정배열 아님")
+                return False
+            
+            # 60일선 추세 체크
             if self.stocks[code]['ma_trend'] < self.trade_strategy.trend:
-                PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 하락 추세")
+                PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 60일선 추세 체크")
                 return False
             
-            # "1차 매수가 >= 최근 한달 내 최저가" 면 매수 금지
-            # ex) 20240820 삼양식품 매수 금지
-            if self.is_ok_to_buy_first_buy_price(code) == False:
-                PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 1차 매수가 >= 최근 한달 내 최저가")
-                return False
+            # # "1차 매수가 >= 최근 한달 내 최저가" 면 매수 금지
+            # # ex) 20240820 삼양식품 매수 금지
+            # if self.is_ok_to_buy_first_buy_price(code) == False:
+            #     PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 1차 매수가 >= 최근 한달 내 최저가")
+            #     return False
 
             return True
         except Exception as ex:
@@ -1908,6 +1920,10 @@ class Stocks_info:
             # 매수 가능 종목내에서만 매수
             self.buyable_stocks_lock.acquire()         
             for code in self.buyable_stocks.keys():
+                # temp 삼성전자 제외
+                if code == "005930":
+                    continue
+                
                 curr_price = self.get_curr_price(code)
                 if curr_price == 0:
                     PRINT_ERR(f"[{self.stocks[code]['name']}] curr_price {curr_price}원")
@@ -1919,20 +1935,8 @@ class Stocks_info:
                     if self.stocks[code]['allow_monitoring_buy'] == False:
                         # 목표가 왔다 -> 매수 감시 시작
                         if curr_price <= buy_target_price:
-                            # 1차 매수 경우 RSI 조건 추가
-                            if self.stocks[code]['buy_done'][0] == False:
-                                rsi = self.get_rsi(code)
-                                buy_rsi = self.get_buy_rsi(code)
-                                if rsi > 0 and rsi < buy_rsi:
-                                    PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 감시 시작, {curr_price}(현재가) <= {buy_target_price}(매수 목표가)")
-                                    self.stocks[code]['allow_monitoring_buy'] = True
-                                else:
-                                    # PRINT_INFO(f"Not buy [{self.stocks[code]['name']}] RSI:{rsi} >= BUY RSI:{buy_rsi}")
-                                    pass
-                            else:
-                                # 2차 매수 이상 경우
-                                PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 감시 시작, {curr_price}(현재가) {buy_target_price}(매수 목표가)")
-                                self.stocks[code]['allow_monitoring_buy'] = True
+                            PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 감시 시작, {curr_price}(현재가) {buy_target_price}(매수 목표가)")
+                            self.stocks[code]['allow_monitoring_buy'] = True
                     else:
                         # buy 모니터링 중
                         # "현재가 >= 저가 + BUY_MARGIN_P%" 에서 매수
@@ -1960,15 +1964,8 @@ class Stocks_info:
                         if self.stocks[code]['allow_monitoring_buy'] == False:
                             # 목표가 왔다 -> 매수 감시 시작
                             if curr_price <= buy_target_price:
-                                # 1차 매수 경우 RSI 조건 추가
-                                rsi = self.get_rsi(code)
-                                buy_rsi = self.get_buy_rsi(code)
-                                if rsi > 0 and rsi < buy_rsi:
-                                    PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 감시 시작, {curr_price}(현재가) <= {buy_target_price}(매수 목표가)")
-                                    self.stocks[code]['allow_monitoring_buy'] = True
-                                else:
-                                    # PRINT_INFO(f"Not buy [{self.stocks[code]['name']}] RSI:{rsi} >= BUY RSI:{buy_rsi}")
-                                    pass
+                                PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 감시 시작, {curr_price}(현재가) <= {buy_target_price}(매수 목표가)")
+                                self.stocks[code]['allow_monitoring_buy'] = True
                         else:
                             # buy 모니터링 중
                             # "현재가 >= 저가 + BUY_MARGIN_P%" 에서 매수
@@ -2023,6 +2020,10 @@ class Stocks_info:
 
             self.my_stocks_lock.acquire()
             for code in self.my_stocks.keys():
+                # temp 삼성전자 제외
+                if code == "005930":
+                    continue
+
                 curr_price = self.get_curr_price(code)
                 if curr_price == 0:
                     PRINT_ERR(f"[{self.stocks[code]['name']}] curr_price {curr_price}원")
@@ -2866,7 +2867,7 @@ class Stocks_info:
         try:
             temp_stocks = copy.deepcopy(self.buyable_stocks)
             sorted_data = dict(sorted(temp_stocks.items(), key=lambda x: x[1]['undervalue'], reverse=True))
-            data = {'종목명':[], '저평가':[], '목표가GAP(%)':[], '매수가':[], '현재가':[], '매수가GAP(%)':[], 'Envelope':[], 'RSI':[], 'BUY_RSI':[], '60일선추세':[]}
+            data = {'종목명':[], '저평가':[], '목표가GAP(%)':[], '매수가':[], '현재가':[], '매수가GAP(%)':[], 'Envelope':[], '60일선추세':[]}
             for code in sorted_data.keys():
                 curr_price = self.get_curr_price(code)
                 buy_target_price = self.get_buy_target_price(code)
@@ -2881,11 +2882,6 @@ class Stocks_info:
                 data['현재가'].append(curr_price)
                 data['매수가GAP(%)'].append(gap_p)
                 data['Envelope'].append(sorted_data[code]['envelope_p'])
-                if gap_p <= 0:
-                    data['RSI'].append(self.get_rsi(code))
-                else:
-                    data['RSI'].append(0)
-                data['BUY_RSI'].append(self.get_buy_rsi(code))
  
                 trend_str = ""             
                 if sorted_data[code]['ma_trend'] == TREND_DOWN:
@@ -3086,21 +3082,21 @@ class Stocks_info:
             self.trade_strategy.max_per = 50                                # PER가 이 값 이상이면 매수 금지            
             
             if self.trade_strategy.invest_risk == INVEST_RISK_HIGH:
-                self.trade_strategy.under_value = -7                       # 저평가가 이 값 미만은 매수 금지
-                self.trade_strategy.gap_max_sell_target_price_p = 0         # 목표가GAP 이 이 값 미만은 매수 금지
-                self.trade_strategy.sum_under_value_sell_target_gap = 0     # 저평가 + 목표가GAP 이 이 값 미만은 매수 금지
+                self.trade_strategy.under_value = -20                       # 저평가가 이 값 미만은 매수 금지
+                self.trade_strategy.gap_max_sell_target_price_p = -10       # 목표가GAP 이 이 값 미만은 매수 금지
+                self.trade_strategy.sum_under_value_sell_target_gap = -100  # 저평가 + 목표가GAP 이 이 값 미만은 매수 금지
                 self.trade_strategy.buyable_market_cap = 8000               # 시총 X 미만 매수 금지(억)
-                self.trade_strategy.trend = TREND_SIDE                      # 추세선이 이거 이상이여야 매수          
+                self.trade_strategy.trend = TREND_UP                        # 추세선이 이거 이상이여야 매수          
             elif self.trade_strategy.invest_risk == INVEST_RISK_MIDDLE:
-                self.trade_strategy.under_value = 0
-                self.trade_strategy.gap_max_sell_target_price_p = 3
-                self.trade_strategy.sum_under_value_sell_target_gap = 5
+                self.trade_strategy.under_value = -5
+                self.trade_strategy.gap_max_sell_target_price_p = -5
+                self.trade_strategy.sum_under_value_sell_target_gap = -5
                 self.trade_strategy.buyable_market_cap = 10000
-                self.trade_strategy.trend = TREND_SIDE
+                self.trade_strategy.trend = TREND_UP
             else:   # INVEST_RISK_LOW
-                self.trade_strategy.under_value = 2
-                self.trade_strategy.gap_max_sell_target_price_p = 3
-                self.trade_strategy.sum_under_value_sell_target_gap = 8
+                self.trade_strategy.under_value = -5
+                self.trade_strategy.gap_max_sell_target_price_p = -5
+                self.trade_strategy.sum_under_value_sell_target_gap = 0
                 self.trade_strategy.buyable_market_cap = 20000    
                 self.trade_strategy.trend = TREND_UP
         except Exception as ex:
@@ -3241,7 +3237,7 @@ class Stocks_info:
     #   consecutive_days    X일동안 연속 상승이면 상승추세, 하락이면 하락, 그외 보합
     #   period              D : 일, W : 주, M : 월, Y : 년
     ##############################################################
-    def get_ma_trend(self, code: str, past_day=1, ma=60, consecutive_days=10, period="D"):
+    def get_ma_trend(self, code: str, past_day=1, ma=60, consecutive_days=7, period="D"):
         result = True
         msg = ""
         ma_trend = TREND_DOWN
@@ -3257,7 +3253,7 @@ class Stocks_info:
             recent_ma_price = ma_price
             last_ma_price = self.get_ma(code, ma, consecutive_days + past_day - 1, period)
             ma_diff = abs(1 - (recent_ma_price/last_ma_price))
-            trend_up_down_diff = 0.02       # ex) 기울기 2% 이상되어야 추세 up dwon
+            trend_up_down_diff = 0.018       # ex) 기울기 x% 이상되어야 추세 up dwon
             
             for i in range(start_day, last_day):
                 if i < last_day:
@@ -3346,46 +3342,51 @@ class Stocks_info:
         
     ##############################################################
     # 상황에 따른 envelope_p 계산하여 리턴
+    # Parameter :
+    #       market_profit_p       금일 코스피지수 전일 대비율(수익률)
     ##############################################################
-    def get_envelope_p(self, code):
+    def get_envelope_p(self, code, is_market_crash=False, market_profit_p=0):
         result = True
         msg = ""
         envelope_p = 20
         try:
-            # ex) 시총 >= 40조 면 10
-            if self.stocks[code]['market_cap'] >= 200000:
-                envelope_p = 10
-            elif self.stocks[code]['market_cap'] >= 100000:
-                envelope_p = 11
-            elif self.stocks[code]['market_cap'] >= 20000:
-                envelope_p = 13
-            else:
-                envelope_p = 18
+            envelope_p = 7
+            if is_market_crash == True:
+                # envelope 증가 등으로 보수적으로 접근
+                # ex) 지수가 4% 폭락 시 4/2+1 = 3 을 envelope 증가
+                envelope_p = int(envelope_p + (abs(market_profit_p) / 2 ) + 1)
+            # # ex) 시총 >= 40조 면 10
+            # if self.stocks[code]['market_cap'] >= 100000:
+            #     envelope_p = 10
+            # elif self.stocks[code]['market_cap'] >= 20000:
+            #     envelope_p = 12
+            # else:
+            #     envelope_p = 14
 
-            self.stocks[code]['ma_trend'] = self.get_ma_trend(code)
+            # self.stocks[code]['ma_trend'] = self.get_ma_trend(code)
 
-            if self.stocks[code]['ma_trend'] == TREND_UP:
-                # 60일선 상승 추세
-                PRINT_DEBUG(f"[{self.stocks[code]['name']}]")
-            elif self.stocks[code]['ma_trend'] == TREND_SIDE:
-                # 60일선 보합 추세
-                envelope_p += 1            # envelope up
-                PRINT_DEBUG(f"[{self.stocks[code]['name']}]")
-            else:
-                # 60일선 하락 추세
-                envelope_p += 3            # envelope up
-                PRINT_INFO(f"[{self.stocks[code]['name']}] 60일선 하락 추세, envelope +3")
+            # if self.stocks[code]['ma_trend'] == TREND_UP:
+            #     # 60일선 상승 추세
+            #     PRINT_DEBUG(f"[{self.stocks[code]['name']}]")
+            # elif self.stocks[code]['ma_trend'] == TREND_SIDE:
+            #     # 60일선 보합 추세
+            #     envelope_p += 1            # envelope up
+            #     PRINT_DEBUG(f"[{self.stocks[code]['name']}]")
+            # else:
+            #     # 60일선 하락 추세
+            #     envelope_p += 3            # envelope up
+            #     PRINT_INFO(f"[{self.stocks[code]['name']}] 60일선 하락 추세, envelope +3")
 
-            # 공격적 전략상태에서 60,90일선 정배열 아니면 envelope up
-            # 매수 금지 대신 좀더 보수적으로 매수
-            if self.trade_strategy.invest_risk == INVEST_RISK_HIGH:
-                if self.get_multi_ma_status(code, [60,90]) != MA_STATUS_POSITIVE:
-                    envelope_p += 1
+            # # 공격적 전략상태에서 60,90일선 정배열 아니면 envelope up
+            # # 매수 금지 대신 좀더 보수적으로 매수
+            # if self.trade_strategy.invest_risk == INVEST_RISK_HIGH:
+            #     if self.get_multi_ma_status(code, [60,90]) != MA_STATUS_POSITIVE:
+            #         envelope_p += 1
 
-            # PER
-            if self.stocks[code]['PER'] >= 50:
-                envelope_p += 3
-                PRINT_INFO(f"[{self.stocks[code]['name']}] PER {self.stocks[code]['PER']}, envelope +3")
+            # # PER
+            # if self.stocks[code]['PER'] >= 50:
+            #     envelope_p += 3
+            #     PRINT_INFO(f"[{self.stocks[code]['name']}] PER {self.stocks[code]['PER']}, envelope +3")
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -3532,7 +3533,7 @@ class Stocks_info:
 
                     # envelope 증가 등으로 보수적으로 접근
                     # ex) 지수가 4% 폭락 시 4/2+1 = 3 을 envelope 증가
-                    self.stocks[code]['envelope_p'] = int(self.stocks[code]['envelope_p'] + (abs(market_profit_p) / 2 ) + 1)
+                    self.stocks[code]['envelope_p'] = self.get_envelope_p(code, True, market_profit_p)
 
                     # 매수가 세팅
                     self.set_buy_price(code)
