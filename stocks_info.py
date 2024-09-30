@@ -138,6 +138,8 @@ MAX_REQUEST_RETRY_COUNT = 3         # request 실패 시 최대 retry 횟수
 # ex) 20130414
 TODAY_DATE = f"{datetime.datetime.now().strftime('%Y%m%d')}"
 
+TREND_UP_DOWN_DIFF = 0.013      # ex) 기울기 x% 이상되어야 추세 up down
+
 ##############################################################
 
 class Trade_strategy:
@@ -1437,7 +1439,7 @@ class Stocks_info:
                 return False
 
             # 20,60,90 정배열 체크
-            if self.get_multi_ma_status(code, [20,60, 90]) != MA_STATUS_POSITIVE:
+            if self.get_multi_ma_status(code, [20,60,90]) != MA_STATUS_POSITIVE:
                 if print_msg:
                     PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 20,60,90 이평선 정배열 아님")
                 return False
@@ -3079,7 +3081,7 @@ class Stocks_info:
                 self.trade_strategy.under_value = -20                       # 저평가가 이 값 미만은 매수 금지
                 self.trade_strategy.gap_max_sell_target_price_p = -10       # 목표가GAP 이 이 값 미만은 매수 금지
                 self.trade_strategy.sum_under_value_sell_target_gap = -100  # 저평가 + 목표가GAP 이 이 값 미만은 매수 금지
-                self.trade_strategy.buyable_market_cap = 8000               # 시총 X 미만 매수 금지(억)
+                self.trade_strategy.buyable_market_cap = 5000               # 시총 X 미만 매수 금지(억)
                 self.trade_strategy.trend = TREND_UP                        # 추세선이 이거 이상이여야 매수          
             elif self.trade_strategy.invest_risk == INVEST_RISK_MIDDLE:
                 self.trade_strategy.under_value = -5
@@ -3247,7 +3249,6 @@ class Stocks_info:
             recent_ma_price = ma_price
             last_ma_price = self.get_ma(code, ma, consecutive_days + past_day - 1, period)
             ma_diff = abs(1 - (recent_ma_price/last_ma_price))
-            trend_up_down_diff = 0.018       # ex) 기울기 x% 이상되어야 추세 up dwon
             
             for i in range(start_day, last_day):
                 if i < last_day:
@@ -3258,9 +3259,9 @@ class Stocks_info:
                         trand_down_count += 1
                     ma_price = yesterdat_ma_price
             
-            if trand_up_count >= (consecutive_days - 1) and ma_diff > trend_up_down_diff:
+            if trand_up_count >= (consecutive_days - 1) and ma_diff > TREND_UP_DOWN_DIFF:
                 ma_trend = TREND_UP
-            elif trand_down_count >= (consecutive_days - 1) and ma_diff > trend_up_down_diff:
+            elif trand_down_count >= (consecutive_days - 1) and ma_diff > TREND_UP_DOWN_DIFF:
                 ma_trend = TREND_DOWN
             else:
                 ma_trend = TREND_SIDE
