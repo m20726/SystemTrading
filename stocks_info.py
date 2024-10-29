@@ -13,7 +13,7 @@ from datetime import date, timedelta
 import inspect
 import threading
 
-# 2024.08.16 기준 원금 300만원
+# 2024.09.29 기준 원금 320만원
 
 ##############################################################
 #                           전략                             #
@@ -67,7 +67,7 @@ INVEST_TYPE = "real_invest"                 # sim_invest : 모의 투자, real_i
 # INVEST_TYPE = "sim_invest"
 
 if INVEST_TYPE == "real_invest":
-    MAX_MY_STOCK_COUNT = 7
+    MAX_MY_STOCK_COUNT = 10
     INVEST_MONEY_PER_STOCK = 800000         # 종목 당 투자 금액(원)
 else:
     MAX_MY_STOCK_COUNT = 10                 # MAX 보유 주식 수
@@ -75,7 +75,7 @@ else:
 
 # "현재가 - 매수가 GAP" 이 X% 미만 경우만 매수 가능 종목으로 처리
 # GAP 이 클수록 종목이 많아 실시간 처리가 느려진다
-BUYABLE_GAP = 10
+BUYABLE_GAP = 8
 BUYABLE_COUNT = 30                          # 상위 몇개 종목까지 매수 가능 종목으로 유지
 
 # 빠른 익절 전략
@@ -138,7 +138,7 @@ MAX_REQUEST_RETRY_COUNT = 3         # request 실패 시 최대 retry 횟수
 # ex) 20130414
 TODAY_DATE = f"{datetime.datetime.now().strftime('%Y%m%d')}"
 
-TREND_UP_DOWN_DIFF = 0.013      # ex) 기울기 x% 이상되어야 추세 up down
+TREND_UP_DOWN_DIFF = 0.01      # ex) (recent ma - last ma) 기울기 x% 이상되어야 추세 up down
 
 ##############################################################
 
@@ -1155,17 +1155,19 @@ class Stocks_info:
                 # 1차 매수 안된 경우만 업데이트
                 if self.stocks[code]['buy_done'][0] == False:
                     self.stocks[code]['sell_target_p'] = SELL_TARGET_P
-
                     self.stocks[code]['envelope_p'] = self.get_envelope_p(code)
-
                     # 매수가 세팅
                     self.set_buy_price(code)
                     # 매수 수량 세팅
                     self.set_buy_qty(code)
 
-                # 손절가
+                # 추세 세팅
+                self.stocks[code]['ma_trend'] = self.get_ma_trend(code)
+
+                # 손절가 세팅
                 self.stocks[code]['loss_cut_price'] = self.get_loss_cut_price(code)
-                # 어제 종가
+
+                # 어제 종가 세팅
                 self.stocks[code]['yesterday_end_price'] = self.get_end_price(code, past_day)
 
                 # 매도 완료 후 "어제 종가 > 어제 20ma" 여야 재매수 가능
@@ -1260,7 +1262,7 @@ class Stocks_info:
     ##############################################################
     # 매수가능 주식 수 리턴
     #   보유 현금 / 종목당 매수 금액
-    #   ex) 총 보유금액이 300만원이고 종목당 총 100만원 매수 시 총 2종목 매수
+    #   ex) 총 보유금액이 300만원이고 종목당 총 100만원 매수 시 총 3종목 매수
     ##############################################################
     def get_available_buy_stock_count(self):
         result = True
@@ -1416,7 +1418,7 @@ class Stocks_info:
             #     return False
 
             # 보유현금에 맞게 종목개수 매수
-            #   ex) 총 보유금액이 300만원이고 종목당 총 100만원 매수 시 총 2종목 매수
+            #   ex) 총 보유금액이 300만원이고 종목당 총 100만원 매수 시 총 3종목 매수
             if (self.get_available_buy_stock_count() == 0 or len(self.my_stocks) >= MAX_MY_STOCK_COUNT) and self.is_my_stock(code) == False:
                 if print_msg:
                     PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 보유현금({self.my_cash})에 맞게 종목개수 매수")                   
@@ -1947,7 +1949,7 @@ class Stocks_info:
                                 PRINT_DEBUG(f"[{self.stocks[code]['name']}] {curr_price}(현재가) {buy_target_price}(매수가) {lowest_price}(저가)")
                                 if lowest_price <= buy_target_price:
                                     buy_target_qty = self.get_buy_target_qty(code)
-                                    if self.buy(code, curr_price, buy_target_qty, ORDER_TYPE_MARKET_ORDER) == True:
+                                    if self.buy(code, curr_price, buy_target_qty, ORDER_TYPE_IMMEDIATE_ORDER) == True:
                                         self.set_order_done(code, BUY_CODE)
                                         if curr_price >= int(lowest_price * buy_margin):
                                             PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 주문, {buy_target_qty}주 {curr_price}(현재가) >= {int(lowest_price * buy_margin)}({lowest_price}(저가) * {buy_margin})")
@@ -1976,7 +1978,7 @@ class Stocks_info:
                                     PRINT_DEBUG(f"[{self.stocks[code]['name']}] {curr_price}(현재가) {buy_target_price}(매수가) {lowest_price}(저가)")
                                     if lowest_price <= buy_target_price:
                                         buy_target_qty = self.get_buy_target_qty(code)
-                                        if self.buy(code, curr_price, buy_target_qty, ORDER_TYPE_MARKET_ORDER) == True:
+                                        if self.buy(code, curr_price, buy_target_qty, ORDER_TYPE_IMMEDIATE_ORDER) == True:
                                             self.set_order_done(code, BUY_CODE)
                                             if curr_price >= int(lowest_price * buy_margin):
                                                 PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 주문, {buy_target_qty}주 {curr_price}(현재가) >= {int(lowest_price * buy_margin)}({lowest_price}(저가) * {buy_margin})")
@@ -1991,7 +1993,7 @@ class Stocks_info:
                             if self.stocks[code]['buy_order_done'] == False:
                                 if curr_price >= (self.stocks[code]['avg_buy_price'] * (1 + NEXT_SELL_TARGET_MARGIN_P - 0.005)) and curr_price <= (self.stocks[code]['avg_buy_price'] * (1 + NEXT_SELL_TARGET_MARGIN_P)):
                                     buy_target_qty = self.get_buy_target_qty(code)
-                                    if self.buy(code, curr_price, buy_target_qty, ORDER_TYPE_MARKET_ORDER) == True:
+                                    if self.buy(code, curr_price, buy_target_qty, ORDER_TYPE_IMMEDIATE_ORDER) == True:
                                         self.set_order_done(code, BUY_CODE)
                                         PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 주문, {buy_target_qty}주 {curr_price}(현재가) >= {int(self.stocks[code]['avg_buy_price'] * 1.02)}(평단가+2%)")                    
         except Exception as ex:
@@ -2038,7 +2040,7 @@ class Stocks_info:
                                 self.stocks[code]['allow_monitoring_sell'] = True
                                 stockholdings = self.stocks[code]['stockholdings']
                                 # 주문 완료 했으면 다시 주문하지 않는다
-                                if self.already_ordered(code, SELL_CODE) == False and self.sell(code, curr_price, stockholdings, ORDER_TYPE_MARKET_ORDER) == True:
+                                if self.already_ordered(code, SELL_CODE) == False and self.sell(code, curr_price, stockholdings, ORDER_TYPE_IMMEDIATE_ORDER) == True:
                                     self.set_order_done(code, SELL_CODE)
                                     PRINT_INFO(f"[{self.stocks[code]['name']}] 전날 종가 손절 안된 경우 손절 주문 성공, 현재가({curr_price}) < 손절가({loss_cut_price})")
                                     self.stocks[code]['loss_cut_order'] = True
@@ -2729,6 +2731,9 @@ class Stocks_info:
             no_buy_days = 10
             self.my_stocks_lock.acquire()
             for code in self.my_stocks.keys():
+                #TODO: temp 삼성전자 제외
+                if code == "005930":
+                    continue
                 # PRINT_INFO(f"[{self.stocks[code]['name']}] 손절 체크")
                 # 손실 상태에서 x일간 지지부진하면 손절
                 # 오늘 > 최근 매수일 + x day, 즉 x 일 동안 매수 없고
