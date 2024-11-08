@@ -73,14 +73,17 @@ else:
     MAX_MY_STOCK_COUNT = 10                 # MAX 보유 주식 수
     INVEST_MONEY_PER_STOCK = 2000000        # 종목 당 투자 금액(원)
 
-# "현재가 - 매수가 GAP" 이 X% 미만 경우만 매수 가능 종목으로 처리
+# "현재가 - 매수가 GAP" 이 X% 이하 경우만 매수 가능 종목으로 처리
 # GAP 이 클수록 종목이 많아 실시간 처리가 느려진다
-BUYABLE_GAP = 8
-BUYABLE_COUNT = 30                          # 상위 몇개 종목까지 매수 가능 종목으로 유지
+BUYABLE_GAP = 7
+
+# 상위 몇개 종목까지 매수 가능 종목으로 유지
+BUYABLE_COUNT = 30                          
 
 # 빠른 익절 전략
 # 1차 매도 후 나머지 물량은 익절선을 높여 빠르게 익절한다
 TAKE_PROFIT_STRATEGY_FAST = 0
+
 # 느린 익절(수익 길게) 전략
 # 1차 매도 후 나머지 물량은 익절선을 낮추어 길게 간다
 TAKE_PROFIT_STRATEGY_SLOW = 1
@@ -1133,7 +1136,7 @@ class Stocks_info:
     def update_stocks_trade_info(self):
         result = True
         msg = ""
-        try:            
+        try:
             t_now = datetime.datetime.now()
             t_exit = t_now.replace(hour=15, minute=30, second=0, microsecond=0)
             # 15:30 장마감 후는 금일기준으로 20일선 구한다
@@ -2831,7 +2834,7 @@ class Stocks_info:
                                     need_buy = True
                                     break
 
-                        if gap_p < BUYABLE_GAP or need_buy == True:
+                        if gap_p <= BUYABLE_GAP or need_buy == True:
                             temp_stock = copy.deepcopy({code: self.stocks[code]})
                             temp_buyable_stocks[code] = temp_stock[code]
                         else:
