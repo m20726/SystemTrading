@@ -13,7 +13,7 @@ from datetime import date, timedelta
 import inspect
 import threading
 
-# 2024.09.29 기준 원금 320만원
+# 2024.11.12 기준 원금 420만원
 
 ##############################################################
 #                           전략                             #
@@ -67,7 +67,7 @@ INVEST_TYPE = "real_invest"                 # sim_invest : 모의 투자, real_i
 # INVEST_TYPE = "sim_invest"
 
 if INVEST_TYPE == "real_invest":
-    MAX_MY_STOCK_COUNT = 10
+    MAX_MY_STOCK_COUNT = 6
     INVEST_MONEY_PER_STOCK = 800000         # 종목 당 투자 금액(원)
 else:
     MAX_MY_STOCK_COUNT = 10                 # MAX 보유 주식 수
@@ -1273,14 +1273,14 @@ class Stocks_info:
         ret = 0
         try:
             if INVEST_MONEY_PER_STOCK > 0:
-                ret = int(self.my_cash / INVEST_MONEY_PER_STOCK)
+                ret = int((self.my_cash - (self.get_my_stock_count() * INVEST_MONEY_PER_STOCK)) / INVEST_MONEY_PER_STOCK)
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.SEND_MSG_ERR(msg)
-            return ret
+            return max(ret, 0)
 
     ##############################################################
     # 보유 종목인지 체크
@@ -1719,6 +1719,7 @@ class Stocks_info:
             if self.is_request_ok(res) == False:
                 raise Exception(f"[get_my_cash failed]]{str(res.json())}")
             cash = res.json()['output']['ord_psbl_cash']
+            PRINT_INFO(f"보유 현금 : {cash}원")
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -3093,14 +3094,14 @@ class Stocks_info:
                 self.trade_strategy.trend = TREND_UP                        # 추세선이 이거 이상이여야 매수          
             elif self.trade_strategy.invest_risk == INVEST_RISK_MIDDLE:
                 self.trade_strategy.under_value = -5
-                self.trade_strategy.gap_max_sell_target_price_p = -5
-                self.trade_strategy.sum_under_value_sell_target_gap = -5
+                self.trade_strategy.gap_max_sell_target_price_p = 0
+                self.trade_strategy.sum_under_value_sell_target_gap = 0
                 self.trade_strategy.buyable_market_cap = 10000
                 self.trade_strategy.trend = TREND_UP
             else:   # INVEST_RISK_LOW
                 self.trade_strategy.under_value = -5
-                self.trade_strategy.gap_max_sell_target_price_p = -5
-                self.trade_strategy.sum_under_value_sell_target_gap = 0
+                self.trade_strategy.gap_max_sell_target_price_p = 0
+                self.trade_strategy.sum_under_value_sell_target_gap = 5
                 self.trade_strategy.buyable_market_cap = 20000    
                 self.trade_strategy.trend = TREND_UP
         except Exception as ex:
