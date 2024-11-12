@@ -1422,9 +1422,9 @@ class Stocks_info:
 
             # 보유현금에 맞게 종목개수 매수
             #   ex) 총 보유금액이 300만원이고 종목당 총 100만원 매수 시 총 3종목 매수
-            if (self.get_available_buy_stock_count() == 0 or len(self.my_stocks) >= MAX_MY_STOCK_COUNT) and self.is_my_stock(code) == False:
+            if (self.get_available_buy_stock_count() <= 0 or len(self.my_stocks) >= MAX_MY_STOCK_COUNT) and self.is_my_stock(code) == False:
                 if print_msg:
-                    PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 보유현금({self.my_cash})에 맞게 종목개수 매수")                   
+                    PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 보유현금({self.my_cash}원)에 맞게 종목개수 매수")                   
                 return False
             
             # 매도 후 종가 > 20ma 체크
