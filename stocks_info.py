@@ -283,7 +283,8 @@ class Stocks_info:
     # Parameter :
     #       msg             출력 메세지
     #       print_level     PRINT LEVEL(DEBUG, INFO, ERR)
-    #       send_discode    N차 매수 체결가, 0 인 경우    
+    #       send_discode    N차 매수 체결가, 0 인 경우
+    #       err             error 여부
     ##############################################################
     def send_msg(self, msg, print_level=PRINT_LEVEL_DEBUG, send_discode:bool = False, err:bool = False):
         result = True
@@ -328,6 +329,8 @@ class Stocks_info:
         
     ##############################################################
     # 네이버 증권 기업실적분석 정보 얻기
+    # param :
+    #   code            종목 코드
     ##############################################################
     def crawl_naver_finance(self, code):
         result = True
@@ -371,7 +374,9 @@ class Stocks_info:
     #   따라서 최근 data, index 3 의 데이터를 기준으로 한다
     #   2023년 기준 2023.12(E)
     #   2023년 기준 2022.12, 작년 데이터 얻기
-    #   2023년 기준 2021.12, 재작년 데이터 얻기                
+    #   2023년 기준 2021.12, 재작년 데이터 얻기
+    # param :
+    #   code            종목 코드
     ##############################################################
     def get_naver_finance_year_column_texts(self, code):
         result = True
@@ -406,6 +411,8 @@ class Stocks_info:
 
     ##############################################################
     # requests 성공 여부
+    # param :
+    #   res         response object
     ##############################################################
     def is_request_ok(self, res):
         if res.json()['rt_cd'] == '0':
@@ -415,7 +422,9 @@ class Stocks_info:
 
     ##############################################################
     # percent 값으로 변경
-    #   ex) to_per(10) return 0.1
+    #   ex) to_percent(10) return 0.1
+    # param :
+    #   percent         이 값을 %로 변경
     ##############################################################
     def to_percent(self, percent):
         return percent / 100
@@ -428,6 +437,8 @@ class Stocks_info:
     # 50,000원 이상 100,000원 미만	  100원
     # 100,000원 이상 500,000원 미만   500원
     # 500,000원 이상                 1000원
+    # param :
+    #   price       주식 호가 단위로 변경할 가격
     ##############################################################
     def get_stock_asking_price(self, price):
         if price < 5000:
@@ -446,6 +457,8 @@ class Stocks_info:
 
     ##############################################################
     # self.invest_type 에 맞는 config 설정
+    # param :
+    #   file_path       config file path
     ##############################################################
     def init_config(self, file_path):
         result = True
@@ -556,6 +569,8 @@ class Stocks_info:
 
     ##############################################################
     # 매수 수량 세팅
+    # param :
+    #   code            종목 코드
     ##############################################################
     def set_buy_qty(self, code):
         result = True
@@ -718,6 +733,8 @@ class Stocks_info:
 
     ##############################################################
     # 매도 완료등으로 매수/매도 관려 정보 초기화 시 호출
+    # param :
+    #   code            종목 코드    
     ##############################################################
     def clear_buy_sell_info(self, code):
         result = True
@@ -757,6 +774,8 @@ class Stocks_info:
 
     ##############################################################
     # 목표가 = 평단가 * (1 + 목표%)
+    # param :
+    #   code            종목 코드
     ##############################################################
     def get_sell_target_price(self, code):
         result = True
@@ -792,7 +811,9 @@ class Stocks_info:
 
     ##############################################################
     # 현재가 리턴
-    #   return : 성공 시 현재가, 실패 시 0 리턴
+    # param :
+    #   code            종목 코드
+    # return : 성공 시 현재가, 실패 시 0 리턴
     ##############################################################
     def get_curr_price(self, code):
         return self.get_price(code, 'stck_prpr')
@@ -828,7 +849,9 @@ class Stocks_info:
         
     ##############################################################
     # 고가 리턴
-    #   return : 성공 시 고가, 실패 시 0 리턴
+    # param :
+    #   code            종목 코드
+    # return : 성공 시 고가, 실패 시 0 리턴
     ##############################################################
     def get_highest_price(self, code):
         return self.get_price(code, 'stck_hgpr')
@@ -861,7 +884,9 @@ class Stocks_info:
 
     ##############################################################
     # 시가총액(market capitalization) 리턴
-    #   return : 성공 시 시가총액, 실패 시 0 리턴
+    # param :
+    #   code            종목 코드
+    # return : 성공 시 시가총액, 실패 시 0 리턴
     ##############################################################
     def get_market_cap(self, code):
         return self.get_price(code, 'hts_avls')
@@ -918,6 +943,8 @@ class Stocks_info:
     # 매수가 리턴
     #   1차 매수, 2차 매수 상태에 따라 매수가 리턴
     #   last차까지 매수 완료 경우 return 0
+    # param :
+    #   code            종목 코드
     ##############################################################
     def get_buy_target_price(self, code):
         result = True
@@ -941,6 +968,8 @@ class Stocks_info:
     # 매수 수량 리턴
     #   1차 매수, 2차 매수 상태에 따라 매수 수량 리턴
     #   last차까지 매수 완료 경우 return 0
+    # param :
+    #   code            종목 코드
     ##############################################################
     def get_buy_target_qty(self, code):
         result = True
@@ -963,6 +992,9 @@ class Stocks_info:
     ##############################################################
     # 네이버 증권에서 특정 값 얻기
     #   ex) https://finance.naver.com/item/main.naver?code=005930
+    # param :
+    #   code            종목 코드
+    #   selector        선택할 tag
     ##############################################################
     def crawl_naver_finance_by_selector(self, code, selector):
         result = True
@@ -982,6 +1014,8 @@ class Stocks_info:
 
     ##############################################################
     # 주식 투자 정보 업데이트(시가 총액, 상장 주식 수, 저평가, BPS, PER, EPS)
+    # param :
+    #   code            종목 코드
     ##############################################################
     def update_stock_invest_info(self, code):
         result = True
@@ -1057,6 +1091,8 @@ class Stocks_info:
 
     ##############################################################
     # 저평가 계산
+    # param :
+    #   code            종목 코드
     ##############################################################
     def set_stock_undervalue(self, code):
         result = True
@@ -1284,6 +1320,8 @@ class Stocks_info:
 
     ##############################################################
     # 보유 종목인지 체크
+    # param :
+    #   code            종목 코드    
     ##############################################################
     def is_my_stock(self, code):
         result = True
@@ -1303,6 +1341,8 @@ class Stocks_info:
 
     ##############################################################
     # 매수 가능 종목인지 체크
+    # param :
+    #   code            종목 코드    
     ##############################################################
     def is_buyable_stock(self, code):
         result = True
@@ -1323,7 +1363,9 @@ class Stocks_info:
     ##############################################################
     # 매수 가능한 1차 매수가 인가 체크
     #   ex) "1차 매수가 >= 최근 한달 내 최저가" 면 매수 금지
-    # Return    : 매수 가능한 1차 매수가면 True, 아니면 False    
+    # param :
+    #   code            종목 코드    
+    # return : 매수 가능한 1차 매수가면 True, 아니면 False    
     ##############################################################
     def is_ok_to_buy_first_buy_price(self, code):
         result = True
@@ -1350,12 +1392,15 @@ class Stocks_info:
     
     ##############################################################
     # 매수 여부 판단
+    # param :
+    #   code            종목 코드
+    #   print_msg       print log 여부
     ##############################################################
     def is_ok_to_buy(self, code, print_msg=False):
         result = True
         msg = ""
         try:
-            #### 이미 내 주식이지만 체크할 조건
+            #### 이미 보유 주식이지만 체크할 조건
             # 오늘 주문 완료 시 금지
             if self.already_ordered(code, BUY_CODE) == True:
                 if print_msg:
@@ -1375,7 +1420,7 @@ class Stocks_info:
                 return False
             ####
             
-            # 이미 내 주식은 매수
+            # 이미 보유 주식은 매수
             # ex) 2차, 3차 매수
             if self.is_my_stock(code) == True:
                 return True
@@ -1422,7 +1467,7 @@ class Stocks_info:
 
             # 보유현금에 맞게 종목개수 매수
             #   ex) 총 보유금액이 300만원이고 종목당 총 100만원 매수 시 총 3종목 매수
-            if (self.get_available_buy_stock_count() <= 0 or len(self.my_stocks) >= MAX_MY_STOCK_COUNT) and self.is_my_stock(code) == False:
+            if (len(self.my_stocks) >= MAX_MY_STOCK_COUNT or self.get_available_buy_stock_count() <= 0) and self.is_my_stock(code) == False:
                 if print_msg:
                     PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 보유현금({self.my_cash}원)에 맞게 종목개수 매수")                   
                 return False
@@ -1591,6 +1636,8 @@ class Stocks_info:
 
     ##############################################################
     # 암호화
+    # param :
+    #   data            hash key 에 사용할 data
     ##############################################################
     def hashkey(self, data):
         result = True
@@ -1617,7 +1664,9 @@ class Stocks_info:
 
     ##############################################################
     # 주식 잔고조회
-    ##############################################################
+    # param :
+    #   send_discode        discode 로 전송 여부
+    ###############################################################
     def get_stock_balance(self, send_discode:bool = False):
         result = True
         msg = ""
@@ -2011,6 +2060,8 @@ class Stocks_info:
 
     ##############################################################
     # 매도 처리
+    #   param :
+    #       order_type      매도 타입(지정가, 최유리지정가,...)
     ##############################################################
     def handle_sell_stock(self, order_type:str = ORDER_TYPE_LIMIT_ORDER):
         result = True
@@ -2242,14 +2293,14 @@ class Stocks_info:
 
     ##############################################################
     # 매수/매도 체결 여부 체크
-    # Return    : 첫번째 return 값
+    # parameter :
+    #       code            종목 코드
+    #       buy_sell        "01" : 매도, "02" : 매수
+    # return    : 첫번째 return 값
     #               주문 수량 전체 체결 시 True, 아니면 False
     #               이미 체결 완료된 주문이면 return False
     #             두번째 return 값
     #               첫번째 return 값이 True면 평균 체결가, 아니면 0
-    # Parameter :
-    #       code            종목 코드
-    #       buy_sell        "01" : 매도, "02" : 매수
     ##############################################################
     def check_trade_done(self, code, buy_sell: str):
         result = True
@@ -2528,10 +2579,10 @@ class Stocks_info:
     # 이미 주문한 종목인지 체크
     #   1차 매수/매도 2차 매수/매도 구분하기 위해 총 매수/매도 금액 비교
     #   총 매수/매도 금액이 해당 차수 금액이여야 같은 주문이다
-    # Return    : 이미 주문한 종목이면 Ture, 아니면 False
     # Parameter :
     #       code        종목코드
     #       buy_sell    "01" : 매도, "02" : 매수
+    # Return    : 이미 주문한 종목이면 Ture, 아니면 False
     ##############################################################
     def already_ordered(self, code, buy_sell: str):
         result = True
@@ -2553,8 +2604,9 @@ class Stocks_info:
     ##############################################################
     # 종목 정보 출력
     # Parameter :
-    #       sort_by     SORT_BY_NAME : 이름순 오름차순
-    #                   SORT_BY_UNDER_VALUE : undervalue 내림차순
+    #       send_discode    discode 전송 여부  
+    #       sort_by         SORT_BY_NAME : 이름순 오름차순
+    #                       SORT_BY_UNDER_VALUE : undervalue 내림차순
     ##############################################################
     def show_stocks(self, send_discode = False, sort_by=SORT_BY_NAME):
         result = True
@@ -2598,6 +2650,8 @@ class Stocks_info:
 
     ##############################################################
     # 저평가 높은 순으로 출력
+    # Parameter :
+    #       send_discode    discode 전송 여부
     ##############################################################
     def show_envelope(self, send_discode = False):
         result = True
@@ -2630,9 +2684,9 @@ class Stocks_info:
 
     ##############################################################
     # stocks 변경있으면 save stocks_info.json
-    # Return    : 현재 stocks 정보
     # Parameter :
     #       pre_stocks  이전 stocks 정보
+    # Return    : 현재 stocks 정보
     ##############################################################
     def check_save_stocks_info(self, pre_stocks:dict):
         result = True
@@ -2686,6 +2740,8 @@ class Stocks_info:
     ##############################################################
     # 손절가
     #   last차 매수가 -x%
+    # param :
+    #   code            종목 코드
     ##############################################################
     def get_loss_cut_price(self, code):
         result = True
@@ -2792,6 +2848,8 @@ class Stocks_info:
 
     ##############################################################
     # 매수 후 여지껏 최고가 업데이트
+    # param :
+    #   code            종목 코드
     ##############################################################
     def update_highest_price_ever(self, code):
         result = True
@@ -2916,6 +2974,8 @@ class Stocks_info:
     ##############################################################
     # 익절가 리턴
     #   여지껏 최고가 - 익절가%
+    # param :
+    #   code            종목 코드    
     ##############################################################
     def get_take_profit_price(self, code):
         result = True
@@ -3327,6 +3387,8 @@ class Stocks_info:
 
     ##############################################################
     # 1차 목표가 리턴
+    # param :
+    #   code            종목 코드    
     ##############################################################
     def get_first_sell_target_price(self, code):
         result = True
@@ -3346,8 +3408,10 @@ class Stocks_info:
         
     ##############################################################
     # 상황에 따른 envelope_p 계산하여 리턴
-    # Parameter :
-    #       market_profit_p       금일 코스피지수 전일 대비율(수익률)
+    # param :
+    #   code                종목 코드  
+    #   is_market_crash     시장 폭락 여부
+    #   market_profit_p     금일 코스피지수 전일 대비율(수익률)
     ##############################################################
     def get_envelope_p(self, code, is_market_crash=False, market_profit_p=0):
         result = True
@@ -3359,38 +3423,6 @@ class Stocks_info:
                 # envelope 증가 등으로 보수적으로 접근
                 # ex) 지수가 4% 폭락 시 4/2+1 = 3 을 envelope 증가
                 envelope_p = int(envelope_p + (abs(market_profit_p) / 2 ) + 1)
-            # # ex) 시총 >= 40조 면 10
-            # if self.stocks[code]['market_cap'] >= 100000:
-            #     envelope_p = 10
-            # elif self.stocks[code]['market_cap'] >= 20000:
-            #     envelope_p = 12
-            # else:
-            #     envelope_p = 14
-
-            # self.stocks[code]['ma_trend'] = self.get_ma_trend(code)
-
-            # if self.stocks[code]['ma_trend'] == TREND_UP:
-            #     # 60일선 상승 추세
-            #     PRINT_DEBUG(f"[{self.stocks[code]['name']}]")
-            # elif self.stocks[code]['ma_trend'] == TREND_SIDE:
-            #     # 60일선 보합 추세
-            #     envelope_p += 1            # envelope up
-            #     PRINT_DEBUG(f"[{self.stocks[code]['name']}]")
-            # else:
-            #     # 60일선 하락 추세
-            #     envelope_p += 3            # envelope up
-            #     PRINT_INFO(f"[{self.stocks[code]['name']}] 60일선 하락 추세, envelope +3")
-
-            # # 공격적 전략상태에서 60,90일선 정배열 아니면 envelope up
-            # # 매수 금지 대신 좀더 보수적으로 매수
-            # if self.trade_strategy.invest_risk == INVEST_RISK_HIGH:
-            #     if self.get_multi_ma_status(code, [60,90]) != MA_STATUS_POSITIVE:
-            #         envelope_p += 1
-
-            # # PER
-            # if self.stocks[code]['PER'] >= 50:
-            #     envelope_p += 3
-            #     PRINT_INFO(f"[{self.stocks[code]['name']}] PER {self.stocks[code]['PER']}, envelope +3")
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -3400,7 +3432,9 @@ class Stocks_info:
             return envelope_p
         
     ##############################################################
-    # 주문가 문자열 리턴  
+    # 주문가 문자열 리턴
+    # param :
+    #   order_type      주문 타입(지정가, 최유리지정가,...)
     ##############################################################
     def get_order_string(self, order_type):
         result = True
@@ -3563,6 +3597,10 @@ class Stocks_info:
     #   세션 객체는 요청 간에 쿠키나 연결 상태를 유지합니다. 
     #   이를 통해 서버와의 지속적인 연결을 유지하고, 같은 서버로의 반복적인 요청을 효율적으로 처리할 수 있습니다.
     #   여러 번의 요청을 할 때 더 효율적이며, 특히 쿠키를 유지해야 하거나 서버와의 연결을 재사용해야 하는 경우 유리합니다.
+    # param :
+    #   URL             request get 할 URL
+    #   headers         headers data
+    #   params          params data
     ##############################################################
     def requests_get(self, URL, headers, params):
         result = True
