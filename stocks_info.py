@@ -20,10 +20,9 @@ import threading
 ##############################################################
 # 매수
 #   1차 매수
-#       1. 60 상승 추세, 기울기2%
+#       1. 60,90 상승 추세, 기울기 x% 이상
 #       2. 20,60,90 정배열
-#       3. Envel 7 이상 & 90일선 이하에서 트레일링스탑 1차 매수
-#       기타 매수 조건 완화
+#       3. Envel 8 이상 & 90일선 이하에서 트레일링스탑 1차 매수
 #   2차 매수 : 물타기 1차 매수 -10%
 # 매도
 #   목표가에 반 매도
@@ -141,7 +140,8 @@ MAX_REQUEST_RETRY_COUNT = 3         # request 실패 시 최대 retry 횟수
 # ex) 20130414
 TODAY_DATE = f"{datetime.datetime.now().strftime('%Y%m%d')}"
 
-TREND_UP_DOWN_DIFF = 0.01      # ex) (recent ma - last ma) 기울기 x% 이상되어야 추세 up down
+TREND_UP_DOWN_DIFF = 0.035      # ex) (recent ma - last ma) 기울기 x% 이상되어야 추세 up down
+MA_DIFF = 0.03                  # 이평선 간의 이격 ex) 60, 90 이평선 간에 3% 이격이상 있어야 정배열
 
 ##############################################################
 
@@ -763,6 +763,7 @@ class Stocks_info:
             self.stocks[code]['loss_cut_done'] = False
             self.stocks[code]['recent_buy_date'] = None
             self.stocks[code]['ma_trend'] = TREND_DOWN
+            self.stocks[code]['ma_trend2'] = TREND_DOWN
             self.stocks[code]['recent_sold_price'] = 0
             self.stocks[code]['first_sell_target_price'] = 0
         except Exception as ex:
@@ -918,7 +919,7 @@ class Stocks_info:
             if self.is_request_ok(res) == True:
                 price = float(res.json()['output'][type])
             else:
-                raise Exception(f"[get_price failed]]{str(res.json())}")
+                raise Exception(f"[get_price failed]{str(res.json())}")
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -1201,7 +1202,8 @@ class Stocks_info:
                     self.set_buy_qty(code)
 
                 # 추세 세팅
-                self.stocks[code]['ma_trend'] = self.get_ma_trend(code)
+                self.stocks[code]['ma_trend'] = self.get_ma_trend(code)             # 60 이평 추세
+                self.stocks[code]['ma_trend2'] = self.get_ma_trend(code, 1, 90)     # 90 이평 추세
 
                 # 손절가 세팅
                 self.stocks[code]['loss_cut_price'] = self.get_loss_cut_price(code)
@@ -1489,7 +1491,8 @@ class Stocks_info:
                 return False
 
             # 20,60,90 정배열 체크
-            if self.get_multi_ma_status(code, [20,60,90]) != MA_STATUS_POSITIVE:
+            # 이평선 간에 x% 이상 차이나야 정배열
+            if self.get_multi_ma_status(code, [20,60,90], "D", MA_DIFF) != MA_STATUS_POSITIVE:
                 if print_msg:
                     PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 20,60,90 이평선 정배열 아님")
                 return False
@@ -1497,6 +1500,11 @@ class Stocks_info:
             # 60일선 추세 체크
             if self.stocks[code]['ma_trend'] < self.trade_strategy.trend:
                 PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 60일선 추세 체크")
+                return False
+
+            # 90일선 추세 체크
+            if self.stocks[code]['ma_trend2'] < self.trade_strategy.trend:
+                PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 90일선 추세 체크")
                 return False
             
             # # "1차 매수가 >= 최근 한달 내 최저가" 면 매수 금지
@@ -1561,7 +1569,7 @@ class Stocks_info:
             }
             res = self.requests_get(URL, headers, params)
             if self.is_request_ok(res) == False:
-                raise Exception(f"[get_ma_trend failed]]{str(res.json())}")
+                raise Exception(f"[get_ma_trend failed]{str(res.json())}")
             
             for i in range(min(len(res.json()['output2']), data_cnt)):
                 end_price_list.append(int(res.json()['output2'][i][type]))   # 종가      # 최저가 stck_lwpr
@@ -1696,7 +1704,7 @@ class Stocks_info:
             }
             res = self.requests_get(URL, headers, params)
             if self.is_request_ok(res) == False:
-                raise Exception(f"[get_stock_balance failed]]{str(res.json())}")
+                raise Exception(f"[get_stock_balance failed]{str(res.json())}")
             stock_list = res.json()['output1']
             evaluation = res.json()['output2']
             data = {'종목명':[], '수익률(%)':[], '수량':[], '평가금액':[], '손익금액':[], '평단가':[], '현재가':[], '목표가':[], '손절가':[]}
@@ -1766,7 +1774,7 @@ class Stocks_info:
             }
             res = self.requests_get(URL, headers, params)
             if self.is_request_ok(res) == False:
-                raise Exception(f"[get_my_cash failed]]{str(res.json())}")
+                raise Exception(f"[get_my_cash failed]{str(res.json())}")
             cash = res.json()['output']['ord_psbl_cash']
             PRINT_INFO(f"보유 현금 : {cash}원")
         except Exception as ex:
@@ -2473,7 +2481,7 @@ class Stocks_info:
             if self.is_request_ok(res) == True:
                 order_list = res.json()['output1']
             else:
-                raise Exception(f"[update_order_list failed]]{str(res.json())}")
+                raise Exception(f"[update_order_list failed]{str(res.json())}")
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -2930,7 +2938,7 @@ class Stocks_info:
         try:
             temp_stocks = copy.deepcopy(self.buyable_stocks)
             sorted_data = dict(sorted(temp_stocks.items(), key=lambda x: x[1]['undervalue'], reverse=True))
-            data = {'종목명':[], '저평가':[], '목표가GAP(%)':[], '매수가':[], '현재가':[], '매수가GAP(%)':[], 'Envelope':[], '60일선추세':[]}
+            data = {'종목명':[], '저평가':[], '목표가GAP(%)':[], '매수가':[], '현재가':[], '매수가GAP(%)':[], 'Envelope':[], '60일선추세':[], '90일선추세':[]}
             for code in sorted_data.keys():
                 curr_price = self.get_curr_price(code)
                 buy_target_price = self.get_buy_target_price(code)
@@ -2954,6 +2962,14 @@ class Stocks_info:
                 elif sorted_data[code]['ma_trend'] == TREND_UP:
                     trend_str = '상승'
                 data['60일선추세'].append(trend_str)
+
+                if sorted_data[code]['ma_trend2'] == TREND_DOWN:
+                    trend_str = '하락'
+                elif sorted_data[code]['ma_trend2'] == TREND_SIDE:
+                    trend_str = '보합'
+                elif sorted_data[code]['ma_trend2'] == TREND_UP:
+                    trend_str = '상승'
+                data['90일선추세'].append(trend_str)
 
             # PrettyTable 객체 생성 및 데이터 추가
             table = PrettyTable()
@@ -3147,9 +3163,9 @@ class Stocks_info:
             self.trade_strategy.max_per = 50                                # PER가 이 값 이상이면 매수 금지            
             
             if self.trade_strategy.invest_risk == INVEST_RISK_HIGH:
-                self.trade_strategy.under_value = -20                       # 저평가가 이 값 미만은 매수 금지
-                self.trade_strategy.gap_max_sell_target_price_p = -10       # 목표가GAP 이 이 값 미만은 매수 금지
-                self.trade_strategy.sum_under_value_sell_target_gap = -100  # 저평가 + 목표가GAP 이 이 값 미만은 매수 금지
+                self.trade_strategy.under_value = -10                       # 저평가가 이 값 미만은 매수 금지
+                self.trade_strategy.gap_max_sell_target_price_p = -5        # 목표가GAP 이 이 값 미만은 매수 금지
+                self.trade_strategy.sum_under_value_sell_target_gap = -5    # 저평가 + 목표가GAP 이 이 값 미만은 매수 금지
                 self.trade_strategy.buyable_market_cap = 5000               # 시총 X 미만 매수 금지(억)
                 self.trade_strategy.trend = TREND_UP                        # 추세선이 이거 이상이여야 매수          
             elif self.trade_strategy.invest_risk == INVEST_RISK_MIDDLE:
@@ -3159,7 +3175,7 @@ class Stocks_info:
                 self.trade_strategy.buyable_market_cap = 10000
                 self.trade_strategy.trend = TREND_UP
             else:   # INVEST_RISK_LOW
-                self.trade_strategy.under_value = -5
+                self.trade_strategy.under_value = 0
                 self.trade_strategy.gap_max_sell_target_price_p = 0
                 self.trade_strategy.sum_under_value_sell_target_gap = 5
                 self.trade_strategy.buyable_market_cap = 20000    
@@ -3302,7 +3318,7 @@ class Stocks_info:
     #   consecutive_days    X일동안 연속 상승이면 상승추세, 하락이면 하락, 그외 보합
     #   period              D : 일, W : 주, M : 월, Y : 년
     ##############################################################
-    def get_ma_trend(self, code: str, past_day=1, ma=60, consecutive_days=7, period="D"):
+    def get_ma_trend(self, code: str, past_day=1, ma=60, consecutive_days=15, period="D"):
         result = True
         msg = ""
         ma_trend = TREND_DOWN
@@ -3351,8 +3367,10 @@ class Stocks_info:
     #   ma_list             이평선 리스트   ex) [60,90]
     #                       주의, 이평선 입력은 오름차순
     #   period              D : 일, W : 주, M : 월, Y : 년
+    #   diff                이평선 간 이격도 이상 벌어져야 정배열
+    #                       ex) diff = 0.01 이면 60이평, 90이평, 120이평 간에 1% 이상 차이나야 정배열
     ##############################################################
-    def get_multi_ma_status(self, code: str, ma_list:list, period="D"):
+    def get_multi_ma_status(self, code: str, ma_list:list, period="D", diff=0):
         result = True
         msg = ""
         ma_status = MA_STATUS_SOSO
@@ -3368,7 +3386,7 @@ class Stocks_info:
             for i in range(ma_price_list_len):
                 if i+1 >= ma_price_list_len:
                     break
-                if ma_price_list[i] > ma_price_list[i+1]:
+                if ma_price_list[i] * (1 - diff) > ma_price_list[i+1]:
                     positive_count += 1
                 else:
                     negative_count += 1
@@ -3418,7 +3436,7 @@ class Stocks_info:
         msg = ""
         envelope_p = 20
         try:
-            envelope_p = 7
+            envelope_p = 8
             if is_market_crash == True:
                 # envelope 증가 등으로 보수적으로 접근
                 # ex) 지수가 4% 폭락 시 4/2+1 = 3 을 envelope 증가
@@ -3542,7 +3560,7 @@ class Stocks_info:
             if self.is_request_ok(res) == True:
                 data = float(res.json()['output1'][type])
             else:
-                raise Exception(f"[get_sector_data failed]]{str(res.json())}")
+                raise Exception(f"[get_sector_data failed]{str(res.json())}")
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
