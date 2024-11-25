@@ -1300,7 +1300,7 @@ class Stocks_info:
             return result
 
     ##############################################################
-    # 매수가능 주식 수 리턴
+    # 매수가능 종목 수 리턴
     #   보유 현금 / 종목당 매수 금액
     #   ex) 총 보유금액이 300만원이고 종목당 총 100만원 매수 시 총 3종목 매수
     ##############################################################
@@ -1310,7 +1310,7 @@ class Stocks_info:
         ret = 0
         try:
             if INVEST_MONEY_PER_STOCK > 0:
-                ret = int((self.my_cash - (self.get_my_stock_count() * INVEST_MONEY_PER_STOCK)) / INVEST_MONEY_PER_STOCK)
+                ret = int((self.my_cash - self.get_invest_money_for_my_stock()) / INVEST_MONEY_PER_STOCK)
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -3657,3 +3657,35 @@ class Stocks_info:
                 self.SEND_MSG_ERR(msg)
             self.request_lock.release()
             return ret
+
+    ##############################################################
+    # 보유 종목에 필요한 투자금 리턴
+    #   ex) 보유 종목 수 2개, 1차 매수 완료 2차 매수 대기
+    #   2차 매수에 40만원 필요 -> 80만원 리턴
+    # Return : 보유 종목에 필요한 투자금
+    ##############################################################
+    def get_invest_money_for_my_stock(self):
+        result = True
+        msg = ""
+        # 보유 종목에 필요한 투자금
+        need_total_invest_money = 0
+        try:
+            self.my_stocks_lock.acquire()
+            for code in self.my_stocks.keys():
+                #TODO: temp 삼성전자 제외
+                if code == "005930":
+                    continue
+
+                # 보유 주식 중 투자에 필요한 금액
+                for i in range(len(self.buy_invest_money)):
+                    if self.stocks[code]['buy_done'][i] == False:
+                        need_total_invest_money = need_total_invest_money + self.buy_invest_money[i]
+
+        except Exception as ex:
+            result = False
+            msg = "{}".format(traceback.format_exc())
+        finally:
+            if result == False:
+                self.SEND_MSG_ERR(msg)
+            self.my_stocks_lock.release()
+            return need_total_invest_money
