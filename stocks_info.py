@@ -1202,7 +1202,7 @@ class Stocks_info:
 
                 # 추세 세팅
                 self.stocks[code]['ma_trend'] = self.get_ma_trend(code)             # 60 이평 추세
-                self.stocks[code]['ma_trend2'] = self.get_ma_trend(code, 1, 90, 9)  # 90 이평 추세, 90 이평은 연속 9일 이하만 가능
+                self.stocks[code]['ma_trend2'] = self.get_ma_trend(code, 1, 90, 9, "D", (TREND_UP_DOWN_DIFF-0.01))  # 90 이평 추세, 90 이평은 연속 9일 이하만 가능
 
                 # 손절가 세팅
                 self.stocks[code]['loss_cut_price'] = self.get_loss_cut_price(code)
@@ -3329,8 +3329,9 @@ class Stocks_info:
     #                       ex) 0 : 금일 X일선, 1 : 어제 X일선    
     #   consecutive_days    X일동안 연속 상승이면 상승추세, 하락이면 하락, 그외 보합
     #   period              D : 일, W : 주, M : 월, Y : 년
+    #   ref_ma_diff         이 값 이상 이평 이격 있어야 정배열
     ##############################################################
-    def get_ma_trend(self, code: str, past_day=1, ma=60, consecutive_days=15, period="D"):
+    def get_ma_trend(self, code: str, past_day=1, ma=60, consecutive_days=15, period="D", ref_ma_diff=TREND_UP_DOWN_DIFF):
         result = True
         msg = ""
         ma_trend = TREND_DOWN
@@ -3356,9 +3357,9 @@ class Stocks_info:
                         trand_down_count += 1
                     ma_price = yesterdat_ma_price
             
-            if trand_up_count >= (consecutive_days - 1) and ma_diff > TREND_UP_DOWN_DIFF:
+            if trand_up_count >= (consecutive_days - 1) and ma_diff > ref_ma_diff:
                 ma_trend = TREND_UP
-            elif trand_down_count >= (consecutive_days - 1) and ma_diff > TREND_UP_DOWN_DIFF:
+            elif trand_down_count >= (consecutive_days - 1) and ma_diff > ref_ma_diff:
                 ma_trend = TREND_DOWN
             else:
                 ma_trend = TREND_SIDE
