@@ -141,7 +141,8 @@ MAX_REQUEST_RETRY_COUNT = 3         # request 실패 시 최대 retry 횟수
 TODAY_DATE = f"{datetime.datetime.now().strftime('%Y%m%d')}"
 
 TREND_UP_DOWN_DIFF = 0.035      # ex) (recent ma - last ma) 기울기 x% 이상되어야 추세 up down
-MA_DIFF = 0.03                  # 이평선 간의 이격 ex) 60, 90 이평선 간에 3% 이격이상 있어야 정배열
+MA_DIFF_P = 3                   # 이평선 간의 이격 ex) 60, 90 이평선 간에 3% 이격이상 있어야 정배열
+DEFAULT_ENVELOPE_P = 8          # 1차 매수 시 envelope value
 
 ##############################################################
 
@@ -259,7 +260,7 @@ class Stocks_info:
         trend_msg[TREND_DOWN] = "하락 추세"
         trend_msg[TREND_SIDE] = "보합 추세"
         trend_msg[TREND_UP] = "상승 추세"
-        PRINT_DEBUG(f'60일선 {trend_msg[self.trade_strategy.trend]} 이상 매수')
+        PRINT_DEBUG(f'60,90일선 {trend_msg[self.trade_strategy.trend]} 이상 매수')
 
         if BUY_QTY_1 == True:
             PRINT_DEBUG('1주만 매수')
@@ -648,8 +649,6 @@ class Stocks_info:
                 # 최소 목표가
                 if self.stocks[code]['sell_target_p'] < MIN_SELL_TARGET_P:
                     self.stocks[code]['sell_target_p'] = MIN_SELL_TARGET_P
-
-            # 2차 매수(불타기) 후 손절가 업데이트
 
             # 다음 매수 조건 체크위해 allow_monitoring_buy 초기화
             self.stocks[code]['allow_monitoring_buy'] = False
@@ -1203,7 +1202,7 @@ class Stocks_info:
 
                 # 추세 세팅
                 self.stocks[code]['ma_trend'] = self.get_ma_trend(code)             # 60 이평 추세
-                self.stocks[code]['ma_trend2'] = self.get_ma_trend(code, 1, 90)     # 90 이평 추세
+                self.stocks[code]['ma_trend2'] = self.get_ma_trend(code, 1, 90, 9)  # 90 이평 추세, 90 이평은 연속 9일 이하만 가능
 
                 # 손절가 세팅
                 self.stocks[code]['loss_cut_price'] = self.get_loss_cut_price(code)
@@ -1422,7 +1421,7 @@ class Stocks_info:
                 return False
             ####
             
-            # 이미 보유 주식은 매수
+            # 이미 보유 종목은 매수
             # ex) 2차, 3차 매수
             if self.is_my_stock(code) == True:
                 return True
@@ -1467,12 +1466,18 @@ class Stocks_info:
             #         PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, EPS_E({self.stocks[code]['EPS_E']})")                
             #     return False
 
-            # 보유현금에 맞게 종목개수 매수
-            #   ex) 총 보유금액이 300만원이고 종목당 총 100만원 매수 시 총 3종목 매수
-            if (len(self.my_stocks) >= MAX_MY_STOCK_COUNT or self.get_available_buy_stock_count() <= 0) and self.is_my_stock(code) == False:
-                if print_msg:
-                    PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 보유현금({self.my_cash}원)에 맞게 종목개수 매수")                   
-                return False
+            if self.is_my_stock(code) == False:
+                # 최대 보유 종목 수 제한
+                if len(self.my_stocks) >= MAX_MY_STOCK_COUNT:
+                    if print_msg:
+                        PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 현재 보유 종목 수({len(self.my_stocks)}) >= 최대 보유 가능 종목 수({MAX_MY_STOCK_COUNT})")
+                    return False
+                # 보유 현금에 맞게 종목 수 매수
+                #   ex) 총 보유 금액이 300만원이고 종목 당 총 100만원 매수 시 총 3종목 매수                
+                elif self.get_available_buy_stock_count() <= 0:
+                    if print_msg:
+                        PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 보유 현금({self.my_cash}원) 부족")
+                    return False
             
             # 매도 후 종가 > 20ma 체크
             if self.stocks[code]['sell_done'] == True:
@@ -1481,8 +1486,6 @@ class Stocks_info:
                     if print_msg:
                         PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 매도 후 종가 <= 20이평선")                       
                     return False
-            else:
-                pass
             
             # 시총 체크
             if self.stocks[code]['market_cap'] < self.trade_strategy.buyable_market_cap:
@@ -1492,7 +1495,7 @@ class Stocks_info:
 
             # 20,60,90 정배열 체크
             # 이평선 간에 x% 이상 차이나야 정배열
-            if self.get_multi_ma_status(code, [20,60,90], "D", MA_DIFF) != MA_STATUS_POSITIVE:
+            if self.get_multi_ma_status(code, [20,60,90], "D", MA_DIFF_P) != MA_STATUS_POSITIVE:
                 if print_msg:
                     PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 20,60,90 이평선 정배열 아님")
                 return False
@@ -1733,7 +1736,7 @@ class Stocks_info:
             for row in zip(*data.values()):
                 table.add_row(row)
 
-            table = "\n==========주식 보유잔고==========\n" + str(table)
+            table = "\n==========주식 보유 잔고==========\n" + str(table)
             self.SEND_MSG_INFO(f"{table}", send_discode)
             self.SEND_MSG_INFO(f"주식 평가 금액: {evaluation[0]['scts_evlu_amt']}원", send_discode)
             self.SEND_MSG_INFO(f"평가 손익 합계: {evaluation[0]['evlu_pfls_smtl_amt']}원", send_discode)
@@ -2407,10 +2410,17 @@ class Stocks_info:
                     if ret == True:
                         is_trade_done = True
                         # 평균 체결가
-                        avg_price = int(stock['avg_prvs'])
+                        # 매도 체결가 오류 처리 : check_trade_done() 에서 체결 완료된 trade_done_avg_price 를 avg_price 로 세팅한다.
+                        if trade_done_avg_price > 0:
+                            avg_price = trade_done_avg_price
+                        else:
+                            avg_price = int(stock['avg_prvs'])
+                        PRINT_DEBUG(f"trade_done_avg_price : {trade_done_avg_price}, avg_price : {avg_price}")
+
                         if avg_price == 0:
                             # self.SEND_MSG_ERR(f"[{stock['prdt_name']}] 평균 체결가 오류 {avg_price} [{self.stocks[code]['name']}]")
                             # check_trade_done 에서의 체결가로 사용
+                            PRINT_INFO(f"int(stock['avg_prvs']) == 0, use avg_price = trade_done_avg_price({trade_done_avg_price})")
                             avg_price = trade_done_avg_price
 
                         if buy_sell == BUY_CODE:
@@ -2822,10 +2832,12 @@ class Stocks_info:
                     # 손실 상태에서 x일간 지지부진하면 손절
                     if days_diff > no_buy_days:
                         # 손실 상태 체크
-                        if self.stocks[code]['avg_buy_price'] < self.get_end_price(code):
+                        if self.stocks[code]['avg_buy_price'] > self.get_end_price(code):
                             if self.stocks[code]['sell_1_done'] == False and self.stocks[code]['buy_done'][BUY_SPLIT_COUNT-1] == False:
-                                do_loss_cut = True
-                                PRINT_INFO(f'{recent_buy_date} 매수 후 {today}까지 {days_diff} 동안 매수 없어 손절')
+                                # 손절 주문 안된 경우만 체크
+                                if self.stocks[code]['loss_cut_order'] == False:
+                                    do_loss_cut = True
+                                    PRINT_INFO(f'{recent_buy_date} 매수 후 {today} 까지 {days_diff} 동안 매수 없어 손절')
 
                 curr_price = self.get_curr_price(code)
                 loss_cut_price = self.get_loss_cut_price(code)
@@ -3367,10 +3379,10 @@ class Stocks_info:
     #   ma_list             이평선 리스트   ex) [60,90]
     #                       주의, 이평선 입력은 오름차순
     #   period              D : 일, W : 주, M : 월, Y : 년
-    #   diff                이평선 간 이격도 이상 벌어져야 정배열
-    #                       ex) diff = 0.01 이면 60이평, 90이평, 120이평 간에 1% 이상 차이나야 정배열
+    #   diff_p              이평선 간 이격도 이상 벌어져야 정배열
+    #                       ex) diff_p = 1 이면 60이평, 90이평, 120이평 간에 1% 이상 차이나야 정배열
     ##############################################################
-    def get_multi_ma_status(self, code: str, ma_list:list, period="D", diff=0):
+    def get_multi_ma_status(self, code: str, ma_list:list, period="D", diff_p=0):
         result = True
         msg = ""
         ma_status = MA_STATUS_SOSO
@@ -3386,7 +3398,7 @@ class Stocks_info:
             for i in range(ma_price_list_len):
                 if i+1 >= ma_price_list_len:
                     break
-                if ma_price_list[i] * (1 - diff) > ma_price_list[i+1]:
+                if ma_price_list[i] * (1 - self.to_percent(diff_p)) > ma_price_list[i+1]:
                     positive_count += 1
                 else:
                     negative_count += 1
@@ -3436,7 +3448,7 @@ class Stocks_info:
         msg = ""
         envelope_p = 20
         try:
-            envelope_p = 8
+            envelope_p = DEFAULT_ENVELOPE_P
             if is_market_crash == True:
                 # envelope 증가 등으로 보수적으로 접근
                 # ex) 지수가 4% 폭락 시 4/2+1 = 3 을 envelope 증가
