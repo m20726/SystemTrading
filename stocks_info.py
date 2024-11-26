@@ -30,9 +30,9 @@ import threading
 #       목표가 올려가며 남은 물량의 1/2 매도
 #       N차 매도가 : N-1차 매도가 * 1.025 (N>=2)
 # 손절
-#   last차 매수가 -5% 장중 이탈
-#   오늘 > 최근 매수일 + x days, 즉 x 일 동안 매수 없고
-#   1차 매도가 안됐고 last차 매수까지 안된 경우 손절
+#   1. last차 매수가 -5% 장중 이탈
+#   2. 오늘 > 최근 매수일 + x day, 즉 x 일 동안 매수 없고
+#       손실 상태에서 1차 매도가 안됐고 last차 매수까지 안된 경우 손절
 
 
 ##############################################################
@@ -2794,9 +2794,9 @@ class Stocks_info:
         
     ##############################################################
     # 손절 처리
-    #   현재가 < 손절가 면 손절 처리
-    #   오늘 > 최근 매수일 + x day, 즉 x 일 동안 매수 없고
-    #       1차 매도가 안됐고 last차 매수까지 안된 경우 손절
+    #   1. 현재가 < 손절가 면 손절 처리
+    #   2. 오늘 > 최근 매수일 + x day, 즉 x 일 동안 매수 없고
+    #       손실 상태에서 1차 매도가 안됐고 last차 매수까지 안된 경우 손절
     # Return :
     #   손절 주문 시 True, 손절 주문 없을 시 False
     ##############################################################
@@ -2806,16 +2806,13 @@ class Stocks_info:
         ret = False
         try:
             today = date.today()
-            no_buy_days = 10
+            no_buy_days = 14
             self.my_stocks_lock.acquire()
             for code in self.my_stocks.keys():
                 #TODO: temp 삼성전자 제외
                 if code == "005930":
                     continue
-                # PRINT_INFO(f"[{self.stocks[code]['name']}] 손절 체크")
-                # 손실 상태에서 x일간 지지부진하면 손절
-                # 오늘 > 최근 매수일 + x day, 즉 x 일 동안 매수 없고
-                # 1차 매도가 안됐고 last차 매수까지 안된 경우 손절
+
                 do_loss_cut = False
 
                 # thread 처리로 set_buy_done()에서 set 되기 전 오는 경우 skip
@@ -3176,8 +3173,8 @@ class Stocks_info:
             
             if self.trade_strategy.invest_risk == INVEST_RISK_HIGH:
                 self.trade_strategy.under_value = -10                       # 저평가가 이 값 미만은 매수 금지
-                self.trade_strategy.gap_max_sell_target_price_p = -5        # 목표가GAP 이 이 값 미만은 매수 금지
-                self.trade_strategy.sum_under_value_sell_target_gap = -5    # 저평가 + 목표가GAP 이 이 값 미만은 매수 금지
+                self.trade_strategy.gap_max_sell_target_price_p = -10       # 목표가GAP 이 이 값 미만은 매수 금지
+                self.trade_strategy.sum_under_value_sell_target_gap = -20   # 저평가 + 목표가GAP 이 이 값 미만은 매수 금지
                 self.trade_strategy.buyable_market_cap = 5000               # 시총 X 미만 매수 금지(억)
                 self.trade_strategy.trend = TREND_UP                        # 추세선이 이거 이상이여야 매수          
             elif self.trade_strategy.invest_risk == INVEST_RISK_MIDDLE:
@@ -3381,7 +3378,7 @@ class Stocks_info:
     #                       주의, 이평선 입력은 오름차순
     #   period              D : 일, W : 주, M : 월, Y : 년
     #   diff_p              이평선 간 이격도 이상 벌어져야 정배열
-    #                       ex) diff_p = 1 이면 60이평, 90이평, 120이평 간에 1% 이상 차이나야 정배열
+    #                       ex) diff_p = 3 이면 20,60,90이평 간에 3% 이상 차이나야 정배열
     ##############################################################
     def get_multi_ma_status(self, code: str, ma_list:list, period="D", diff_p=0):
         result = True
