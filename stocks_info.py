@@ -133,16 +133,20 @@ SORT_BY_UNDER_VALUE = 1
 LOSS_CUT_MARKET_OPEN = 0        # 장중 손절
 LOSS_CUT_MARKET_CLOSE = 1       # 종가 손절
 
-NEXT_SELL_TARGET_MARGIN_P = 0.025    # N차 매도가 : N-1차 매도가 * (1 + MARGIN_P) (N>=2)
+NEXT_SELL_TARGET_MARGIN_P = 2.5     # N차 매도가 : N-1차 매도가 * (1 + MARGIN_P) (N>=2), ex) 2.5%
 
 MAX_REQUEST_RETRY_COUNT = 3         # request 실패 시 최대 retry 횟수
 
 # ex) 20130414
 TODAY_DATE = f"{datetime.datetime.now().strftime('%Y%m%d')}"
 
+#TODO: 90이평 기울기 2.5% 필요한가?
+# ex) 24.12.02 하이브
 TREND_UP_DOWN_DIFF = 0.035      # ex) (recent ma - last ma) 기울기 x% 이상되어야 추세 up down
-MA_DIFF_P = 3                   # 이평선 간의 이격 ex) 60, 90 이평선 간에 3% 이격이상 있어야 정배열
-DEFAULT_ENVELOPE_P = 8          # 1차 매수 시 envelope value
+#TODO: 이격 필요한가? 
+# ex) 24.12.02 한화시스템
+MA_DIFF_P = 2                   # 이평선 간의 이격 ex) 60, 90 이평선 간에 3% 이격이상 있어야 정배열
+DEFAULT_ENVELOPE_P = 12         # 1차 매수 시 envelope value
 
 ##############################################################
 
@@ -211,6 +215,9 @@ class Stocks_info:
         self.buy_sell_msg[BUY_CODE] = "매수"
 
         self.request_retry_count = 0            # request 실패 시 retry 횟수
+        # "005930" : 삼성전자
+        # "098460" : 고영
+        self.not_handle_stock_list = ["005930", "098460"]       # 매수,매도 등 처리하지 않는 종목, ex) 보유하지만 처리에서 제외 종목
 
     ##############################################################
     # 초기화 시 처리 할 내용
@@ -799,7 +806,7 @@ class Stocks_info:
             else:
                 # 1차 매도 완료 경우
                 # N차 매도가 : N-1차 매도가 * x (N>=2)
-                price = self.stocks[code]['recent_sold_price'] * (1 + NEXT_SELL_TARGET_MARGIN_P)
+                price = self.stocks[code]['recent_sold_price'] * (1 + self.to_percent(NEXT_SELL_TARGET_MARGIN_P))
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -1202,7 +1209,7 @@ class Stocks_info:
 
                 # 추세 세팅
                 self.stocks[code]['ma_trend'] = self.get_ma_trend(code)             # 60 이평 추세
-                self.stocks[code]['ma_trend2'] = self.get_ma_trend(code, 1, 90, 9, "D", (TREND_UP_DOWN_DIFF-0.01))  # 90 이평 추세, 90 이평은 연속 9일 이하만 가능
+                self.stocks[code]['ma_trend2'] = self.get_ma_trend(code, 1, 90, 9, "D", (TREND_UP_DOWN_DIFF - 0.015))  # 90 이평 추세, 90 이평은 연속 9일 이하만 가능
 
                 # 손절가 세팅
                 self.stocks[code]['loss_cut_price'] = self.get_loss_cut_price(code)
@@ -1982,8 +1989,8 @@ class Stocks_info:
             # 매수 가능 종목내에서만 매수
             self.buyable_stocks_lock.acquire()         
             for code in self.buyable_stocks.keys():
-                #TODO: temp 삼성전자 제외
-                if code == "005930":
+                #TODO: temp 삼성전자, 고영 제외
+                if code in self.not_handle_stock_list:
                     continue
                 
                 curr_price = self.get_curr_price(code)
@@ -2055,7 +2062,7 @@ class Stocks_info:
                             self.stocks[code]['allow_monitoring_buy'] = True
                             # 1차 매수 완료 경우 평단가 2~2.5% 사이에서 2차 매수(불타기)
                             if self.stocks[code]['buy_order_done'] == False:
-                                if curr_price >= (self.stocks[code]['avg_buy_price'] * (1 + NEXT_SELL_TARGET_MARGIN_P - 0.005)) and curr_price <= (self.stocks[code]['avg_buy_price'] * (1 + NEXT_SELL_TARGET_MARGIN_P)):
+                                if curr_price >= (self.stocks[code]['avg_buy_price'] * (1 + self.to_percent(NEXT_SELL_TARGET_MARGIN_P) - self.to_percent(0.5))) and curr_price <= (self.stocks[code]['avg_buy_price'] * (1 + self.to_percent(NEXT_SELL_TARGET_MARGIN_P))):
                                     buy_target_qty = self.get_buy_target_qty(code)
                                     if self.buy(code, curr_price, buy_target_qty, ORDER_TYPE_IMMEDIATE_ORDER) == True:
                                         self.set_order_done(code, BUY_CODE)
@@ -2084,8 +2091,8 @@ class Stocks_info:
 
             self.my_stocks_lock.acquire()
             for code in self.my_stocks.keys():
-                #TODO: temp 삼성전자 제외
-                if code == "005930":
+                #TODO: temp 삼성전자, 고영 제외
+                if code in self.not_handle_stock_list:
                     continue
 
                 curr_price = self.get_curr_price(code)
@@ -2809,8 +2816,8 @@ class Stocks_info:
             no_buy_days = 14
             self.my_stocks_lock.acquire()
             for code in self.my_stocks.keys():
-                #TODO: temp 삼성전자 제외
-                if code == "005930":
+                #TODO: temp 삼성전자, 고영 제외
+                if code in self.not_handle_stock_list:
                     continue
 
                 do_loss_cut = False
@@ -3169,24 +3176,33 @@ class Stocks_info:
             else:
                 self.trade_strategy.invest_risk = INVEST_RISK_LOW
 
-            self.trade_strategy.max_per = 50                                # PER가 이 값 이상이면 매수 금지            
+            self.trade_strategy.max_per = 50                                # PER가 이 값 이상이면 매수 금지
+
+            invest_risk_high_under_value = -10
+            invest_risk_high_gap_max_sell_target_price_p = 0
+            invest_risk_high_sum_under_value_sell_target_gap = -5
             
             if self.trade_strategy.invest_risk == INVEST_RISK_HIGH:
-                self.trade_strategy.under_value = -10                       # 저평가가 이 값 미만은 매수 금지
-                self.trade_strategy.gap_max_sell_target_price_p = -10       # 목표가GAP 이 이 값 미만은 매수 금지
-                self.trade_strategy.sum_under_value_sell_target_gap = -20   # 저평가 + 목표가GAP 이 이 값 미만은 매수 금지
-                self.trade_strategy.buyable_market_cap = 5000               # 시총 X 미만 매수 금지(억)
-                self.trade_strategy.trend = TREND_UP                        # 추세선이 이거 이상이여야 매수          
+                # 저평가가 이 값 미만은 매수 금지
+                self.trade_strategy.under_value = invest_risk_high_under_value                       
+                # 목표가GAP 이 이 값 미만은 매수 금지
+                self.trade_strategy.gap_max_sell_target_price_p = invest_risk_high_gap_max_sell_target_price_p         
+                # 저평가 + 목표가GAP 이 이 값 미만은 매수 금지
+                self.trade_strategy.sum_under_value_sell_target_gap = invest_risk_high_sum_under_value_sell_target_gap     
+                # 시총 X 미만 매수 금지(억)
+                self.trade_strategy.buyable_market_cap = 5000               
+                # 추세선이 이거 이상이여야 매수          
+                self.trade_strategy.trend = TREND_UP                        
             elif self.trade_strategy.invest_risk == INVEST_RISK_MIDDLE:
-                self.trade_strategy.under_value = -5
-                self.trade_strategy.gap_max_sell_target_price_p = 0
-                self.trade_strategy.sum_under_value_sell_target_gap = 0
+                self.trade_strategy.under_value = invest_risk_high_under_value + 5
+                self.trade_strategy.gap_max_sell_target_price_p = invest_risk_high_gap_max_sell_target_price_p + 5
+                self.trade_strategy.sum_under_value_sell_target_gap = invest_risk_high_sum_under_value_sell_target_gap + 5
                 self.trade_strategy.buyable_market_cap = 10000
                 self.trade_strategy.trend = TREND_UP
             else:   # INVEST_RISK_LOW
-                self.trade_strategy.under_value = 0
-                self.trade_strategy.gap_max_sell_target_price_p = 0
-                self.trade_strategy.sum_under_value_sell_target_gap = 5
+                self.trade_strategy.under_value = invest_risk_high_under_value + 10
+                self.trade_strategy.gap_max_sell_target_price_p = invest_risk_high_gap_max_sell_target_price_p + 10
+                self.trade_strategy.sum_under_value_sell_target_gap = invest_risk_high_sum_under_value_sell_target_gap + 10
                 self.trade_strategy.buyable_market_cap = 20000    
                 self.trade_strategy.trend = TREND_UP
         except Exception as ex:
@@ -3369,7 +3385,7 @@ class Stocks_info:
             return ma_trend
 
     ##############################################################
-    # 2개 이상의 이평선의 배열 상태 리턴
+    # 어제 기준 2개 이상의 이평선의 배열 상태 리턴
     #   ex) "60 이평선 가격 > 90 이평선 가격 > 120 이평선 가격" 이면 정배열, 반대면 역배열
     #       그 외는 SOSO
     # param :
@@ -3670,8 +3686,8 @@ class Stocks_info:
         try:
             self.my_stocks_lock.acquire()
             for code in self.my_stocks.keys():
-                #TODO: temp 삼성전자 제외
-                if code == "005930":
+                #TODO: temp 삼성전자, 고영 제외
+                if code in self.not_handle_stock_list:
                     continue
 
                 # 보유 주식 중 투자에 필요한 금액
