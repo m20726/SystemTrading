@@ -22,7 +22,7 @@ import threading
 #   1차 매수
 #       1. 60,90 상승 추세, 기울기 x% 이상
 #       2. 20,60,90 정배열
-#       3. Envel 8 이상 & 90일선 이하에서 트레일링스탑 1차 매수
+#       3. Envel X 값 이하에서 트레일링스탑 1차 매수
 #   2차 매수 : 물타기 1차 매수 -10%
 # 매도
 #   목표가에 반 매도
@@ -74,14 +74,14 @@ else:
 
 # "현재가 - 매수가 GAP" 이 X% 이하 경우만 매수 가능 종목으로 처리
 # GAP 이 클수록 종목이 많아 실시간 처리가 느려진다
-BUYABLE_GAP = 7
+BUYABLE_GAP = 8
 
 # 상위 몇개 종목까지 매수 가능 종목으로 유지
 BUYABLE_COUNT = 30                          
 
 # 빠른 익절 전략
 # 1차 매도 후 나머지 물량은 익절선을 높여 빠르게 익절한다
-TAKE_PROFIT_STRATEGY_FAST = 0
+# TAKE_PROFIT_STRATEGY_FAST = 0
 
 # 느린 익절(수익 길게) 전략
 # 1차 매도 후 나머지 물량은 익절선을 낮추어 길게 간다
@@ -140,13 +140,14 @@ MAX_REQUEST_RETRY_COUNT = 3         # request 실패 시 최대 retry 횟수
 # ex) 20130414
 TODAY_DATE = f"{datetime.datetime.now().strftime('%Y%m%d')}"
 
-#TODO: 90이평 기울기 2.5% 필요한가?
-# ex) 24.12.02 하이브
-TREND_UP_DOWN_DIFF = 0.035      # ex) (recent ma - last ma) 기울기 x% 이상되어야 추세 up down
-#TODO: 이격 필요한가? 
-# ex) 24.12.02 한화시스템
-MA_DIFF_P = 2                   # 이평선 간의 이격 ex) 60, 90 이평선 간에 3% 이격이상 있어야 정배열
-DEFAULT_ENVELOPE_P = 12         # 1차 매수 시 envelope value
+# 60이평선 상승 추세 판단 기울기
+TREND_UP_DOWN_DIFF_60MA = 0.02       # ex) (recent ma - last ma) 기울기 x% 이상되어야 추세 up down
+
+# 60이평선 상승 추세 판단 기울기
+TREND_UP_DOWN_DIFF_90MA = 0.01
+
+MA_DIFF_P = 1.8                     # 이평선 간의 이격 ex) 60, 90 이평선 간에 3% 이격이상 있어야 정배열
+DEFAULT_ENVELOPE_P = 13             # 1차 매수 시 envelope value
 
 ##############################################################
 
@@ -216,8 +217,7 @@ class Stocks_info:
 
         self.request_retry_count = 0            # request 실패 시 retry 횟수
         # "005930" : 삼성전자
-        # "098460" : 고영
-        self.not_handle_stock_list = ["005930", "098460"]       # 매수,매도 등 처리하지 않는 종목, ex) 보유하지만 처리에서 제외 종목
+        self.not_handle_stock_list = ["005930"]       # 매수,매도 등 처리하지 않는 종목, ex) 보유하지만 처리에서 제외 종목
 
     ##############################################################
     # 초기화 시 처리 할 내용
@@ -550,7 +550,9 @@ class Stocks_info:
                 # self.stocks[code]['buy_price'][0] = min(int(envelope_support_line * MARGIN_20MA), self.get_plunge_price(code))
 
                 # 1차 매수가는 min(envelope 가격, 90일선)
-                self.stocks[code]['buy_price'][0] = min(int(envelope_support_line * MARGIN_20MA), self.get_ma(code, 90))
+                # self.stocks[code]['buy_price'][0] = min(int(envelope_support_line * MARGIN_20MA), self.get_ma(code, 90))
+
+                self.stocks[code]['buy_price'][0] = int(envelope_support_line * MARGIN_20MA)
 
                 # 1 ~ (BUY_SPLIT_COUNT-1)
                 for i in range(1, BUY_SPLIT_COUNT):
@@ -1209,7 +1211,7 @@ class Stocks_info:
 
                 # 추세 세팅
                 self.stocks[code]['ma_trend'] = self.get_ma_trend(code)             # 60 이평 추세
-                self.stocks[code]['ma_trend2'] = self.get_ma_trend(code, 1, 90, 9, "D", (TREND_UP_DOWN_DIFF - 0.015))  # 90 이평 추세, 90 이평은 연속 9일 이하만 가능
+                self.stocks[code]['ma_trend2'] = self.get_ma_trend(code, 1, 90, 9, "D", TREND_UP_DOWN_DIFF_90MA)  # 90 이평 추세, 90 이평은 연속 9일 이하만 가능
 
                 # 손절가 세팅
                 self.stocks[code]['loss_cut_price'] = self.get_loss_cut_price(code)
@@ -1293,7 +1295,7 @@ class Stocks_info:
                             temp_stock = copy.deepcopy({code: self.stocks[code]})
                             self.my_stocks[code] = temp_stock[code]
                         else:
-                            # 보유는 하지만 DB 에 없는 종목 제외 ex) 공모주
+                            # 보유는 하지만 stocks_info.json 에 없는 종목 제외 ex) 공모주
                             pass
             else:
                 raise Exception(f"[계좌 조회 실패]{str(res.json())}")
@@ -1509,12 +1511,12 @@ class Stocks_info:
             
             # 60일선 추세 체크
             if self.stocks[code]['ma_trend'] < self.trade_strategy.trend:
-                PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 60일선 추세 체크")
+                PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 60일선 추세 체크({self.stocks[code]['ma_trend']})")
                 return False
 
             # 90일선 추세 체크
             if self.stocks[code]['ma_trend2'] < self.trade_strategy.trend:
-                PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 90일선 추세 체크")
+                PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 90일선 추세 체크({self.stocks[code]['ma_trend2']})")
                 return False
             
             # # "1차 매수가 >= 최근 한달 내 최저가" 면 매수 금지
@@ -1732,7 +1734,7 @@ class Stocks_info:
                         data['목표가'].append(int(self.stocks[code]['sell_target_price']))
                         data['손절가'].append(int(self.get_loss_cut_price(code)))
                     else:
-                        # 보유는 하지만 DB 에 없는 종목 표시
+                        # 보유는 하지만 stocks_info.json 에 없는 종목 표시
                         data['목표가'].append(0)
                         data['손절가'].append(0)
 
@@ -1989,10 +1991,14 @@ class Stocks_info:
             # 매수 가능 종목내에서만 매수
             self.buyable_stocks_lock.acquire()         
             for code in self.buyable_stocks.keys():
-                #TODO: temp 삼성전자, 고영 제외
+                #TODO: temp 삼성전자 제외
                 if code in self.not_handle_stock_list:
                     continue
                 
+                # stocks_info.json 에 없는 종목은 제외
+                if code not in self.stocks.keys():
+                    continue
+
                 curr_price = self.get_curr_price(code)
                 if curr_price == 0:
                     PRINT_ERR(f"[{self.stocks[code]['name']}] curr_price {curr_price}원")
@@ -2091,8 +2097,12 @@ class Stocks_info:
 
             self.my_stocks_lock.acquire()
             for code in self.my_stocks.keys():
-                #TODO: temp 삼성전자, 고영 제외
+                #TODO: temp 삼성전자 제외
                 if code in self.not_handle_stock_list:
+                    continue
+
+                # stocks_info.json 에 없는 종목은 제외
+                if code not in self.stocks.keys():
                     continue
 
                 curr_price = self.get_curr_price(code)
@@ -2325,7 +2335,7 @@ class Stocks_info:
         msg = ""
         try:
             if code not in self.stocks.keys():
-                # 보유는 하지만 DB 에 없는 종목 제외 ex) 공모주
+                # 보유는 하지만 stocks_info.json 에 없는 종목 제외 ex) 공모주
                 return False, 0
             order_list = self.get_order_list()
             for stock in order_list:
@@ -2435,7 +2445,7 @@ class Stocks_info:
                         else:
                             self.set_sell_done(code, avg_price)
                 else:
-                    # 보유는 하지만 DB 에 없는 종목 제외 ex) 공모주
+                    # 보유는 하지만 stocks_info.json 에 없는 종목 제외 ex) 공모주
                     pass                       
             
             # 여러 종목 체결되도 결과는 한 번만 출력
@@ -2580,7 +2590,7 @@ class Stocks_info:
                             data['수량'].append(stock['tot_ccld_qty'])
                             data['현재가'].append(curr_price)
                     else:
-                        # 보유는 하지만 DB 에 없는 종목 제외 ex) 공모주
+                        # 보유는 하지만 stocks_info.json 에 없는 종목 제외 ex) 공모주
                         pass
 
             # PrettyTable 객체 생성 및 데이터 추가
@@ -2813,11 +2823,15 @@ class Stocks_info:
         ret = False
         try:
             today = date.today()
-            no_buy_days = 14
+            no_buy_days = 21
             self.my_stocks_lock.acquire()
             for code in self.my_stocks.keys():
-                #TODO: temp 삼성전자, 고영 제외
+                #TODO: temp 삼성전자 제외
                 if code in self.not_handle_stock_list:
+                    continue
+
+                # stocks_info.json 에 없는 종목은 제외
+                if code not in self.stocks.keys():
                     continue
 
                 do_loss_cut = False
@@ -3344,7 +3358,7 @@ class Stocks_info:
     #   period              D : 일, W : 주, M : 월, Y : 년
     #   ref_ma_diff         이 값 이상 이평 이격 있어야 정배열
     ##############################################################
-    def get_ma_trend(self, code: str, past_day=1, ma=60, consecutive_days=15, period="D", ref_ma_diff=TREND_UP_DOWN_DIFF):
+    def get_ma_trend(self, code: str, past_day=1, ma=60, consecutive_days=15, period="D", ref_ma_diff=TREND_UP_DOWN_DIFF_60MA):
         result = True
         msg = ""
         ma_trend = TREND_DOWN
@@ -3462,7 +3476,11 @@ class Stocks_info:
         msg = ""
         envelope_p = 20
         try:
-            envelope_p = DEFAULT_ENVELOPE_P
+            # 시총 10조 이상이면 envelope_p = 10
+            if self.stocks[code]['market_cap'] >= 100000:
+                envelope_p = 10
+            else:
+                envelope_p = DEFAULT_ENVELOPE_P
             if is_market_crash == True:
                 # envelope 증가 등으로 보수적으로 접근
                 # ex) 지수가 4% 폭락 시 4/2+1 = 3 을 envelope 증가
@@ -3686,10 +3704,14 @@ class Stocks_info:
         try:
             self.my_stocks_lock.acquire()
             for code in self.my_stocks.keys():
-                #TODO: temp 삼성전자, 고영 제외
+                #TODO: temp 삼성전자 제외
                 if code in self.not_handle_stock_list:
                     continue
 
+                # stocks_info.json 에 없는 종목은 제외
+                if code not in self.stocks.keys():
+                    continue
+                
                 # 보유 주식 중 투자에 필요한 금액
                 for i in range(len(self.buy_invest_money)):
                     if self.stocks[code]['buy_done'][i] == False:
