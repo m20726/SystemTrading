@@ -143,8 +143,8 @@ TODAY_DATE = f"{datetime.datetime.now().strftime('%Y%m%d')}"
 # 60이평선 상승 추세 판단 기울기
 TREND_UP_DOWN_DIFF_60MA = 0.02       # ex) (recent ma - last ma) 기울기 x% 이상되어야 추세 up down
 
-# 60이평선 상승 추세 판단 기울기
-TREND_UP_DOWN_DIFF_90MA = 0.01
+# 90이평선 상승 추세 판단 기울기
+TREND_UP_DOWN_DIFF_90MA = 0.008
 
 MA_DIFF_P = 1.8                     # 이평선 간의 이격 ex) 60, 90 이평선 간에 3% 이격이상 있어야 정배열
 DEFAULT_ENVELOPE_P = 13             # 1차 매수 시 envelope value
