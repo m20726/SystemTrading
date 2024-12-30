@@ -26,7 +26,7 @@ import threading
 #   2차 매수 : 물타기 1차 매수 -10%
 # 매도
 #   목표가에 반 매도
-#   나머지는 익절가 이탈 시 전량 매도 or 20일선, 한달내 최고 종가
+#   나머지는 익절가 이탈 시 전량 매도
 #       목표가 올려가며 남은 물량의 1/2 매도
 #       N차 매도가 : N-1차 매도가 * 1.025 (N>=2)
 # 손절
@@ -1211,7 +1211,7 @@ class Stocks_info:
 
                 # 추세 세팅
                 self.stocks[code]['ma_trend'] = self.get_ma_trend(code)             # 60 이평 추세
-                self.stocks[code]['ma_trend2'] = self.get_ma_trend(code, 1, 90, 9, "D", TREND_UP_DOWN_DIFF_90MA)  # 90 이평 추세, 90 이평은 연속 9일 이하만 가능
+                self.stocks[code]['ma_trend2'] = self.get_ma_trend(code, 1, 90, 8, "D", TREND_UP_DOWN_DIFF_90MA)  # 90 이평 추세, 90 이평은 연속 8일 이하만 가능
 
                 # 손절가 세팅
                 self.stocks[code]['loss_cut_price'] = self.get_loss_cut_price(code)
@@ -2157,6 +2157,7 @@ class Stocks_info:
                     else:
                         if curr_price >= sell_target_price and sell_target_price > 0:
                             self.stocks[code]['allow_monitoring_sell'] = True
+                            #TODO: 25% 씩 4번에 걸쳐 매도? qty = 총수량 / 4
                             qty = max(1, int(self.my_stocks[code]['stockholdings'] / 2))
                             # 지정가 매도
                             # 주문 완료 했으면 다시 주문하지 않는다
