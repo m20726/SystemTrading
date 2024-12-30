@@ -1211,7 +1211,7 @@ class Stocks_info:
 
                 # 추세 세팅
                 self.stocks[code]['ma_trend'] = self.get_ma_trend(code)             # 60 이평 추세
-                self.stocks[code]['ma_trend2'] = self.get_ma_trend(code, 1, 90, 8, "D", TREND_UP_DOWN_DIFF_90MA)  # 90 이평 추세, 90 이평은 연속 8일 이하만 가능
+                self.stocks[code]['ma_trend2'] = self.get_ma_trend(code, 1, 90, 7, "D", TREND_UP_DOWN_DIFF_90MA)  # 90 이평 추세, 90 이평은 연속 7일 이하만 가능
 
                 # 손절가 세팅
                 self.stocks[code]['loss_cut_price'] = self.get_loss_cut_price(code)
