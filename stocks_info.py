@@ -144,7 +144,7 @@ TODAY_DATE = f"{datetime.datetime.now().strftime('%Y%m%d')}"
 TREND_UP_DOWN_DIFF_60MA = 0.02       # ex) (recent ma - last ma) 기울기 x% 이상되어야 추세 up down
 
 # 90이평선 상승 추세 판단 기울기
-TREND_UP_DOWN_DIFF_90MA = 0.008
+TREND_UP_DOWN_DIFF_90MA = 0.01
 
 MA_DIFF_P = 1.8                     # 이평선 간의 이격 ex) 60, 90 이평선 간에 3% 이격이상 있어야 정배열
 DEFAULT_ENVELOPE_P = 13             # 1차 매수 시 envelope value
@@ -1211,7 +1211,7 @@ class Stocks_info:
 
                 # 추세 세팅
                 self.stocks[code]['ma_trend'] = self.get_ma_trend(code)             # 60 이평 추세
-                self.stocks[code]['ma_trend2'] = self.get_ma_trend(code, 1, 90, 7, "D", TREND_UP_DOWN_DIFF_90MA)  # 90 이평 추세, 90 이평은 연속 7일 이하만 가능
+                self.stocks[code]['ma_trend2'] = self.get_ma_trend(code, 1, 90, 10, "D", TREND_UP_DOWN_DIFF_90MA)  # 90 이평 추세, 90 이평은 연속 최대 10일 이하만 가능
 
                 # 손절가 세팅
                 self.stocks[code]['loss_cut_price'] = self.get_loss_cut_price(code)
@@ -1613,8 +1613,12 @@ class Stocks_info:
 
             # x일 이평선 구하기 위해 x일간의 종가 구한다
             days_last = past_day + ma
-            if days_last >= len(end_price_list):
-                raise Exception(f"Can't get more than {len(end_price_list)} days data, days_last:{days_last}, past_day:{past_day}, ma:{ma}") 
+
+            # days_last 가 종가 개수보다 적게 조정하여 가능한 최대한의 종가로 계산
+            while days_last > len(end_price_list):
+                days_last = days_last - 1
+                past_day = past_day -1
+
             sum_end_price = 0
             for i in range(past_day, days_last):
                 end_price = end_price_list[i]                   # 종가
