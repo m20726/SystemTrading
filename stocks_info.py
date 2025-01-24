@@ -20,9 +20,8 @@ import threading
 ##############################################################
 # 매수
 #   1차 매수
-#       1. 60,90 상승 추세, 기울기 x% 이상
-#       2. 20,60,90 정배열
-#       3. Envel X 값 이하에서 트레일링스탑 1차 매수
+#       1. 20,60,90 정배열
+#       2. Envelope X 값 이하에서 트레일링스탑 1차 매수
 #   2차 매수 : 물타기 1차 매수 -10%
 # 매도
 #   목표가에 반 매도
@@ -67,7 +66,7 @@ INVEST_TYPE = "real_invest"                 # sim_invest : 모의 투자, real_i
 
 if INVEST_TYPE == "real_invest":
     MAX_MY_STOCK_COUNT = 6
-    INVEST_MONEY_PER_STOCK = 800000         # 종목 당 투자 금액(원)
+    INVEST_MONEY_PER_STOCK = 400000         # 종목 당 투자 금액(원)
 else:
     MAX_MY_STOCK_COUNT = 10                 # MAX 보유 주식 수
     INVEST_MONEY_PER_STOCK = 2000000        # 종목 당 투자 금액(원)
@@ -141,12 +140,12 @@ MAX_REQUEST_RETRY_COUNT = 3         # request 실패 시 최대 retry 횟수
 TODAY_DATE = f"{datetime.datetime.now().strftime('%Y%m%d')}"
 
 # 60이평선 상승 추세 판단 기울기
-TREND_UP_DOWN_DIFF_60MA = 0.02       # ex) (recent ma - last ma) 기울기 x% 이상되어야 추세 up down
+TREND_UP_DOWN_DIFF_60MA = 0.01       # ex) (recent ma - last ma) 기울기 x% 이상되어야 추세 up down
 
 # 90이평선 상승 추세 판단 기울기
-TREND_UP_DOWN_DIFF_90MA = 0.01
+TREND_UP_DOWN_DIFF_90MA = 0.003       # ex) 0.003 -> 0.3%
 
-MA_DIFF_P = 1.8                     # 이평선 간의 이격 ex) 60, 90 이평선 간에 3% 이격이상 있어야 정배열
+MA_DIFF_P = 0                       # 이평선 간의 이격 ex) 60, 90 이평선 간에 3% 이격이상 있어야 정배열
 DEFAULT_ENVELOPE_P = 13             # 1차 매수 시 envelope value
 
 ##############################################################
@@ -1211,7 +1210,7 @@ class Stocks_info:
 
                 # 추세 세팅
                 self.stocks[code]['ma_trend'] = self.get_ma_trend(code)             # 60 이평 추세
-                self.stocks[code]['ma_trend2'] = self.get_ma_trend(code, 1, 90, 10, "D", TREND_UP_DOWN_DIFF_90MA)  # 90 이평 추세, 90 이평은 연속 최대 10일 이하만 가능
+                self.stocks[code]['ma_trend2'] = self.get_ma_trend(code, 1, 90, 8, "D", TREND_UP_DOWN_DIFF_90MA)  # 90 이평 추세, 90 이평은 연속 최대 8일 이하만 가능
 
                 # 손절가 세팅
                 self.stocks[code]['loss_cut_price'] = self.get_loss_cut_price(code)
@@ -1514,10 +1513,10 @@ class Stocks_info:
                 PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 60일선 추세 체크({self.stocks[code]['ma_trend']})")
                 return False
 
-            # 90일선 추세 체크
-            if self.stocks[code]['ma_trend2'] < self.trade_strategy.trend:
-                PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 90일선 추세 체크({self.stocks[code]['ma_trend2']})")
-                return False
+            # # 90일선 추세 체크
+            # if self.stocks[code]['ma_trend2'] < self.trade_strategy.trend:
+            #     PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 90일선 추세 체크({self.stocks[code]['ma_trend2']})")
+            #     return False
             
             # # "1차 매수가 >= 최근 한달 내 최저가" 면 매수 금지
             # # ex) 20240820 삼양식품 매수 금지
@@ -3197,9 +3196,9 @@ class Stocks_info:
 
             self.trade_strategy.max_per = 50                                # PER가 이 값 이상이면 매수 금지
 
-            invest_risk_high_under_value = -10
-            invest_risk_high_gap_max_sell_target_price_p = 0
-            invest_risk_high_sum_under_value_sell_target_gap = -5
+            invest_risk_high_under_value = -15
+            invest_risk_high_gap_max_sell_target_price_p = -5
+            invest_risk_high_sum_under_value_sell_target_gap = -10
             
             if self.trade_strategy.invest_risk == INVEST_RISK_HIGH:
                 # 저평가가 이 값 미만은 매수 금지
@@ -3406,7 +3405,7 @@ class Stocks_info:
     ##############################################################
     # 어제 기준 2개 이상의 이평선의 배열 상태 리턴
     #   ex) "60 이평선 가격 > 90 이평선 가격 > 120 이평선 가격" 이면 정배열, 반대면 역배열
-    #       그 외는 SOSO
+    #       그 외는 soso
     # param :
     #   code                종목 코드
     #   ma_list             이평선 리스트   ex) [60,90]
