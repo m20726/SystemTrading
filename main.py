@@ -82,10 +82,10 @@ def main():
         # 종가 매매 위해 16:00 에 종료
         t_exit = t_now.replace(hour=16, minute=00, second=0,microsecond=0)
 
-        # 주식 정보 업데이트는 장 전후
-        if t_now < t_start or t_now > t_market_end_order_check:
-            stocks_info.update_stocks_trade_info()
-            stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
+        # # 주식 정보 업데이트는 장 전후
+        # if t_now < t_start or t_now > t_market_end_order_check:
+        #     stocks_info.update_stocks_trade_info()
+        #     stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
         # else:
         #     stocks_info.update_stocks_trade_info()
         #     stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
@@ -166,6 +166,11 @@ def main():
         if worker_thread.is_alive():
             # thread 완료까지 대기
             worker_thread.join()
+
+        # 장 종료 후 주식 정보 업데이트
+        if t_now > t_market_end_order_check:
+            stocks_info.update_stocks_trade_info()
+            stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
 
         PRINT_DEBUG("=== Program End ===")
     except Exception as ex:
