@@ -153,6 +153,7 @@ DEFAULT_ENVELOPE_P = 13             # 1차 매수 시 envelope value
 class Trade_strategy:
     def __init__(self) -> None:
         self.invest_risk = INVEST_RISK_LOW                      # 투자 전략, high : 공격적, middle : 중도적, low : 보수적
+        self.old_invest_risk = INVEST_RISK_LOW                  # 종목 체결로 보유 종목 수 변경 시 update_byable_stocks 실행은 old_invest_risk != invest_risk 일 때
         self.under_value = 0                                    # 저평가가 이 값 미만은 매수 금지
         self.gap_max_sell_target_price_p = 0                    # 목표가GAP 이 이 값 미만은 매수 금지
         self.sum_under_value_sell_target_gap = 0                # 저평가 + 목표가GAP 이 이 값 미만은 매수 금지
@@ -1210,7 +1211,7 @@ class Stocks_info:
 
                 # 추세 세팅
                 self.stocks[code]['ma_trend'] = self.get_ma_trend(code)             # 60 이평 추세
-                self.stocks[code]['ma_trend2'] = self.get_ma_trend(code, 1, 90, 8, "D", TREND_UP_DOWN_DIFF_90MA)  # 90 이평 추세, 90 이평은 연속 최대 8일 이하만 가능
+                # self.stocks[code]['ma_trend2'] = self.get_ma_trend(code, 1, 90, 8, "D", TREND_UP_DOWN_DIFF_90MA)  # 90 이평 추세, 90 이평은 연속 최대 8일 이하만 가능
 
                 # 손절가 세팅
                 self.stocks[code]['loss_cut_price'] = self.get_loss_cut_price(code)
@@ -2462,7 +2463,10 @@ class Stocks_info:
                 if self.my_stock_count != after_trade_done_my_stock_count:
                     self.my_stock_count = after_trade_done_my_stock_count
                     self.init_trade_strategy()
-                    self.update_buyable_stocks()
+                    # update_buyable_stocks 실행 시간 오래 걸린다 -> 전략이 바뀐 경우만 업데이트
+                    if self.trade_strategy.old_invest_risk != self.trade_strategy.invest_risk:
+                        self.update_buyable_stocks()
+                        self.show_buyable_stocks()
                 # 계좌 잔고 조회
                 self.get_stock_balance()
         except Exception as ex:
@@ -3187,13 +3191,15 @@ class Stocks_info:
             if self.my_stock_count == 0:
                 self.my_stock_count = self.get_my_stock_count()
 
+            self.trade_strategy.old_invest_risk = self.trade_strategy.invest_risk
+
             if self.my_stock_count <= MAX_MY_STOCK_COUNT * 1/3:
                 self.trade_strategy.invest_risk = INVEST_RISK_HIGH
             elif self.my_stock_count <= MAX_MY_STOCK_COUNT * 2/3:
                 self.trade_strategy.invest_risk = INVEST_RISK_MIDDLE
             else:
                 self.trade_strategy.invest_risk = INVEST_RISK_LOW
-
+            
             self.trade_strategy.max_per = 50                                # PER가 이 값 이상이면 매수 금지
 
             invest_risk_high_under_value = -15
@@ -3209,8 +3215,8 @@ class Stocks_info:
                 self.trade_strategy.sum_under_value_sell_target_gap = invest_risk_high_sum_under_value_sell_target_gap     
                 # 시총 X 미만 매수 금지(억)
                 self.trade_strategy.buyable_market_cap = 5000               
-                # 추세선이 이거 이상이여야 매수          
-                self.trade_strategy.trend = TREND_UP                        
+                # 추세선이 이거 이상이여야 매수
+                self.trade_strategy.trend = TREND_UP
             elif self.trade_strategy.invest_risk == INVEST_RISK_MIDDLE:
                 self.trade_strategy.under_value = invest_risk_high_under_value + 5
                 self.trade_strategy.gap_max_sell_target_price_p = invest_risk_high_gap_max_sell_target_price_p + 5
@@ -3368,8 +3374,8 @@ class Stocks_info:
         ma_trend = TREND_DOWN
         try:
             # x일 연속 상승,하락인지 체크 그외 보합
-            trand_up_count = 0
-            trand_down_count = 0
+            trend_up_count = 0
+            trend_down_count = 0
             ma_price = self.get_ma(code, ma, past_day, period)
             start_day = past_day+1
             last_day = past_day+consecutive_days
@@ -3383,14 +3389,14 @@ class Stocks_info:
                 if i < last_day:
                     yesterdat_ma_price = self.get_ma(code, ma, i, period)
                     if ma_price > yesterdat_ma_price:
-                        trand_up_count += 1
+                        trend_up_count += 1
                     elif ma_price < yesterdat_ma_price:
-                        trand_down_count += 1
+                        trend_down_count += 1
                     ma_price = yesterdat_ma_price
             
-            if trand_up_count >= (consecutive_days - 1) and ma_diff > ref_ma_diff:
+            if trend_up_count >= (consecutive_days - 1) and ma_diff > ref_ma_diff:
                 ma_trend = TREND_UP
-            elif trand_down_count >= (consecutive_days - 1) and ma_diff > ref_ma_diff:
+            elif trend_down_count >= (consecutive_days - 1) and ma_diff > ref_ma_diff:
                 ma_trend = TREND_DOWN
             else:
                 ma_trend = TREND_SIDE
