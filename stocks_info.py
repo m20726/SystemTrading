@@ -217,7 +217,8 @@ class Stocks_info:
 
         self.request_retry_count = 0            # request 실패 시 retry 횟수
         # "005930" : 삼성전자
-        self.not_handle_stock_list = ["005930"]       # 매수,매도 등 처리하지 않는 종목, ex) 보유하지만 처리에서 제외 종목
+        # "477080" : RISE CD금리액티브
+        self.not_handle_stock_list = ["005930", "477080"]       # 매수,매도 등 처리하지 않는 종목, ex) 보유하지만 처리에서 제외 종목
 
     ##############################################################
     # 초기화 시 처리 할 내용
@@ -2944,7 +2945,7 @@ class Stocks_info:
                             temp_buyable_stocks[code] = temp_stock[code]
                         else:
                             PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, buyable gap({gap_p})")
-                time.sleep(0.001)   # context switching between threads
+                time.sleep(0.001)   # context switching between threads(main thread 와 buy_sell_task 가 context switching)
 
             # handle_buy_stock() 등에서 for loop 으로 self.buyable_stocks 사용 중에 self.buyable_stocks 업데이트 금지
             # 완료 후 업데이트 하도록 대기
@@ -3161,6 +3162,10 @@ class Stocks_info:
             if self.is_request_ok(res) == True:
                 stocks = res.json()['output1']
                 for stock in stocks:
+                    #TODO: temp 삼성전자 제외, 보유 종목수에서 제외
+                    if stock['pdno'] in self.not_handle_stock_list:
+                        continue
+
                     if int(stock['hldg_qty']) > 0:
                         my_stocks_count += 1
             else:
@@ -3656,6 +3661,8 @@ class Stocks_info:
                     self.stocks[code]['avg_buy_price'] = self.stocks[code]['buy_price'][0]
                     # 목표가
                     self.stocks[code]['sell_target_price'] = self.get_sell_target_price(code)
+
+                time.sleep(0.001)   # context switching between threads(main thread 와 buy_sell_task 가 context switching)
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())

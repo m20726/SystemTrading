@@ -148,7 +148,7 @@ def main():
                 elif t_now.minute % PERIODIC_PRINT_TIME_M == 1:
                     allow_periodic_print = True
 
-            time.sleep(0.001)   # context switching between threads
+            time.sleep(0.001)   # context switching between threads(main thread 와 buy_sell_task 가 context switching)
         
         # 장 종료
         stocks_info.check_ordered_stocks_trade_done()   # 장 종료 후 체결 처리
