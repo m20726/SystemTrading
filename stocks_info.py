@@ -66,13 +66,13 @@ INVEST_TYPE = "real_invest"                 # sim_invest : 모의 투자, real_i
 
 if INVEST_TYPE == "real_invest":
     MAX_MY_STOCK_COUNT = 6
-    INVEST_MONEY_PER_STOCK = 400000         # 종목 당 투자 금액(원)
+    INVEST_MONEY_PER_STOCK = 600000         # 종목 당 투자 금액(원)
 else:
     MAX_MY_STOCK_COUNT = 10                 # MAX 보유 주식 수
     INVEST_MONEY_PER_STOCK = 2000000        # 종목 당 투자 금액(원)
 
-# "현재가 - 매수가 GAP" 이 X% 이하 경우만 매수 가능 종목으로 처리
-# GAP 이 클수록 종목이 많아 실시간 처리가 느려진다
+# "현재가 - 매수가 gap" 이 X% 이하 경우만 매수 가능 종목으로 처리
+# gap 이 클수록 종목이 많아 실시간 처리가 느려진다
 BUYABLE_GAP = 8
 
 # 상위 몇개 종목까지 매수 가능 종목으로 유지
@@ -1085,7 +1085,7 @@ class Stocks_info:
             # 목표 주가 = 미래 당기순이익(원) * PER_E / 상장주식수
             if total_stock_count > 0:
                 self.stocks[code]['max_target_price'] = int((self.stocks[code]['curr_profit'] * 100000000) * self.stocks[code]['PER_E'] / total_stock_count)
-            # 목표 주가 GAP = (목표 주가 - 목표가) / 목표가
+            # 목표 주가 gap = (목표 주가 - 목표가) / 목표가
             # + : 저평가
             # - : 고평가
             if self.stocks[code]['sell_target_price'] > 0:
@@ -1452,10 +1452,10 @@ class Stocks_info:
                     PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 저평가 조건({self.stocks[code]['undervalue']})")                  
                 return False
             
-            # 목표 주가 GAP = (목표 주가 - 목표가) / 목표가 < X% 미만 매수 금지
+            # 목표 주가 gap = (목표 주가 - 목표가) / 목표가 < X% 미만 매수 금지
             if self.stocks[code]['gap_max_sell_target_price_p'] < self.trade_strategy.gap_max_sell_target_price_p:
                 if print_msg:
-                    PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 목표 주가 GAP({self.stocks[code]['gap_max_sell_target_price_p']})")                 
+                    PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 목표 주가 gap({self.stocks[code]['gap_max_sell_target_price_p']})")                 
                 return False
 
             # 저평가 + 목표가GAP < X 미만 매수 금지
@@ -2931,7 +2931,7 @@ class Stocks_info:
                     buy_target_price = self.get_buy_target_price(code)
                     if buy_target_price > 0:
                         gap_p = int((curr_price - buy_target_price) * 100 / buy_target_price)
-                        # 현재가 - 매수가 GAP < X%
+                        # 현재가 - 매수가 gap < X%
                         # 1차 매수 후 n차 매수 안된 종목은 무조건 매수 가능 종목으로 편입
                         need_buy = False
                         if self.stocks[code]['buy_done'][0] == True:

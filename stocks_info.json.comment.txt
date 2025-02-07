@@ -14,7 +14,7 @@
         "sell_target_price": 21422,                             매도 목표가
         "sell_done": false,                                     매도 완료 여부
         "max_target_price": 23515,                              목표 주가(미래 당기순이익 * 예상 PER / 상장 주식 수)
-        "gap_max_sell_target_price_p": 9,                       (목표 주가 - 매도 목표가) GAP %, + : 저평가, - : 고평가
+        "gap_max_sell_target_price_p": 9,                       (목표 주가 - 매도 목표가) gap %, + : 저평가, - : 고평가
         "end_price_higher_than_20ma_after_sold": false,         매도 완료 후 종가가 20 이평선 넘은지 여부, 넘어야 매수 가능
         "stockholdings": 0,                                     보유 수량
         "undervalue": -6,                                       저평가 지수
