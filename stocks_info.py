@@ -145,7 +145,7 @@ TREND_UP_DOWN_DIFF_60MA = 0.01       # ex) (recent ma - last ma) 기울기 x% �
 # 90이평선 상승 추세 판단 기울기
 TREND_UP_DOWN_DIFF_90MA = 0.003       # ex) 0.003 -> 0.3%
 
-MA_DIFF_P = 0                       # 이평선 간의 이격 ex) 60, 90 이평선 간에 3% 이격이상 있어야 정배열
+MA_DIFF_P = 1                       # 이평선 간의 이격 ex) 60, 90 이평선 간에 3% 이격이상 있어야 정배열
 DEFAULT_ENVELOPE_P = 13             # 1차 매수 시 envelope value
 
 ##############################################################
@@ -2153,7 +2153,7 @@ class Stocks_info:
                                 or (curr_price >= (sell_target_price * sell_margin)):
                                 qty = max(1, int(self.my_stocks[code]['stockholdings'] / 2))
                                 # 주문 완료 했으면 다시 주문하지 않는다
-                                if self.already_ordered(code, SELL_CODE) == False and self.sell(code, curr_price, qty, ORDER_TYPE_IMMEDIATE_ORDER) == True:
+                                if self.already_ordered(code, SELL_CODE) == False and self.sell(code, curr_price, qty, ORDER_TYPE_LIMIT_ORDER) == True:
                                     self.set_order_done(code, SELL_CODE)
                                     if curr_price >= (sell_target_price * sell_margin):
                                         PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매도 주문, {qty}주 {curr_price}(현재가) >= 목표가 + {SELL_MARGIN_P}% : {int(sell_target_price * sell_margin)}")
@@ -2182,7 +2182,7 @@ class Stocks_info:
                             self.stocks[code]['allow_monitoring_sell'] = True
                             qty = max(1, int(self.my_stocks[code]['stockholdings'] / 2))
                             # 주문 완료 했으면 다시 주문하지 않는다
-                            if self.already_ordered(code, SELL_CODE) == False and self.sell(code, curr_price, qty, ORDER_TYPE_IMMEDIATE_ORDER) == True:
+                            if self.already_ordered(code, SELL_CODE) == False and self.sell(code, curr_price, qty, ORDER_TYPE_LIMIT_ORDER) == True:
                                 self.set_order_done(code, SELL_CODE)
                                 PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매도 주문, {qty}주 {curr_price}(현재가) >= {sell_target_price}(목표가)")
                     else:
@@ -2196,7 +2196,7 @@ class Stocks_info:
                             else:
                                 qty = max(1, int(self.my_stocks[code]['stockholdings'] / 2))
                             # 주문 완료 했으면 다시 주문하지 않는다
-                            if self.already_ordered(code, SELL_CODE) == False and self.sell(code, curr_price, qty, ORDER_TYPE_IMMEDIATE_ORDER) == True:
+                            if self.already_ordered(code, SELL_CODE) == False and self.sell(code, curr_price, qty, ORDER_TYPE_LIMIT_ORDER) == True:
                                 self.set_order_done(code, SELL_CODE)
                                 if curr_price >= sell_target_price:
                                     PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매도 주문, {qty}주 {curr_price}(현재가) >= {sell_target_price}(목표가)")
