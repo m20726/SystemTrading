@@ -39,6 +39,8 @@ import threading
 ##############################################################
 # 분할 매수 횟수
 BUY_SPLIT_COUNT = 2
+# 분할 매도 획수
+SELL_SPLIT_COUNT = 4
 
 # 2차 매수 물타기
 BUY_SPLIT_STRATEGY_DOWN = 0
@@ -161,9 +163,11 @@ class Trade_strategy:
         self.buyable_market_cap = 20000                         # 시총 X 미만 매수 금지(억)
         self.buy_split_strategy = BUY_SPLIT_STRATEGY_DOWN       # 2차 분할 매수 전략(물타기, 불타기)
         self.take_profit_strategy = TAKE_PROFIT_STRATEGY_SLOW   # 익절 전략
-        self.buy_trailing_stop = True                           # 매수 시 트레일링 스탑으로 할지
+        self.buy_trailing_stop = False                          # 매수 시 트레일링 스탑으로 할지
         self.sell_trailing_stop = False                         # 매도 시 트레일링 스탑으로 할지
-        self.trend = TREND_UP                                   # 추세선이 이거 이상이여야 매수
+        self.trend = TREND_SIDE                                 # 추세선이 이거 이상이여야 매수
+        self.use_trend_60ma = False                             # 60이평선 추세선 사용 여부
+        self.use_trend_90ma = False                             # 90이평선 추세선 사용 여부
         self.loss_cut_time = LOSS_CUT_MARKET_OPEN               # 손절은 언제 할지
         
 class Stocks_info:
@@ -268,7 +272,7 @@ class Stocks_info:
         trend_msg[TREND_DOWN] = "하락 추세"
         trend_msg[TREND_SIDE] = "보합 추세"
         trend_msg[TREND_UP] = "상승 추세"
-        PRINT_DEBUG(f'60,90일선 {trend_msg[self.trade_strategy.trend]} 이상 매수')
+        PRINT_DEBUG(f'60일선 {trend_msg[self.trade_strategy.trend]} 이상 매수')
 
         if BUY_QTY_1 == True:
             PRINT_DEBUG('1주만 매수')
@@ -665,7 +669,10 @@ class Stocks_info:
             self.my_cash = self.get_my_cash()
             self.stocks[code]['loss_cut_done'] = False
             # 매수일 업데이트
-            self.stocks[code]['recent_buy_date'] = date.today().strftime('%Y-%m-%d')         
+            self.stocks[code]['recent_buy_date'] = date.today().strftime('%Y-%m-%d')
+
+            # 매수 완료 -> 분할 매도 수량 세팅
+            self.update_sell_qty(code)
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -701,6 +708,12 @@ class Stocks_info:
                 self.update_my_stocks()
                 self.SEND_MSG_INFO(f"[{self.stocks[code]['name']}] 일부 매도", True)
                 PRINT_INFO(f"[{self.stocks[code]['name']}] 다음 목표가 {self.stocks[code]['sell_target_price']}원")
+
+                # update sell_done
+                for i in range(SELL_SPLIT_COUNT):
+                    if self.stocks[code]['sell_done'][i] == False:
+                        self.stocks[code]['sell_done'][i] = True
+                        break
             else:
                 # 전량 매도 상태는 보유 종목에 없는 상태
                 if self.is_my_stock(code) == False:
@@ -748,7 +761,7 @@ class Stocks_info:
     def clear_buy_sell_info(self, code):
         result = True
         msg = ""
-        try:            
+        try:
             self.stocks[code]['yesterday_20ma'] = 0
 
             self.stocks[code]['buy_price'] = list()
@@ -775,6 +788,12 @@ class Stocks_info:
             self.stocks[code]['ma_trend2'] = TREND_DOWN
             self.stocks[code]['recent_sold_price'] = 0
             self.stocks[code]['first_sell_target_price'] = 0
+
+            self.stocks[code]['sell_qty'] = list()
+            self.stocks[code]['sell_done'] = list()
+            for i in range(SELL_SPLIT_COUNT):
+                self.stocks[code]['sell_qty'].append(0)
+                self.stocks[code]['sell_done'].append(False)
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -1211,8 +1230,12 @@ class Stocks_info:
                     self.set_buy_qty(code)
 
                 # 추세 세팅
-                self.stocks[code]['ma_trend'] = self.get_ma_trend(code)             # 60 이평 추세
-                # self.stocks[code]['ma_trend2'] = self.get_ma_trend(code, 1, 90, 8, "D", TREND_UP_DOWN_DIFF_90MA)  # 90 이평 추세, 90 이평은 연속 최대 8일 이하만 가능
+                if self.trade_strategy.use_trend_60ma == True:
+                    # 60 이평 추세
+                    self.stocks[code]['ma_trend'] = self.get_ma_trend(code)             
+                if self.trade_strategy.use_trend_90ma == True:
+                    # 90 이평 추세, 90 이평은 연속 최대 8일 이하만 가능
+                    self.stocks[code]['ma_trend2'] = self.get_ma_trend(code, 1, 90, 8, "D", TREND_UP_DOWN_DIFF_90MA)
 
                 # 손절가 세팅
                 self.stocks[code]['loss_cut_price'] = self.get_loss_cut_price(code)
@@ -1515,10 +1538,11 @@ class Stocks_info:
                 PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 60일선 추세 체크({self.stocks[code]['ma_trend']})")
                 return False
 
-            # # 90일선 추세 체크
-            # if self.stocks[code]['ma_trend2'] < self.trade_strategy.trend:
-            #     PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 90일선 추세 체크({self.stocks[code]['ma_trend2']})")
-            #     return False
+            # 90일선 추세 체크
+            if self.trade_strategy.use_trend_90ma == True:
+                if self.stocks[code]['ma_trend2'] < self.trade_strategy.trend:
+                    PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 90일선 추세 체크({self.stocks[code]['ma_trend2']})")
+                    return False
             
             # # "1차 매수가 >= 최근 한달 내 최저가" 면 매수 금지
             # # ex) 20240820 삼양식품 매수 금지
@@ -2140,6 +2164,7 @@ class Stocks_info:
                     sell_target_price = self.my_stocks[code]['sell_target_price']
 
                     if self.trade_strategy.sell_trailing_stop == True:
+                        # 트레일잉 스탑으로 매도 처리
                         if self.stocks[code]['allow_monitoring_sell'] == False:
                             # 목표가 왔다 -> 매도 감시 시작
                             if curr_price >= sell_target_price and sell_target_price > 0:
@@ -2151,7 +2176,7 @@ class Stocks_info:
                             take_profit_price = self.get_take_profit_price(code)
                             if (take_profit_price > 0 and curr_price <= take_profit_price) \
                                 or (curr_price >= (sell_target_price * sell_margin)):
-                                qty = max(1, int(self.my_stocks[code]['stockholdings'] / 2))
+                                qty = self.get_sell_qty(code)
                                 # 주문 완료 했으면 다시 주문하지 않는다
                                 if self.already_ordered(code, SELL_CODE) == False and self.sell(code, curr_price, qty, ORDER_TYPE_LIMIT_ORDER) == True:
                                     self.set_order_done(code, SELL_CODE)
@@ -2160,10 +2185,10 @@ class Stocks_info:
                                     else:
                                         PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매도 주문, {qty}주 {curr_price}(현재가) <= {take_profit_price}(익절가) {self.stocks[code]['highest_price_ever']}(최고가)")
                     else:
+                        # 목표가 매도 처리(not 트레일링 스탑)
                         if curr_price >= sell_target_price and sell_target_price > 0:
                             self.stocks[code]['allow_monitoring_sell'] = True
-                            #TODO: 25% 씩 4번에 걸쳐 매도? qty = 총수량 / 4
-                            qty = max(1, int(self.my_stocks[code]['stockholdings'] / 2))
+                            qty = self.get_sell_qty(code)
                             # 지정가 매도
                             # 주문 완료 했으면 다시 주문하지 않는다
                             if self.already_ordered(code, SELL_CODE) == False and self.sell(code, curr_price, qty, ORDER_TYPE_LIMIT_ORDER) == True:
@@ -2180,7 +2205,7 @@ class Stocks_info:
                         if curr_price >= sell_target_price and sell_target_price > 0:        
                             # 1차 매도 후 다음날 매도 가능하게
                             self.stocks[code]['allow_monitoring_sell'] = True
-                            qty = max(1, int(self.my_stocks[code]['stockholdings'] / 2))
+                            qty = self.get_sell_qty(code)
                             # 주문 완료 했으면 다시 주문하지 않는다
                             if self.already_ordered(code, SELL_CODE) == False and self.sell(code, curr_price, qty, ORDER_TYPE_LIMIT_ORDER) == True:
                                 self.set_order_done(code, SELL_CODE)
@@ -2194,7 +2219,7 @@ class Stocks_info:
                                 # "현재가 <= 1차 목표가" 경우 전량 매도
                                 qty = int(self.my_stocks[code]['stockholdings'])
                             else:
-                                qty = max(1, int(self.my_stocks[code]['stockholdings'] / 2))
+                                qty = self.get_sell_qty(code)
                             # 주문 완료 했으면 다시 주문하지 않는다
                             if self.already_ordered(code, SELL_CODE) == False and self.sell(code, curr_price, qty, ORDER_TYPE_LIMIT_ORDER) == True:
                                 self.set_order_done(code, SELL_CODE)
@@ -2977,7 +3002,12 @@ class Stocks_info:
         try:
             temp_stocks = copy.deepcopy(self.buyable_stocks)
             sorted_data = dict(sorted(temp_stocks.items(), key=lambda x: x[1]['undervalue'], reverse=True))
-            data = {'종목명':[], '저평가':[], '목표가GAP(%)':[], '매수가':[], '현재가':[], '매수가GAP(%)':[], 'Envelope':[], '60일선추세':[], '90일선추세':[]}
+            data = {'종목명':[], '저평가':[], '목표가GAP(%)':[], '매수가':[], '현재가':[], '매수가GAP(%)':[], 'Envelope':[]}
+            if self.trade_strategy.use_trend_60ma == True:
+                data['60일선추세'] = []
+            if self.trade_strategy.use_trend_90ma == True:
+                data['90일선추세'] = []
+
             for code in sorted_data.keys():
                 curr_price = self.get_curr_price(code)
                 buy_target_price = self.get_buy_target_price(code)
@@ -2993,22 +3023,24 @@ class Stocks_info:
                 data['매수가GAP(%)'].append(gap_p)
                 data['Envelope'].append(sorted_data[code]['envelope_p'])
  
-                trend_str = ""             
-                if sorted_data[code]['ma_trend'] == TREND_DOWN:
-                    trend_str = '하락'
-                elif sorted_data[code]['ma_trend'] == TREND_SIDE:
-                    trend_str = '보합'
-                elif sorted_data[code]['ma_trend'] == TREND_UP:
-                    trend_str = '상승'
-                data['60일선추세'].append(trend_str)
+                trend_str = ""
+                if self.trade_strategy.use_trend_60ma == True:             
+                    if sorted_data[code]['ma_trend'] == TREND_DOWN:
+                        trend_str = '하락'
+                    elif sorted_data[code]['ma_trend'] == TREND_SIDE:
+                        trend_str = '보합'
+                    elif sorted_data[code]['ma_trend'] == TREND_UP:
+                        trend_str = '상승'
+                    data['60일선추세'].append(trend_str)
 
-                if sorted_data[code]['ma_trend2'] == TREND_DOWN:
-                    trend_str = '하락'
-                elif sorted_data[code]['ma_trend2'] == TREND_SIDE:
-                    trend_str = '보합'
-                elif sorted_data[code]['ma_trend2'] == TREND_UP:
-                    trend_str = '상승'
-                data['90일선추세'].append(trend_str)
+                if self.trade_strategy.use_trend_90ma == True:
+                    if sorted_data[code]['ma_trend2'] == TREND_DOWN:
+                        trend_str = '하락'
+                    elif sorted_data[code]['ma_trend2'] == TREND_SIDE:
+                        trend_str = '보합'
+                    elif sorted_data[code]['ma_trend2'] == TREND_UP:
+                        trend_str = '상승'
+                    data['90일선추세'].append(trend_str)
 
             # PrettyTable 객체 생성 및 데이터 추가
             table = PrettyTable()
@@ -3205,7 +3237,9 @@ class Stocks_info:
             else:
                 self.trade_strategy.invest_risk = INVEST_RISK_LOW
             
-            self.trade_strategy.max_per = 50                                # PER가 이 값 이상이면 매수 금지
+            self.trade_strategy.max_per = 50                    # PER가 이 값 이상이면 매수 금지
+            self.trade_strategy.buy_trailing_stop = True        # 매수 후 트레일링 스탑 사용 여부
+            self.trade_strategy.use_trend_60ma = True           # 60일선 추세 사용 여부
 
             invest_risk_high_under_value = -15
             invest_risk_high_gap_max_sell_target_price_p = -5
@@ -3742,3 +3776,49 @@ class Stocks_info:
                 self.SEND_MSG_ERR(msg)
             self.my_stocks_lock.release()
             return need_total_invest_money
+
+    ##############################################################
+    # 분할 매도 수량 세팅
+    # param :
+    #   code            종목 코드
+    ##############################################################
+    def update_sell_qty(self, code):
+        result = True
+        msg = ""
+        try:
+            qty = self.stocks[code]['stockholdings'] / SELL_SPLIT_COUNT
+            for i in range(SELL_SPLIT_COUNT):
+                if i == (SELL_SPLIT_COUNT - 1):
+                    # 마지막 매도 수량은 나머지 수량
+                    qty = self.stocks[code]['stockholdings'] - (qty * (SELL_SPLIT_COUNT - 1))
+                else:
+                    self.stocks[code]['sell_qty'][i] = qty
+        except Exception as ex:
+            result = False
+            msg = "{}".format(traceback.format_exc())
+        finally:
+            if result == False:
+                self.SEND_MSG_ERR(msg)
+
+    ##############################################################
+    # 현재 분할 매도 수량 리턴
+    # param :
+    #   code            종목 코드
+    ##############################################################
+    def get_sell_qty(self, code):
+        result = True
+        msg = ""
+        qty = 0
+        try:
+            for i in range(SELL_SPLIT_COUNT):
+                if self.stocks[code]['sell_done'][i] == False:
+                    qty = self.stocks[code]['sell_qty'][i]
+                    PRINT_DEBUG(F"[{self.stocks[code]['name']}] {i+1}번째 분할 매도 수량({qty})")
+                    break
+        except Exception as ex:
+            result = False
+            msg = "{}".format(traceback.format_exc())
+        finally:
+            if result == False:
+                self.SEND_MSG_ERR(msg)
+            return qty

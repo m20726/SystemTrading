@@ -12,6 +12,12 @@
         "yesterday_end_price": 23200,                           어제 종가     
         "avg_buy_price": 20021,                                 평단가
         "sell_target_price": 21422,                             매도 목표가
+        "sell_done": [                                          분할 매도 여부
+            false,
+            false,
+            false,
+            false
+        ],        
         "sell_done": false,                                     매도 완료 여부
         "max_target_price": 23515,                              목표 주가(미래 당기순이익 * 예상 PER / 상장 주식 수)
         "gap_max_sell_target_price_p": 9,                       (목표 주가 - 매도 목표가) gap %, + : 저평가, - : 고평가
@@ -65,5 +71,11 @@
         "recent_sold_price":0,                                  직전 차수 매도가
         "first_sell_target_price": 0,                           1차 매도가
         "ma_trend2": 0,                                         90이평선 추세
+        "sell_qty": [                                           분할 매도 수량 리스트
+            0,
+            0,
+            0,
+            0
+        ]
     }
 }
