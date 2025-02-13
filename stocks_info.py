@@ -268,11 +268,19 @@ class Stocks_info:
         elif self.trade_strategy.buy_split_strategy == BUY_SPLIT_STRATEGY_UP:
             PRINT_DEBUG(f'2차 매수 불타기')
 
-        trend_msg = dict()
-        trend_msg[TREND_DOWN] = "하락 추세"
-        trend_msg[TREND_SIDE] = "보합 추세"
-        trend_msg[TREND_UP] = "상승 추세"
-        PRINT_DEBUG(f'60일선 {trend_msg[self.trade_strategy.trend]} 이상 매수')
+        if self.trade_strategy.use_trend_60ma == True:
+            trend_msg = dict()
+            trend_msg[TREND_DOWN] = "하락 추세"
+            trend_msg[TREND_SIDE] = "보합 추세"
+            trend_msg[TREND_UP] = "상승 추세"
+            PRINT_DEBUG(f'60일선 {trend_msg[self.trade_strategy.trend]} 이상 매수')
+
+        if self.trade_strategy.use_trend_90ma == True:
+            trend_msg = dict()
+            trend_msg[TREND_DOWN] = "하락 추세"
+            trend_msg[TREND_SIDE] = "보합 추세"
+            trend_msg[TREND_UP] = "상승 추세"
+            PRINT_DEBUG(f'90일선 {trend_msg[self.trade_strategy.trend]} 이상 매수')
 
         if BUY_QTY_1 == True:
             PRINT_DEBUG('1주만 매수')
@@ -296,7 +304,7 @@ class Stocks_info:
     # Parameter :
     #       msg             출력 메세지
     #       print_level     PRINT LEVEL(DEBUG, INFO, ERR)
-    #       send_discode    N차 매수 체결가, 0 인 경우
+    #       send_discode    discode 전송 여부
     #       err             error 여부
     ##############################################################
     def send_msg(self, msg, print_level=PRINT_LEVEL_DEBUG, send_discode:bool = False, err:bool = False):
@@ -444,12 +452,12 @@ class Stocks_info:
 
     ##############################################################
     # 주식 호가 단위로 가격 변경
-    # 5,000원 미만                      5원
-    # 5,000원 이상 10,000원 미만       10원
-    # 10,000원 이상 50,000원 미만	   50원
-    # 50,000원 이상 100,000원 미만	  100원
-    # 100,000원 이상 500,000원 미만   500원
-    # 500,000원 이상                 1000원
+    #   5,000원 미만                    5원
+    #   5,000원 이상 10,000원 미만      10원
+    #   10,000원 이상 50,000원 미만	    50원
+    #   50,000원 이상 100,000원 미만	100원
+    #   100,000원 이상 500,000원 미만   500원
+    #   500,000원 이상                 1000원
     # param :
     #   price       주식 호가 단위로 변경할 가격
     ##############################################################
@@ -488,6 +496,8 @@ class Stocks_info:
 
     ##############################################################
     # stocks 에서 code 에 해당하는 stock 리턴
+    # param :
+    #   code            종목 코드    
     ##############################################################
     def get_stock(self, code: str):
         try:
@@ -498,6 +508,8 @@ class Stocks_info:
 
     ##############################################################
     # stocks file 에서 stocks 정보 가져온다
+    # param :
+    #   file_path       stock file path    
     ##############################################################
     def load_stocks_info(self, file_path):
         result = True
@@ -513,6 +525,8 @@ class Stocks_info:
 
     ##############################################################
     # stocks 정보를 stocks file 에 저장
+    # param :
+    #   file_path       stock file path      
     ##############################################################
     def save_stocks_info(self, file_path):
         result = True
@@ -1487,17 +1501,17 @@ class Stocks_info:
                     PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 저평가 + 목표가GAP < {self.trade_strategy.sum_under_value_sell_target_gap}")
                 return False
             
-            # # PER 매수 금지
-            # if self.stocks[code]['PER'] < 0 or self.stocks[code]['PER'] >= self.trade_strategy.max_per or self.stocks[code]['PER_E'] < 0:
-            #     if print_msg:
-            #         PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, PER({self.stocks[code]['PER']})")
-            #     return False
+            # PER 매수 금지
+            if self.stocks[code]['PER'] < 0 or self.stocks[code]['PER'] >= self.trade_strategy.max_per or self.stocks[code]['PER_E'] < 0:
+                if print_msg:
+                    PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, PER({self.stocks[code]['PER']})")
+                return False
             
-            # # EPS_E 매수 금지
-            # if self.stocks[code]['EPS_E'] < 0:
-            #     if print_msg:
-            #         PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, EPS_E({self.stocks[code]['EPS_E']})")                
-            #     return False
+            # EPS_E 매수 금지
+            if self.stocks[code]['EPS_E'] < 0:
+                if print_msg:
+                    PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, EPS_E({self.stocks[code]['EPS_E']})")                
+                return False
 
             if self.is_my_stock(code) == False:
                 # 최대 보유 종목 수 제한
@@ -1534,9 +1548,10 @@ class Stocks_info:
                 return False
             
             # 60일선 추세 체크
-            if self.stocks[code]['ma_trend'] < self.trade_strategy.trend:
-                PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 60일선 추세 체크({self.stocks[code]['ma_trend']})")
-                return False
+            if self.trade_strategy.use_trend_60ma == True:
+                if self.stocks[code]['ma_trend'] < self.trade_strategy.trend:
+                    PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 60일선 추세 체크({self.stocks[code]['ma_trend']})")
+                    return False
 
             # 90일선 추세 체크
             if self.trade_strategy.use_trend_90ma == True:
@@ -1827,13 +1842,13 @@ class Stocks_info:
             return int(cash)
 
     ##############################################################
-    # 매수
-    #   return : 성공 시 True , 실패 시 False
+    # 매수 주문
     #   param :
     #       code            종목 코드
     #       price           매수 가격
     #       qty             매수 수량
     #       order_type      매수 타입(지정가, 최유리지정가,...)
+    #   return : 성공 시 True , 실패 시 False
     ##############################################################
     def buy(self, code: str, price: str, qty: str, order_type:str = ORDER_TYPE_LIMIT_ORDER):
         result = True
@@ -1898,13 +1913,13 @@ class Stocks_info:
                 return False
 
     ##############################################################
-    # 매도
-    #   return : 성공 시 True , 실패 시 False
+    # 매도 주문
     #   param :
     #       code            종목 코드
     #       price           매도 가격
     #       qty             매도 수량
     #       order_type      매도 타입(지정가, 최유리지정가,...)
+    #   return : 성공 시 True , 실패 시 False
     ##############################################################
     def sell(self, code: str, price: str, qty: str, order_type:str = ORDER_TYPE_LIMIT_ORDER):
         result = True
@@ -2113,10 +2128,8 @@ class Stocks_info:
 
     ##############################################################
     # 매도 처리
-    #   param :
-    #       order_type      매도 타입(지정가, 최유리지정가,...)
     ##############################################################
-    def handle_sell_stock(self, order_type:str = ORDER_TYPE_LIMIT_ORDER):
+    def handle_sell_stock(self):
         result = True
         msg = ""
         try:
@@ -2246,7 +2259,7 @@ class Stocks_info:
     ##############################################################
     # 주문 번호 리턴
     #   return : 성공 시 True 주문 번호, 실패 시 False  ""
-    #               취소 주문은 True, ""
+    #            취소 주문은 True, ""
     #   param :
     #       code            종목 코드
     #       buy_sell        "01" : 매도, "02" : 매수
@@ -2504,9 +2517,9 @@ class Stocks_info:
 
     ##############################################################
     # 주식 일별 주문 체결 조회 종목 정보 리턴
-    # Return    : 주문 체결/미체결 조회 종목 리스트
     # Parameter :
     #       trade          전체("00"), 체결("01"), 미체결("02")
+    # Return    : 주문 체결/미체결 조회 종목 리스트
     ##############################################################
     def get_order_list(self, trade="00"):
         result = True
@@ -3237,7 +3250,7 @@ class Stocks_info:
             else:
                 self.trade_strategy.invest_risk = INVEST_RISK_LOW
             
-            self.trade_strategy.max_per = 50                    # PER가 이 값 이상이면 매수 금지
+            self.trade_strategy.max_per = 70                    # PER가 이 값 이상이면 매수 금지
             self.trade_strategy.buy_trailing_stop = True        # 매수 후 트레일링 스탑 사용 여부
             self.trade_strategy.use_trend_60ma = True           # 60일선 추세 사용 여부
 
