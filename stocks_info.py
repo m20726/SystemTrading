@@ -1393,18 +1393,19 @@ class Stocks_info:
     def is_buyable_stock(self, code):
         result = True
         msg = ""
+        ret = False
         try:
             if code in self.buyable_stocks.keys():
-                return True
+                ret = True
             else:
-                return False
+                ret = False
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.SEND_MSG_ERR(msg)
-                return False
+            return ret
 
     ##############################################################
     # 매수 가능한 1차 매수가 인가 체크
@@ -2058,7 +2059,7 @@ class Stocks_info:
                         # buy 모니터링 중
                         # "현재가 >= 저가 + BUY_MARGIN_P%" 에서 매수
                         # "15:15" 까지 매수 안됐고 "현재가 <= 매수가"면 매수
-                        lowest_price = self.get_price(code, 'stck_lwpr')
+                        lowest_price = self.get_lowest_pirce(code)
                         buy_margin = 1 + self.to_percent(BUY_MARGIN_P)
                         if ((lowest_price > 0) and curr_price >= (lowest_price * buy_margin)) \
                             or (t_now >= t_buy and curr_price <= buy_target_price):
@@ -2087,7 +2088,7 @@ class Stocks_info:
                             # buy 모니터링 중
                             # "현재가 >= 저가 + BUY_MARGIN_P%" 에서 매수
                             # "15:15" 까지 매수 안됐고 "현재가 <= 매수가"면 매수
-                            lowest_price = self.get_price(code, 'stck_lwpr')
+                            lowest_price = self.get_lowest_pirce(code)
                             buy_margin = 1 + self.to_percent(BUY_MARGIN_P)
                             if ((lowest_price > 0) and curr_price >= (lowest_price * buy_margin)) \
                                 or (t_now >= t_buy and curr_price <= buy_target_price):
@@ -2136,6 +2137,9 @@ class Stocks_info:
             sell_margin = 1 + self.to_percent(SELL_MARGIN_P)
 
             self.my_stocks_lock.acquire()
+            t_now = datetime.datetime.now()
+            t_loss_cut = t_now.replace(hour=9, minute=1, second=0, microsecond=0)
+
             for code in self.my_stocks.keys():
                 #TODO: temp 삼성전자 제외
                 if code in self.not_handle_stock_list:
@@ -2155,7 +2159,6 @@ class Stocks_info:
                     # 전날 종가로 손절 안된 경우 처리
                     if self.stocks[code]['loss_cut_order'] == True:
                         t_now = datetime.datetime.now()
-                        t_loss_cut = t_now.replace(hour=9, minute=1, second=0, microsecond=0)
                         # 장 시작시 "시가 > 손절가"인데도 주문 나간다. 09:01 후에 하자
                         if t_now >= t_loss_cut:
                             loss_cut_price = self.get_loss_cut_price(code)
@@ -2776,7 +2779,6 @@ class Stocks_info:
                 self.save_stocks_info(STOCKS_INFO_FILE_PATH)
                 pre_stocks.clear()
                 pre_stocks = copy.deepcopy(self.stocks)
-
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
