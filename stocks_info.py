@@ -719,13 +719,11 @@ class Stocks_info:
                 for i in range(SELL_SPLIT_COUNT):
                     if self.stocks[code]['sell_done'][i] == False:
                         self.stocks[code]['sell_done'][i] = True
-                        break                
+                        break
                 self.stocks[code]['recent_sold_price'] = sold_price
                 self.update_my_stocks()
                 self.SEND_MSG_INFO(f"[{self.stocks[code]['name']}] 일부 매도", True)
                 PRINT_INFO(f"[{self.stocks[code]['name']}] 다음 목표가 {self.stocks[code]['sell_target_price']}원")
-
-
             else:
                 # 전량 매도 상태는 보유 종목에 없는 상태
                 if self.is_my_stock(code) == False:
@@ -3111,6 +3109,11 @@ class Stocks_info:
                 self.stocks[code]['sell_order_done'] = False
                 if self.stocks[code]['sell_done'] == True:
                     self.stocks[code]['avg_buy_price'] = 0
+            
+                # system traing 대신 한투MTS 등에서 매도 처리한 경우 set_sell_done 호출이 안된다. -> clear 해줘야한다.
+                if self.is_my_stock(code) == False:
+                    self.clear_buy_sell_info(code)
+
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
