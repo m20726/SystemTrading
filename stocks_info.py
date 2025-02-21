@@ -474,7 +474,7 @@ class Stocks_info:
             unit = 500
         elif price > 500000:
             unit = 1000
-        return int(int((price / unit) + 0.5) * unit)      # 반올림
+        return int(round(price / unit))      # 반올림
 
     ##############################################################
     # self.invest_type 에 맞는 config 설정
@@ -3802,13 +3802,13 @@ class Stocks_info:
         result = True
         msg = ""
         try:
-            qty = self.stocks[code]['stockholdings'] / SELL_SPLIT_COUNT
+            qty = round(self.stocks[code]['stockholdings'] / SELL_SPLIT_COUNT)  # 반올림
             for i in range(SELL_SPLIT_COUNT):
                 if i == (SELL_SPLIT_COUNT - 1):
                     # 마지막 매도 수량은 나머지 수량
                     qty = self.stocks[code]['stockholdings'] - (qty * (SELL_SPLIT_COUNT - 1))
-                else:
-                    self.stocks[code]['sell_qty'][i] = qty
+                    
+                self.stocks[code]['sell_qty'][i] = qty                
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
