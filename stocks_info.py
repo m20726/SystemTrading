@@ -474,7 +474,7 @@ class Stocks_info:
             unit = 500
         elif price > 500000:
             unit = 1000
-        return int(round(price / unit))      # 반올림
+        return int(round(price / unit) * unit)      # 소수 첫째 자리에서 반올림
 
     ##############################################################
     # self.invest_type 에 맞는 config 설정
@@ -3546,6 +3546,14 @@ class Stocks_info:
                 envelope_p = 10
             else:
                 envelope_p = DEFAULT_ENVELOPE_P
+
+            # 목표가GAP 에 따라 envelope_p 조정
+            if self.stocks[code]['gap_max_sell_target_price_p'] >= 20:
+                envelope_p = envelope_p - 1
+            elif self.stocks[code]['gap_max_sell_target_price_p'] < 0:
+                envelope_p = envelope_p + 1
+
+            # 시장 폭락 시 envelope 증가
             if is_market_crash == True:
                 # envelope 증가 등으로 보수적으로 접근
                 # ex) 지수가 4% 폭락 시 4/2+1 = 3 을 envelope 증가
@@ -3802,13 +3810,19 @@ class Stocks_info:
         result = True
         msg = ""
         try:
-            qty = round(self.stocks[code]['stockholdings'] / SELL_SPLIT_COUNT)  # 반올림
+            # 분할 매도 수량, 소수 첫째 자리에서 반올림
+            qty = round(self.stocks[code]['stockholdings'] / SELL_SPLIT_COUNT)
+
             for i in range(SELL_SPLIT_COUNT):
-                if i == (SELL_SPLIT_COUNT - 1):
-                    # 마지막 매도 수량은 나머지 수량
-                    qty = self.stocks[code]['stockholdings'] - (qty * (SELL_SPLIT_COUNT - 1))
-                    
-                self.stocks[code]['sell_qty'][i] = qty                
+                remain_qty = max(0, self.stocks[code]['stockholdings'] - (qty * i))
+                if remain_qty >= qty:
+                    if i == (SELL_SPLIT_COUNT - 1):
+                        # 마지막 매도 수량은 나머지 수량
+                        self.stocks[code]['sell_qty'][i] = remain_qty
+                    else:
+                        self.stocks[code]['sell_qty'][i] = qty
+                else:
+                    self.stocks[code]['sell_qty'][i] = remain_qty
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
