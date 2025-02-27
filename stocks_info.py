@@ -148,7 +148,7 @@ TREND_UP_DOWN_DIFF_60MA = 0.01       # ex) (recent ma - last ma) 기울기 x% �
 TREND_UP_DOWN_DIFF_90MA = 0.003       # ex) 0.003 -> 0.3%
 
 MA_DIFF_P = 1                       # 이평선 간의 이격 ex) 60, 90 이평선 간에 3% 이격이상 있어야 정배열
-DEFAULT_ENVELOPE_P = 13             # 1차 매수 시 envelope value
+DEFAULT_ENVELOPE_P = 14             # 1차 매수 시 envelope value
 
 ##############################################################
 
@@ -851,13 +851,14 @@ class Stocks_info:
     # 현재가 리턴
     # param :
     #   code            종목 코드
-    # return : 성공 시 현재가, 실패 시 0 리턴
+    # Return : 성공 시 현재가, 실패 시 0 리턴
     ##############################################################
     def get_curr_price(self, code):
         return self.get_price(code, 'stck_prpr')
 
     ##############################################################
     # 금일 기준 X 일 내 최저가 리턴
+    #   수행 시간 약 570ms
     # param :
     #   code        종목 코드
     #   days        X 일
@@ -889,7 +890,7 @@ class Stocks_info:
     # 고가 리턴
     # param :
     #   code            종목 코드
-    # return : 성공 시 고가, 실패 시 0 리턴
+    # Return : 성공 시 고가, 실패 시 0 리턴
     ##############################################################
     def get_highest_price(self, code):
         return self.get_price(code, 'stck_hgpr')
@@ -924,14 +925,14 @@ class Stocks_info:
     # 시가총액(market capitalization) 리턴
     # param :
     #   code            종목 코드
-    # return : 성공 시 시가총액, 실패 시 0 리턴
+    # Return : 성공 시 시가총액, 실패 시 0 리턴
     ##############################################################
     def get_market_cap(self, code):
         return self.get_price(code, 'hts_avls')
     
     ##############################################################
-    # 주식현재가 시세 리턴
-    #   return : 성공 시 요청한 시세, 실패 시 0 리턴
+    # 특정 타입의(현재가, 시가, 고가) 주식 가격 리턴
+    #   Return : 성공 시 요청한 시세, 실패 시 0 리턴
     #   Parameter :
     #       code            종목 코드
     #       type            요청 시세(현재가, 시가, 고가, ...)
@@ -976,6 +977,65 @@ class Stocks_info:
             else:
                 self.request_retry_count = 0
             return int(price)
+
+    ##############################################################
+    # 주식 시세 data(현재가, 시가, 고가 등을 포함) 리턴
+    #       stck_prpr : 현재가
+    #       stck_oprc : 시가
+    #       stck_hgpr : 고가
+    #       stck_lwpr : 저가
+    #       per : PER
+    #       pbr : PBR
+    #       eps : EPS
+    #       bps : BPS
+    #       lstn_stcn : 상장 주식 수
+    #       hts_avls : 시가총액
+    #       acml_tr_pbmn : 누적 거래 대금
+    #       acml_vol : 누적 거래량
+    #   Return : 성공 시 주식 시세 data, 실패 시 0 리턴
+    #   Parameter :
+    #       code            종목 코드
+    ##############################################################
+    def get_price_data(self, code:str):
+        result = True
+        msg = ""
+        price_data = dict()
+        try:
+            PATH = "uapi/domestic-stock/v1/quotations/inquire-price"
+            URL = f"{self.config['URL_BASE']}/{PATH}"
+            headers = {"Content-Type": "application/json",
+                    "authorization": f"Bearer {self.access_token}",
+                    "appKey": self.config['APP_KEY'],
+                    "appSecret": self.config['APP_SECRET'],
+                    "tr_id": "FHKST01010100"}
+            params = {
+                "fid_cond_mrkt_div_code": "J",
+                "fid_input_iscd": code,
+            }
+            res = self.requests_get(URL, headers, params)
+            if self.is_request_ok(res) == True:
+                price_data = res.json()['output']
+            else:
+                raise Exception(f"[get_price failed]{str(res.json())}")
+        except Exception as ex:
+            result = False
+            msg = "{}".format(traceback.format_exc())
+        finally:
+            if result == False:
+                # request 실패 시 retry
+                # ex) {'rt_cd': '1', 'msg_cd': 'EGW00201', 'msg1': '초당 거래건수를 초과하였습니다.'}
+                if self.request_retry_count < MAX_REQUEST_RETRY_COUNT:
+                    time.sleep(1)
+                    self.request_retry_count = self.request_retry_count + 1
+                    PRINT_ERR(f"get_price_data failed retry count({self.request_retry_count})")
+                    self.get_price_data(code, type)
+                else:
+                    self.request_retry_count = 0
+                    msg = self.stocks[code]['name'] + " " + msg
+                    self.SEND_MSG_ERR(msg)
+            else:
+                self.request_retry_count = 0
+            return price_data
 
     ##############################################################
     # 매수가 리턴
@@ -1279,7 +1339,7 @@ class Stocks_info:
     ##############################################################
     # 보유 주식 정보 업데이트
     #   보유 주식은 stockholdings > 0
-    #   return : 성공 시 True , 실패 시 False    
+    #   Return : 성공 시 True , 실패 시 False    
     ##############################################################
     def update_my_stocks(self):
         result = True
@@ -1410,7 +1470,7 @@ class Stocks_info:
     #   ex) "1차 매수가 >= 최근 한달 내 최저가" 면 매수 금지
     # param :
     #   code            종목 코드    
-    # return : 매수 가능한 1차 매수가면 True, 아니면 False    
+    # Return : 매수 가능한 1차 매수가면 True, 아니면 False    
     ##############################################################
     def is_ok_to_buy_first_buy_price(self, code):
         result = True
@@ -1547,20 +1607,23 @@ class Stocks_info:
             # 60일선 추세 체크
             if self.trade_strategy.use_trend_60ma == True:
                 if self.stocks[code]['ma_trend'] < self.trade_strategy.trend:
-                    PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 60일선 추세 체크({self.stocks[code]['ma_trend']})")
+                    if print_msg:
+                        PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 60일선 추세 체크({self.stocks[code]['ma_trend']})")
                     return False
 
             # 90일선 추세 체크
             if self.trade_strategy.use_trend_90ma == True:
                 if self.stocks[code]['ma_trend2'] < self.trade_strategy.trend:
-                    PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 90일선 추세 체크({self.stocks[code]['ma_trend2']})")
+                    if print_msg:
+                        PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 90일선 추세 체크({self.stocks[code]['ma_trend2']})")
                     return False
             
-            # # "1차 매수가 >= 최근 한달 내 최저가" 면 매수 금지
-            # # ex) 20240820 삼양식품 매수 금지
-            # if self.is_ok_to_buy_first_buy_price(code) == False:
-            #     PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 1차 매수가 >= 최근 한달 내 최저가")
-            #     return False
+            # 1차 매수가 < 90일선 경우 매수 금지
+            ma_90 = self.get_ma(code, 90)
+            if self.stocks[code]['buy_price'][0] < ma_90:
+                if print_msg:
+                    PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 1차 매수가({self.stocks[code]['buy_price'][0]}) < 90일선({ma_90})")
+                return False
 
             return True
         except Exception as ex:
@@ -1845,7 +1908,7 @@ class Stocks_info:
     #       price           매수 가격
     #       qty             매수 수량
     #       order_type      매수 타입(지정가, 최유리지정가,...)
-    #   return : 성공 시 True , 실패 시 False
+    #   Return : 성공 시 True , 실패 시 False
     ##############################################################
     def buy(self, code: str, price: str, qty: str, order_type:str = ORDER_TYPE_LIMIT_ORDER):
         result = True
@@ -1916,7 +1979,7 @@ class Stocks_info:
     #       price           매도 가격
     #       qty             매도 수량
     #       order_type      매도 타입(지정가, 최유리지정가,...)
-    #   return : 성공 시 True , 실패 시 False
+    #   Return : 성공 시 True , 실패 시 False
     ##############################################################
     def sell(self, code: str, price: str, qty: str, order_type:str = ORDER_TYPE_LIMIT_ORDER):
         result = True
@@ -2029,8 +2092,10 @@ class Stocks_info:
             t_now = datetime.datetime.now()
             t_buy = t_now.replace(hour=15, minute=15, second=0, microsecond=0)
 
+            buy_margin = 1 + self.to_percent(BUY_MARGIN_P)
+
             # 매수 가능 종목내에서만 매수
-            self.buyable_stocks_lock.acquire()         
+            self.buyable_stocks_lock.acquire()    
             for code in self.buyable_stocks.keys():
                 #TODO: temp 삼성전자 제외
                 if code in self.not_handle_stock_list:
@@ -2038,9 +2103,10 @@ class Stocks_info:
                 
                 # stocks_info.json 에 없는 종목은 제외
                 if code not in self.stocks.keys():
-                    continue
+                    continue                
 
-                curr_price = self.get_curr_price(code)
+                price_data = self.get_price_data(code)
+                curr_price = int(price_data['stck_prpr'])
                 if curr_price == 0:
                     PRINT_ERR(f"[{self.stocks[code]['name']}] curr_price {curr_price}원")
                     continue
@@ -2057,8 +2123,8 @@ class Stocks_info:
                         # buy 모니터링 중
                         # "현재가 >= 저가 + BUY_MARGIN_P%" 에서 매수
                         # "15:15" 까지 매수 안됐고 "현재가 <= 매수가"면 매수
-                        lowest_price = self.get_lowest_pirce(code)
-                        buy_margin = 1 + self.to_percent(BUY_MARGIN_P)
+                        lowest_price = int(price_data['stck_lwpr'])
+                        
                         if ((lowest_price > 0) and curr_price >= (lowest_price * buy_margin)) \
                             or (t_now >= t_buy and curr_price <= buy_target_price):
                             if self.stocks[code]['buy_order_done'] == False:
@@ -2086,8 +2152,7 @@ class Stocks_info:
                             # buy 모니터링 중
                             # "현재가 >= 저가 + BUY_MARGIN_P%" 에서 매수
                             # "15:15" 까지 매수 안됐고 "현재가 <= 매수가"면 매수
-                            lowest_price = self.get_lowest_pirce(code)
-                            buy_margin = 1 + self.to_percent(BUY_MARGIN_P)
+                            lowest_price = int(price_data['stck_lwpr'])
                             if ((lowest_price > 0) and curr_price >= (lowest_price * buy_margin)) \
                                 or (t_now >= t_buy and curr_price <= buy_target_price):
                                 if self.stocks[code]['buy_order_done'] == False:
@@ -2257,7 +2322,7 @@ class Stocks_info:
 
     ##############################################################
     # 주문 번호 리턴
-    #   return : 성공 시 True 주문 번호, 실패 시 False  ""
+    #   Return : 성공 시 True 주문 번호, 실패 시 False  ""
     #            취소 주문은 True, ""
     #   param :
     #       code            종목 코드
@@ -2302,7 +2367,7 @@ class Stocks_info:
     # 주식 주문 전량 취소
     #   종목코드 매수/매도 조건에 맞는 주문 취소
     #   단, 모의 투자 미지원
-    #   return : 성공 시 True, 실패 시 False
+    #   Return : 성공 시 True, 실패 시 False
     #   param :
     #       code            종목 코드
     #       buy_sell        "01" : 매도, "02" : 매수
@@ -3292,6 +3357,7 @@ class Stocks_info:
                 self.SEND_MSG_ERR(msg)
             self.print_strategy()
 
+    #TODO: ta lib 로 대체
     ##############################################################
     # get RSI
     # param :
@@ -3541,10 +3607,14 @@ class Stocks_info:
         msg = ""
         envelope_p = 20
         try:
-            # 시총 10조 이상이면 envelope_p = 10
+            # 시총 10조 이상이면 envelope_p = X
             if self.stocks[code]['market_cap'] >= 100000:
-                envelope_p = 10
+                envelope_p = 11
+            # 시총 2조 이상
+            elif self.stocks[code]['market_cap'] >= 20000:
+                envelope_p = 13
             else:
+                # 시총 2조 미만
                 envelope_p = DEFAULT_ENVELOPE_P
 
             # 목표가GAP 에 따라 envelope_p 조정
@@ -3638,7 +3708,7 @@ class Stocks_info:
 
     ##############################################################
     # 국내 주식 업종 기간별 시세
-    #   return : 성공 시 요청한 시세, 실패 시 0 리턴
+    #   Return : 성공 시 요청한 시세, 실패 시 0 리턴
     #   Parameter :
     #       code            업종 코드 ex) KOSPI는 0001
     #       type            요청 시세(업종 지수 전일 대비율, 전일 지수, 업종 지수 최고가 ...)
