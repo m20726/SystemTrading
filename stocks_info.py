@@ -123,9 +123,9 @@ TREND_SIDE = 1      # 보합
 TREND_UP = 2        # 상승
 
 # 이평선 배열
-MA_STATUS_NEGATIVE = 0      # 역배열
-MA_STATUS_SOSO = 1          # 정배열도 역배열도 아님
-MA_STATUS_POSITIVE = 2      # 정배열
+MA_DOWN_TREND = 0   # 역배열
+MA_SIDE_TREND = 1   # 정배열도 역배열도 아님, 횡보
+MA_UP_TREND = 2     # 정배열
 
 # sort by
 SORT_BY_NAME = 0
@@ -565,13 +565,13 @@ class Stocks_info:
                 envelope_p = self.to_percent(self.stocks[code]['envelope_p'])
                 envelope_support_line = self.stocks[code]['yesterday_20ma'] * (1 - envelope_p)
 
-                # # 1차 매수가는 단기간에 급락한 가격 이하여야한다.
-                # self.stocks[code]['buy_price'][0] = min(int(envelope_support_line * MARGIN_20MA), self.get_plunge_price(code))
-
                 # 1차 매수가는 min(envelope 가격, 90일선)
                 # self.stocks[code]['buy_price'][0] = min(int(envelope_support_line * MARGIN_20MA), self.get_ma(code, 90))
 
-                self.stocks[code]['buy_price'][0] = int(envelope_support_line * MARGIN_20MA)
+                # self.stocks[code]['buy_price'][0] = int(envelope_support_line * MARGIN_20MA)
+
+                # 1차 매수가는 단기간에 급락한 가격 이하여야한다.
+                self.stocks[code]['buy_price'][0] = min(int(envelope_support_line * MARGIN_20MA), self.get_plunge_price(code))
 
                 # 1 ~ (BUY_SPLIT_COUNT-1)
                 for i in range(1, BUY_SPLIT_COUNT):
@@ -1597,13 +1597,6 @@ class Stocks_info:
                     PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 시총({self.stocks[code]['market_cap']}억)")                 
                 return False
 
-            # 20,60,90 정배열 체크
-            # 이평선 간에 x% 이상 차이나야 정배열
-            if self.get_multi_ma_status(code, [20,60,90], "D", MA_DIFF_P) != MA_STATUS_POSITIVE:
-                if print_msg:
-                    PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 20,60,90 이평선 정배열 아님")
-                return False
-            
             # 60일선 추세 체크
             if self.trade_strategy.use_trend_60ma == True:
                 if self.stocks[code]['ma_trend'] < self.trade_strategy.trend:
@@ -1618,11 +1611,19 @@ class Stocks_info:
                         PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 90일선 추세 체크({self.stocks[code]['ma_trend2']})")
                     return False
             
-            # 1차 매수가 < 90일선 경우 매수 금지
-            ma_90 = self.get_ma(code, 90)
-            if self.stocks[code]['buy_price'][0] < ma_90:
+            # 1차 매수가 < 90일선 경우 매수 금지, 단 공격적 전략 경우 제외
+            if self.trade_strategy.invest_risk != INVEST_RISK_HIGH:
+                ma_90 = self.get_ma(code, 90)
+                if self.stocks[code]['buy_price'][0] < ma_90:
+                    if print_msg:
+                        PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 1차 매수가({self.stocks[code]['buy_price'][0]}) < 90일선({ma_90})")
+                    return False
+
+            # 20,60,90 정배열 체크
+            # 이평선 간에 x% 이상 차이나야 정배열
+            if self.get_multi_ma_status(code, [20,60,90], "D", MA_DIFF_P) != MA_UP_TREND:
                 if print_msg:
-                    PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 1차 매수가({self.stocks[code]['buy_price'][0]}) < 90일선({ma_90})")
+                    PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 20,60,90 이평선 정배열 아님")
                 return False
 
             return True
@@ -3544,7 +3545,7 @@ class Stocks_info:
     def get_multi_ma_status(self, code: str, ma_list:list, period="D", diff_p=0):
         result = True
         msg = ""
-        ma_status = MA_STATUS_SOSO
+        ma_status = MA_SIDE_TREND
         try:
             ma_price_list = []
             for ma in ma_list:
@@ -3563,9 +3564,9 @@ class Stocks_info:
                     negative_count += 1
 
             if positive_count >= (ma_price_list_len-1):
-                ma_status = MA_STATUS_POSITIVE
+                ma_status = MA_UP_TREND
             elif negative_count >= (ma_price_list_len-1):
-                ma_status = MA_STATUS_NEGATIVE
+                ma_status = MA_DOWN_TREND
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
