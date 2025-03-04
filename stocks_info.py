@@ -56,7 +56,7 @@ INVEST_RISK_MIDDLE = 1
 INVEST_RISK_HIGH = 2
 
 LOSS_CUT_P = 5                              # x% 이탈 시 손절
-SELL_TARGET_P = 5                           # 1차 매도 목표가 %
+SELL_TARGET_P = 4                           # 1차 매도 목표가 %
 MIN_SELL_TARGET_P = 4                       # 최소 목표가 %
 
 TAKE_PROFIT_P = 0.5                         # 익절가 %
@@ -134,7 +134,7 @@ SORT_BY_UNDER_VALUE = 1
 LOSS_CUT_MARKET_OPEN = 0        # 장중 손절
 LOSS_CUT_MARKET_CLOSE = 1       # 종가 손절
 
-NEXT_SELL_TARGET_MARGIN_P = 2.5     # N차 매도가 : N-1차 매도가 * (1 + MARGIN_P) (N>=2), ex) 2.5%
+NEXT_SELL_TARGET_MARGIN_P = 3       # N차 매도가 : N-1차 매도가 * (1 + MARGIN_P) (N>=2), ex) 3%
 
 MAX_REQUEST_RETRY_COUNT = 3         # request 실패 시 최대 retry 횟수
 
