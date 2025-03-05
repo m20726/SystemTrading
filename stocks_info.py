@@ -13,7 +13,7 @@ from datetime import date, timedelta
 import inspect
 import threading
 
-# 2024.11.12 기준 원금 420만원
+# 2025.03.05 기준 원금 450만원
 
 ##############################################################
 #                           전략                             #
@@ -27,11 +27,11 @@ import threading
 #   목표가에 반 매도
 #   나머지는 익절가 이탈 시 전량 매도
 #       목표가 올려가며 남은 물량의 1/2 매도
-#       N차 매도가 : N-1차 매도가 * 1.025 (N>=2)
+#       N차 매도가 : N-1차 매도가 * 1.03 (N>=2)
 # 손절
 #   1. last차 매수가 -5% 장중 이탈
 #   2. 오늘 > 최근 매수일 + x day, 즉 x 일 동안 매수 없고
-#       손실 상태에서 1차 매도가 안됐고 last차 매수까지 안된 경우 손절
+#       1차 매도가 안됐고 last차 매수까지 안된 경우 손절
 
 
 ##############################################################
@@ -1824,7 +1824,7 @@ class Stocks_info:
                 raise Exception(f"[get_stock_balance failed]{str(res.json())}")
             stock_list = res.json()['output1']
             evaluation = res.json()['output2']
-            data = {'종목명':[], '수익률(%)':[], '수량':[], '평가금액':[], '손익금액':[], '평단가':[], '현재가':[], '목표가':[], '손절가':[]}
+            data = {'종목명':[], '수익률(%)':[], '수량':[], '평가금액':[], '손익금액':[], '평단가':[], '현재가':[], '목표가':[], '손절가':[], '상태':[]}
             for stock in stock_list:
                 if int(stock['hldg_qty']) > 0:
                     data['종목명'].append(stock['prdt_name'])
@@ -1842,6 +1842,8 @@ class Stocks_info:
                         # 보유는 하지만 stocks_info.json 에 없는 종목 표시
                         data['목표가'].append(0)
                         data['손절가'].append(0)
+                    status = self.get_status(code)
+                    data['상태'].append(status)
 
             # PrettyTable 객체 생성 및 데이터 추가
             table = PrettyTable()
@@ -2934,7 +2936,7 @@ class Stocks_info:
         ret = False
         try:
             today = date.today()
-            no_buy_days = 21
+            NO_BUY_DAYS = 14
             self.my_stocks_lock.acquire()
             for code in self.my_stocks.keys():
                 #TODO: temp 삼성전자 제외
@@ -2958,15 +2960,13 @@ class Stocks_info:
                 # 1차 매도 된 경우는 시간지났다고 손절 금지
                 if self.stocks[code]['sell_done'][0] == False:
                     days_diff = (today - recent_buy_date).days
-                    # 손실 상태에서 x일간 지지부진하면 손절
-                    if days_diff > no_buy_days:
-                        # 손실 상태 체크
-                        if self.stocks[code]['avg_buy_price'] > self.get_end_price(code):
-                            if self.stocks[code]['sell_done'][0] == False and self.stocks[code]['buy_done'][BUY_SPLIT_COUNT-1] == False:
-                                # 손절 주문 안된 경우만 체크
-                                if self.stocks[code]['loss_cut_order'] == False:
-                                    do_loss_cut = True
-                                    PRINT_INFO(f'{recent_buy_date} 매수 후 {today} 까지 {days_diff} 동안 매수 없어 손절')
+                    # x일간 지지부진하면 손절
+                    if days_diff > NO_BUY_DAYS:
+                        if self.stocks[code]['sell_done'][0] == False and self.stocks[code]['buy_done'][BUY_SPLIT_COUNT-1] == False:
+                            # 손절 주문 안된 경우만 체크
+                            if self.stocks[code]['loss_cut_order'] == False:
+                                do_loss_cut = True
+                                PRINT_INFO(f'{recent_buy_date} 매수 후 {today} 까지 {days_diff} 동안 매수 없어 손절')
 
                 curr_price = self.get_curr_price(code)
                 loss_cut_price = self.get_loss_cut_price(code)
@@ -3084,6 +3084,8 @@ class Stocks_info:
                 data['60일선추세'] = []
             if self.trade_strategy.use_trend_90ma == True:
                 data['90일선추세'] = []
+            
+            data['상태'] = []
 
             for code in sorted_data.keys():
                 curr_price = self.get_curr_price(code)
@@ -3118,6 +3120,9 @@ class Stocks_info:
                     elif sorted_data[code]['ma_trend2'] == TREND_UP:
                         trend_str = '상승'
                     data['90일선추세'].append(trend_str)
+                
+                status = self.get_status(code)
+                data['상태'].append(status)
 
             # PrettyTable 객체 생성 및 데이터 추가
             table = PrettyTable()
@@ -3923,3 +3928,51 @@ class Stocks_info:
             if result == False:
                 self.SEND_MSG_ERR(msg)
             return qty
+
+    ##############################################################
+    # 종목 상태 리턴
+    #   ex) 매수 모니터링, N차 매수 완료, N차 매도 완료, 손절
+    # param :
+    #   code            종목 코드    
+    ##############################################################
+    def get_status(self, code):
+        result = True
+        msg = ""
+        status = ""
+        try:
+            # 보유는 하지만 stocks_info.json 에 없는 종목 제외 ex) 공모주, RISE CD금리액티브(합성)
+            if code in self.not_handle_stock_list:
+                return status
+
+            # 마지막 요소(1)부터 0번째 요소까지 체크 range(start, end, step)
+            for i in range(BUY_SPLIT_COUNT-1, -1, -1):
+                if self.stocks[code]['buy_done'][i] == True:
+                    status = f"{i+1}차 매수 완료"
+                    break
+
+            for i in range(SELL_SPLIT_COUNT-1, -1, -1):
+                if self.stocks[code]['sell_done'][i] == True:
+                    status = f"{i+1}차 매도 완료"
+                    break
+
+            if self.stocks[code]['allow_monitoring_buy'] == True:
+                for i in range(BUY_SPLIT_COUNT-1, -1, -1):
+                    if self.stocks[code]['buy_done'][i] == False:
+                        status = f"{i+1}차 매수 모니터링"
+                        break
+
+            if self.stocks[code]['allow_monitoring_sell'] == True:
+                status = "매도 모니터링"
+            
+            if self.stocks[code]['loss_cut_order'] == True:
+                status = "손절 주문"
+            
+            if self.stocks[code]['loss_cut_done'] == True:
+                status = "손절 완료"
+        except Exception as ex:
+            result = False
+            msg = "{}".format(traceback.format_exc())
+        finally:
+            if result == False:
+                self.SEND_MSG_ERR(msg)
+            return status
