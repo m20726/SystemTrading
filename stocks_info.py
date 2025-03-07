@@ -13,7 +13,7 @@ from datetime import date, timedelta
 import inspect
 import threading
 
-# 2025.03.05 기준 원금 450만원
+# 2025.03.05 기준 원금 460만원
 
 ##############################################################
 #                           전략                             #
@@ -714,6 +714,9 @@ class Stocks_info:
             # 매도 완료됐으니 주문 완료 초기화하여 재주문 가능하게
             self.stocks[code]['sell_order_done'] = False
 
+            # 매도 완료됐으니 모니터링은 초기화
+            self.stocks[code]['allow_monitoring_sell'] = False
+
             if self.is_my_stock(code) == True:
                 # update sell_done
                 for i in range(SELL_SPLIT_COUNT):
@@ -727,7 +730,7 @@ class Stocks_info:
             else:
                 # 전량 매도 상태는 보유 종목에 없는 상태
                 if self.is_my_stock(code) == False:
-                    self.stocks[code]['sell_done'] = True
+                    self.stocks[code]['sell_all_done'] = True
                     # 매도 완료 후 종가 > 20ma 체크위해 false 처리
                     self.stocks[code]['end_price_higher_than_20ma_after_sold'] = False
                     self.update_my_stocks()
@@ -1313,12 +1316,12 @@ class Stocks_info:
                 self.stocks[code]['yesterday_end_price'] = self.get_end_price(code, past_day)
 
                 # 매도 완료 후 "어제 종가 > 어제 20ma" 여야 재매수 가능
-                if self.stocks[code]['sell_done'] == True:
+                if self.stocks[code]['sell_all_done'] == True:
                     # 어제 종가 > 어제 20ma
                     if self.stocks[code]['yesterday_end_price'] > self.stocks[code]['yesterday_20ma']:
                         # 재매수 가능
                         self.stocks[code]['end_price_higher_than_20ma_after_sold'] = True
-                        self.stocks[code]['sell_done'] = False
+                        self.stocks[code]['sell_all_done'] = False
 
                 # 보유 주식 아닌 경우에 업데이트
                 if self.is_my_stock(code) == False:
@@ -1584,7 +1587,7 @@ class Stocks_info:
                     return False
             
             # 매도 후 종가 > 20ma 체크
-            if self.stocks[code]['sell_done'] == True:
+            if self.stocks[code]['sell_all_done'] == True:
                 # 어제 종가 <= 어제 20ma 상태면 매수 금지
                 if self.stocks[code]['end_price_higher_than_20ma_after_sold'] == False:
                     if print_msg:
@@ -1852,7 +1855,7 @@ class Stocks_info:
             for row in zip(*data.values()):
                 table.add_row(row)
 
-            table = "\n==========주식 보유 잔고==========\n" + str(table)
+            table = f"\n==========주식 보유 잔고(계좌:{self.config['CANO']})==========\n" + str(table)
             self.SEND_MSG_INFO(f"{table}", send_discode)
             self.SEND_MSG_INFO(f"주식 평가 금액: {evaluation[0]['scts_evlu_amt']}원", send_discode)
             self.SEND_MSG_INFO(f"평가 손익 합계: {evaluation[0]['evlu_pfls_smtl_amt']}원", send_discode)
@@ -3131,7 +3134,7 @@ class Stocks_info:
             for row in zip(*data.values()):
                 table.add_row(row)
             
-            table = "\n==========매수 가능 종목==========\n" + str(table)
+            table = f"\n==========매수 가능 종목(전략:Envelope{DEFAULT_ENVELOPE_P})==========\n" + str(table)
             PRINT_DEBUG(table)
         except Exception as ex:
             result = False
@@ -3178,7 +3181,7 @@ class Stocks_info:
                     self.stocks[code]['loss_cut_order'] = False
                 self.stocks[code]['buy_order_done'] = False
                 self.stocks[code]['sell_order_done'] = False
-                if self.stocks[code]['sell_done'] == True:
+                if self.stocks[code]['sell_all_done'] == True:
                     self.stocks[code]['avg_buy_price'] = 0
             
                 # system traing 대신 한투MTS 등에서 매도 처리한 경우 set_sell_done 호출이 안된다. -> clear 해줘야한다.
@@ -3887,7 +3890,7 @@ class Stocks_info:
         msg = ""
         try:
             # 분할 매도 수량, 소수 첫째 자리에서 반올림
-            qty = round(self.stocks[code]['stockholdings'] / SELL_SPLIT_COUNT)
+            qty = max(1, round(self.stocks[code]['stockholdings'] / SELL_SPLIT_COUNT))
 
             for i in range(SELL_SPLIT_COUNT):
                 remain_qty = max(0, self.stocks[code]['stockholdings'] - (qty * i))
@@ -3944,6 +3947,12 @@ class Stocks_info:
             if code in self.not_handle_stock_list:
                 return status
 
+            if self.stocks[code]['loss_cut_order'] == True:
+                status = "손절 주문"
+            
+            if self.stocks[code]['loss_cut_done'] == True:
+                status = "손절 완료"
+
             # 마지막 요소(1)부터 0번째 요소까지 체크 range(start, end, step)
             for i in range(BUY_SPLIT_COUNT-1, -1, -1):
                 if self.stocks[code]['buy_done'][i] == True:
@@ -3956,19 +3965,13 @@ class Stocks_info:
                     break
 
             if self.stocks[code]['allow_monitoring_buy'] == True:
-                for i in range(BUY_SPLIT_COUNT-1, -1, -1):
+                for i in range(BUY_SPLIT_COUNT):
                     if self.stocks[code]['buy_done'][i] == False:
                         status = f"{i+1}차 매수 모니터링"
                         break
 
             if self.stocks[code]['allow_monitoring_sell'] == True:
                 status = "매도 모니터링"
-            
-            if self.stocks[code]['loss_cut_order'] == True:
-                status = "손절 주문"
-            
-            if self.stocks[code]['loss_cut_done'] == True:
-                status = "손절 완료"
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
