@@ -50,11 +50,9 @@ def main():
         stocks_info = Stocks_info()
         stocks_info.initialize()
 
-
         # # stocks_info.json 에 추가
         # for code in stocks_info.stocks.keys():
-        #     stocks_info.stocks[code]['sell_qty'] = 0
-        #     stocks_info.stocks[code]['sell_done'] = [False, False, False, False]
+        #     stocks_info.stocks[code]['sell_all_done'] = False
         # stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
         
         # # stocks_info.json 에 key 제거
@@ -71,25 +69,23 @@ def main():
 
         t_now = datetime.datetime.now()
         t_start = t_now.replace(hour=9, minute=0, second=0, microsecond=0)
-        # # 장 종료 15:30
-        # t_market_end = t_now.replace(hour=15, minute=30, second=0, microsecond=0)
-        # 손절 주문 체크 시간 15:31, t_market_end 로 체크했더니 15:29 시간의 price 로 비교되어 안전하게 15:31 이후 체크
-        t_loss_cut = t_now.replace(hour=15, minute=31, second=0, microsecond=0)
+        # 종가 손절은 15:15분에 체크
+        t_loss_cut = t_now.replace(hour=15, minute=15, second=0, microsecond=0)
         # 장 종료 후 15:35분에 미체결 주문 없으면 종료 위해 
         t_market_end_order_check = t_now.replace(hour=15, minute=35, second=0, microsecond=0)
         # 종가 매매 위해 16:00 에 종료
         t_exit = t_now.replace(hour=16, minute=00, second=0,microsecond=0)
 
-        # # 주식 정보 업데이트는 장 전후
-        # if t_now < t_start or t_now > t_market_end_order_check:
-        #     stocks_info.update_stocks_trade_info()
-        #     stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
-        # else:
-        #     stocks_info.update_stocks_trade_info()
-        #     stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
+        # 주식 정보 업데이트는 장 전후
+        if t_now < t_start or t_now > t_market_end_order_check:
+            stocks_info.update_stocks_trade_info()
+            stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
+        else:
+            stocks_info.update_stocks_trade_info()
+            stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
 
         stocks_info.update_my_stocks()              # 보유 주식 업데이트
-        stocks_info.show_stocks(False)
+        # stocks_info.show_stocks(False)
         stocks_info.get_stock_balance()
 
         stocks_info.update_buyable_stocks()
@@ -119,6 +115,11 @@ def main():
                     if len(stocks_info.get_order_list("02")) == 0:
                         PRINT_DEBUG(f"=== Exit loop {t_now} ===")
                         break
+
+                # 보유 종목 없고 buyable 종목 없으면 종료
+                if len(stocks_info.my_stocks) == 0 and len(stocks_info.buyable_stocks) == 0:
+                    PRINT_DEBUG(f"=== 보유 종목 없고 buyable 종목 없어서 종료 ===")
+                    break
                 
                 # thread start 는 한 번만 호출
                 if worker_thread.is_alive() == False:
@@ -148,15 +149,13 @@ def main():
 
             time.sleep(0.001)   # context switching between threads(main thread 와 buy_sell_task 가 context switching)
         
-        # 장 종료
-        stocks_info.check_ordered_stocks_trade_done()   # 장 종료 후 체결 처리
+        # 종료
+        stocks_info.check_ordered_stocks_trade_done()   # 종료 후 체결 처리
         stocks_info.update_my_stocks()
-        stocks_info.show_stocks(True)
         stocks_info.show_trade_done_stocks(BUY_CODE)
         stocks_info.show_trade_done_stocks(SELL_CODE)
         stocks_info.get_stock_balance(True)
         stocks_info.clear_after_market()
-        stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
         
         # 종료 이벤트 설정하여 thread 종료
         stop_event.set()
@@ -165,10 +164,9 @@ def main():
             # thread 완료까지 대기
             worker_thread.join()
 
-        # 장 종료 후 주식 정보 업데이트
-        if t_now > t_market_end_order_check:
-            stocks_info.update_stocks_trade_info()
-            stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
+        # 종료 후 주식 정보 업데이트
+        stocks_info.update_stocks_trade_info()
+        stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
 
         PRINT_DEBUG("=== Program End ===")
     except Exception as ex:
