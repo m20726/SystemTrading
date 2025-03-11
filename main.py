@@ -50,11 +50,9 @@ def main():
         stocks_info = Stocks_info()
         stocks_info.initialize()
 
-
         # # stocks_info.json 에 추가
         # for code in stocks_info.stocks.keys():
-        #     stocks_info.stocks[code]['sell_qty'] = 0
-        #     stocks_info.stocks[code]['sell_done'] = [False, False, False, False]
+        #     stocks_info.stocks[code]['sell_all_done'] = False
         # stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
         
         # # stocks_info.json 에 key 제거
@@ -147,8 +145,8 @@ def main():
 
             time.sleep(0.001)   # context switching between threads(main thread 와 buy_sell_task 가 context switching)
         
-        # 장 종료
-        stocks_info.check_ordered_stocks_trade_done()   # 장 종료 후 체결 처리
+        # Loop 종료
+        stocks_info.check_ordered_stocks_trade_done()   # Loop 종료 후 체결 처리
         stocks_info.update_my_stocks()
         stocks_info.show_stocks(True)
         stocks_info.show_trade_done_stocks(BUY_CODE)
@@ -164,10 +162,9 @@ def main():
             # thread 완료까지 대기
             worker_thread.join()
 
-        # 장 종료 후 주식 정보 업데이트
-        if t_now > t_market_end_order_check:
-            stocks_info.update_stocks_trade_info()
-            stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
+        # Loop 종료 후 주식 정보 업데이트
+        stocks_info.update_stocks_trade_info()
+        stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
 
         PRINT_DEBUG("=== Program End ===")
     except Exception as ex:

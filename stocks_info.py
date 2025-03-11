@@ -88,6 +88,10 @@ BUYABLE_COUNT = 30
 # 1차 매도 후 나머지 물량은 익절선을 낮추어 길게 간다
 TAKE_PROFIT_STRATEGY_SLOW = 1
 
+# 1차 매수 시 전일 대비율(현재 등락율)이 PRICE_CHANGE_RATE_P % 미만에서 매수
+# ex) -4% 미만
+PRICE_CHANGE_RATE_P = -4
+
 ##############################################################
 
 STOCKS_INFO_FILE_PATH = './stocks_info.json'    # 주식 정보 file
@@ -2123,8 +2127,14 @@ class Stocks_info:
                     if self.stocks[code]['allow_monitoring_buy'] == False:
                         # 목표가 왔다 -> 매수 감시 시작
                         if curr_price <= buy_target_price:
-                            PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 감시 시작, {curr_price}(현재가) {buy_target_price}(매수 목표가)")
-                            self.stocks[code]['allow_monitoring_buy'] = True
+                            # 1차 매수 시 시총 10조미만 "전일 대비율"(현재 등락율) < -X% 조건 추가
+                            if self.stocks[code]['buy_done'][0] == False and self.stocks[code]['market_cap'] < 10000:
+                                if float(price_data['prdy_ctrt']) < PRICE_CHANGE_RATE_P:
+                                    PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 감시 시작, {curr_price}(현재가) {buy_target_price}(매수 목표가)")
+                                    self.stocks[code]['allow_monitoring_buy'] = True                                    
+                            else:
+                                PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 감시 시작, {curr_price}(현재가) {buy_target_price}(매수 목표가)")
+                                self.stocks[code]['allow_monitoring_buy'] = True
                     else:
                         # buy 모니터링 중
                         # "현재가 >= 저가 + BUY_MARGIN_P%" 에서 매수
@@ -2152,8 +2162,14 @@ class Stocks_info:
                         if self.stocks[code]['allow_monitoring_buy'] == False:
                             # 목표가 왔다 -> 매수 감시 시작
                             if curr_price <= buy_target_price:
-                                PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 감시 시작, {curr_price}(현재가) <= {buy_target_price}(매수 목표가)")
-                                self.stocks[code]['allow_monitoring_buy'] = True
+                                # 1차 매수 시 시총 10조미만 "전일 대비율"(현재 등락율) < -X% 조건 추가
+                                if self.stocks[code]['market_cap'] < 10000:
+                                    if float(price_data['prdy_ctrt']) < PRICE_CHANGE_RATE_P:
+                                        PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 감시 시작, {curr_price}(현재가) {buy_target_price}(매수 목표가)")
+                                        self.stocks[code]['allow_monitoring_buy'] = True                                    
+                                else:
+                                    PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 감시 시작, {curr_price}(현재가) <= {buy_target_price}(매수 목표가)")
+                                    self.stocks[code]['allow_monitoring_buy'] = True
                         else:
                             # buy 모니터링 중
                             # "현재가 >= 저가 + BUY_MARGIN_P%" 에서 매수
@@ -3081,7 +3097,7 @@ class Stocks_info:
         msg = ""
         try:
             temp_stocks = copy.deepcopy(self.buyable_stocks)
-            sorted_data = dict(sorted(temp_stocks.items(), key=lambda x: x[1]['undervalue'], reverse=True))
+            sorted_data = dict(sorted(temp_stocks.items(), key=lambda x: x[1]['undervalue'], reverse=False))
             data = {'종목명':[], '저평가':[], '목표가GAP(%)':[], '매수가':[], '현재가':[], '매수가GAP(%)':[], 'Envelope':[]}
             if self.trade_strategy.use_trend_60ma == True:
                 data['60일선추세'] = []
@@ -3618,7 +3634,7 @@ class Stocks_info:
         try:
             # 시총 10조 이상이면 envelope_p = X
             if self.stocks[code]['market_cap'] >= 100000:
-                envelope_p = 11
+                envelope_p = 12
             # 시총 2조 이상
             elif self.stocks[code]['market_cap'] >= 20000:
                 envelope_p = 13
@@ -3627,9 +3643,9 @@ class Stocks_info:
                 envelope_p = DEFAULT_ENVELOPE_P
 
             # 목표가GAP 에 따라 envelope_p 조정
-            if self.stocks[code]['gap_max_sell_target_price_p'] >= 20:
+            if self.stocks[code]['gap_max_sell_target_price_p'] >= 50:
                 envelope_p = envelope_p - 1
-            elif self.stocks[code]['gap_max_sell_target_price_p'] < 0:
+            elif self.stocks[code]['gap_max_sell_target_price_p'] < -10:
                 envelope_p = envelope_p + 1
 
             # 시장 폭락 시 envelope 증가
