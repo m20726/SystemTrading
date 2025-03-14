@@ -606,6 +606,9 @@ class Stocks_info:
         result = True
         msg = ""
         try:
+            # 비중 조절(가중치)
+            buy_invest_money_weight = self.get_invest_money_weight(code)
+
             for i in range(BUY_SPLIT_COUNT):
                 if self.stocks[code]['buy_price'][i] > 0:
                     # 매수 완료 차수는 업데이트 하지 않는다
@@ -617,7 +620,7 @@ class Stocks_info:
                         self.stocks[code]['buy_qty'][i] = 1
                     else:
                         # 최소 1주 매수
-                        qty = max(1, int(self.buy_invest_money[i] / self.stocks[code]['buy_price'][i]))
+                        qty = max(1, int((self.buy_invest_money[i] + buy_invest_money_weight) / self.stocks[code]['buy_price'][i]))
                         self.stocks[code]['buy_qty'][i] = qty
                 else:
                     self.stocks[code]['buy_qty'][i] = 0
@@ -2119,21 +2122,21 @@ class Stocks_info:
                 if curr_price == 0:
                     PRINT_ERR(f"[{self.stocks[code]['name']}] curr_price {curr_price}원")
                     continue
+                lowest_price = int(price_data['stck_lwpr'])
 
                 buy_target_price = self.get_buy_target_price(code)
                 if self.trade_strategy.buy_split_strategy == BUY_SPLIT_STRATEGY_DOWN:
                     # 물타기
                     if self.stocks[code]['allow_monitoring_buy'] == False:
                         # 목표가 왔다 -> 매수 감시 시작
-                        if curr_price <= buy_target_price:
+                        # 순간적으로 매수가 터치하고 올라간 경우 처리 보완(최저가와 현재가의 차이가 2% 이내이면서 최저가가 매수가 이하 경우)
+                        if lowest_price <=buy_target_price and abs((curr_price - lowest_price) / lowest_price) < 0.02:
                             PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 감시 시작, {curr_price}(현재가) {buy_target_price}(매수 목표가)")
                             self.stocks[code]['allow_monitoring_buy'] = True
                     else:
                         # buy 모니터링 중
                         # "현재가 >= 저가 + BUY_MARGIN_P%" 에서 매수
-                        # "15:15" 까지 매수 안됐고 "현재가 <= 매수가"면 매수
-                        lowest_price = int(price_data['stck_lwpr'])
-                        
+                        # "15:15" 까지 매수 안됐고 "현재가 <= 매수가"면 매수                        
                         if ((lowest_price > 0) and curr_price >= (lowest_price * buy_margin)) \
                             or (t_now >= t_buy and curr_price <= buy_target_price):
                             if self.stocks[code]['buy_order_done'] == False:
@@ -2154,14 +2157,14 @@ class Stocks_info:
                         # 1차 매수 안된 경우 매수가 이하에서 매수
                         if self.stocks[code]['allow_monitoring_buy'] == False:
                             # 목표가 왔다 -> 매수 감시 시작
-                            if curr_price <= buy_target_price:
+                            # 순간적으로 매수가 터치하고 올라간 경우 처리 보완(최저가와 현재가의 차이가 2% 이내이면서 최저가가 매수가 이하 경우)
+                            if lowest_price <=buy_target_price and abs((curr_price - lowest_price) / lowest_price) < 0.02:
                                 PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 감시 시작, {curr_price}(현재가) <= {buy_target_price}(매수 목표가)")
                                 self.stocks[code]['allow_monitoring_buy'] = True
                         else:
                             # buy 모니터링 중
                             # "현재가 >= 저가 + BUY_MARGIN_P%" 에서 매수
                             # "15:15" 까지 매수 안됐고 "현재가 <= 매수가"면 매수
-                            lowest_price = int(price_data['stck_lwpr'])
                             if ((lowest_price > 0) and curr_price >= (lowest_price * buy_margin)) \
                                 or (t_now >= t_buy and curr_price <= buy_target_price):
                                 if self.stocks[code]['buy_order_done'] == False:
@@ -2221,10 +2224,12 @@ class Stocks_info:
                 if code not in self.stocks.keys():
                     continue
 
-                curr_price = self.get_curr_price(code)
+                price_data = self.get_price_data(code)
+                curr_price = int(price_data['stck_prpr'])
                 if curr_price == 0:
                     PRINT_ERR(f"[{self.stocks[code]['name']}] curr_price {curr_price}원")
                     continue
+                highest_price = int(price_data['stck_hgpr'])
 
                 if self.trade_strategy.loss_cut_time == LOSS_CUT_MARKET_CLOSE:
                     # 종가 손절
@@ -2253,7 +2258,8 @@ class Stocks_info:
                         # 트레일잉 스탑으로 매도 처리
                         if self.stocks[code]['allow_monitoring_sell'] == False:
                             # 목표가 왔다 -> 매도 감시 시작
-                            if curr_price >= sell_target_price and sell_target_price > 0:
+                            # 순간적으로 매도가 터치하고 내려간 경우 처리 보완(최고가와 현재가의 차이가 2% 이내이면서 최고가가 매도가 이상 경우)
+                            if highest_price >= sell_target_price and abs((highest_price - curr_price) / curr_price) < 0.02 and sell_target_price > 0:
                                 PRINT_INFO(f"[{self.stocks[code]['name']}] 매도 감시 시작, {curr_price}(현재가) 매도 목표가({sell_target_price})")
                                 self.stocks[code]['allow_monitoring_sell'] = True
                         else:
@@ -2272,7 +2278,8 @@ class Stocks_info:
                                         PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매도 주문, {qty}주 {curr_price}(현재가) <= {take_profit_price}(익절가) {self.stocks[code]['highest_price_ever']}(최고가)")
                     else:
                         # 목표가 매도 처리(not 트레일링 스탑)
-                        if curr_price >= sell_target_price and sell_target_price > 0:
+                        # 순간적으로 매도가 터치하고 내려간 경우 처리 보완(최고가와 현재가의 차이가 2% 이내이면서 최고가가 매도가 이상 경우)
+                        if highest_price >= sell_target_price and abs((highest_price - curr_price) / curr_price) < 0.02 and sell_target_price > 0:
                             self.stocks[code]['allow_monitoring_sell'] = True
                             qty = self.get_sell_qty(code)
                             # 지정가 매도
@@ -2288,7 +2295,8 @@ class Stocks_info:
                     if self.trade_strategy.take_profit_strategy == TAKE_PROFIT_STRATEGY_SLOW:
                         # "현재가 >= 목표가" 경우 매도
                         # 익절은 handle_loss_cut 에서 처리
-                        if curr_price >= sell_target_price and sell_target_price > 0:        
+                        # 순간적으로 매도가 터치하고 내려간 경우 처리 보완(최고가와 현재가의 차이가 2% 이내이면서 최고가가 매도가 이상 경우)
+                        if highest_price >= sell_target_price and abs((highest_price - curr_price) / curr_price) < 0.02 and sell_target_price > 0:
                             # 1차 매도 후 다음날 매도 가능하게
                             self.stocks[code]['allow_monitoring_sell'] = True
                             qty = self.get_sell_qty(code)
@@ -2298,7 +2306,8 @@ class Stocks_info:
                                 PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매도 주문, {qty}주 {curr_price}(현재가) >= {sell_target_price}(목표가)")
                     else:
                         # "현재가 >= 목표가" or "현재가 <= 1차 목표가" 경우 매도
-                        if (curr_price >= sell_target_price and sell_target_price > 0) or curr_price <= self.stocks[code]['first_sell_target_price']:
+                        # 순간적으로 매도가 터치하고 내려간 경우 처리 보완(최고가와 현재가의 차이가 2% 이내이면서 최고가가 매도가 이상 경우)
+                        if (highest_price >= sell_target_price and abs((highest_price - curr_price) / curr_price) < 0.02 and sell_target_price > 0) or (curr_price <= self.stocks[code]['first_sell_target_price']):
                             # 1차 매도 후 다음날 매도 가능하게
                             self.stocks[code]['allow_monitoring_sell'] = True                            
                             if curr_price <= self.stocks[code]['first_sell_target_price']:
@@ -3084,7 +3093,7 @@ class Stocks_info:
         msg = ""
         try:
             temp_stocks = copy.deepcopy(self.buyable_stocks)
-            sorted_data = dict(sorted(temp_stocks.items(), key=lambda x: x[1]['name'], reverse=True))
+            sorted_data = dict(sorted(temp_stocks.items(), key=lambda x: x[1]['name'], reverse=False))
             data = {'종목명':[], '매수가':[], '현재가':[], '매수가GAP(%)':[], 'Envelope':[]}
             if self.trade_strategy.use_trend_60ma == True:
                 data['60일선추세'] = []
@@ -3240,7 +3249,7 @@ class Stocks_info:
             # 한 달은 약 21일
             highest_end_price = self.get_highest_end_pirce(code, 22)
             # 최고 종가에서 최소 X% 폭락 가격
-            margine_p = self.to_percent(27)   # 27%
+            margine_p = self.to_percent(self.stocks[code]['envelope_p'] + 7)
             price = highest_end_price * (1 - margine_p)
         except Exception as ex:
             result = False
@@ -3912,7 +3921,7 @@ class Stocks_info:
             for i in range(SELL_SPLIT_COUNT):
                 if self.stocks[code]['sell_done'][i] == False:
                     qty = self.stocks[code]['sell_qty'][i]
-                    PRINT_DEBUG(F"[{self.stocks[code]['name']}] {i+1}번째 분할 매도 수량({qty})")
+                    # PRINT_DEBUG(F"[{self.stocks[code]['name']}] {i+1}번째 분할 매도 수량({qty})")
                     break
         except Exception as ex:
             result = False
@@ -3968,4 +3977,29 @@ class Stocks_info:
         finally:
             if result == False:
                 self.SEND_MSG_ERR(msg)
-            return status        
+            return status
+        
+    ##############################################################
+    # 투자금액 가중치
+    #   상황에 따라 비중 조절
+    # param :
+    #   code            종목 코드
+    ##############################################################
+    def get_invest_money_weight(self, code):
+        result = True
+        msg = ""
+        invest_money_weight = 0
+        try:
+            if self.stocks[code]['market_cap'] >= 50000:
+                # 시총 x조 이상이면 비중 확대
+                invest_money_weight = INVEST_MONEY_PER_STOCK / 3
+            elif self.stocks[code]['market_cap'] < 10000:
+                # 시총 y조 미만이면 비중 축소
+                invest_money_weight = -(INVEST_MONEY_PER_STOCK / 3)
+        except Exception as ex:
+            result = False
+            msg = "{}".format(traceback.format_exc())
+        finally:
+            if result == False:
+                self.SEND_MSG_ERR(msg)
+            return invest_money_weight        
