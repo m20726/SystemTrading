@@ -78,7 +78,7 @@ else:
 BUYABLE_GAP = 8
 
 # 상위 몇개 종목까지 매수 가능 종목으로 유지
-BUYABLE_COUNT = 30                          
+BUYABLE_COUNT = 20                          
 
 # 빠른 익절 전략
 # 1차 매도 후 나머지 물량은 익절선을 높여 빠르게 익절한다
@@ -89,8 +89,8 @@ BUYABLE_COUNT = 30
 TAKE_PROFIT_STRATEGY_SLOW = 1
 
 # 1차 매수 시 전일 대비율(현재 등락율)이 PRICE_CHANGE_RATE_P % 미만에서 매수
-# ex) -4% 미만
-PRICE_CHANGE_RATE_P = -4
+# ex) -6% 미만
+PRICE_CHANGE_RATE_P = -6
 
 ##############################################################
 
@@ -258,6 +258,7 @@ class Stocks_info:
     ##############################################################
     def print_strategy(self):
         PRINT_DEBUG('===============================')
+        PRINT_INFO(f'Envelope {DEFAULT_ENVELOPE_P} 매매')
         invest_risk_msg = dict()
         invest_risk_msg[INVEST_RISK_LOW] = "보수적 전략"
         invest_risk_msg[INVEST_RISK_MIDDLE] = "중도적 전략"
@@ -2136,13 +2137,14 @@ class Stocks_info:
                     # 물타기
                     if self.stocks[code]['allow_monitoring_buy'] == False:
                         # 목표가 왔다 -> 매수 감시 시작
-                        # 순간적으로 매수가 터치하고 올라간 경우 처리 보완(최저가와 현재가의 차이가 2% 이내이면서 최저가가 매수가 이하 경우)
-                        if lowest_price <=buy_target_price and abs((curr_price - lowest_price) / lowest_price) < 0.02:
+                        if curr_price <= buy_target_price:
                             # 1차 매수 시 시총 10조미만 "전일 대비율"(현재 등락율) < -X% 조건 추가
-                            if self.stocks[code]['buy_done'][0] == False and self.stocks[code]['market_cap'] < 10000:
+                            if self.stocks[code]['buy_done'][0] == False and self.stocks[code]['market_cap'] < 100000:
                                 if float(price_data['prdy_ctrt']) < PRICE_CHANGE_RATE_P:
                                     PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 감시 시작, {curr_price}(현재가) {buy_target_price}(매수 목표가)")
-                                    self.stocks[code]['allow_monitoring_buy'] = True                                    
+                                    self.stocks[code]['allow_monitoring_buy'] = True
+                                # else:
+                                #     PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 보류, 등락율 {float(price_data['prdy_ctrt'])}% < {PRICE_CHANGE_RATE_P}")                                  
                             else:
                                 PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 감시 시작, {curr_price}(현재가) {buy_target_price}(매수 목표가)")
                                 self.stocks[code]['allow_monitoring_buy'] = True
@@ -2156,24 +2158,22 @@ class Stocks_info:
                                 # 1차 매수 상태에서 allow_monitoring_buy 가 false 안된 상태에서 2차 매수 들어갈 때
                                 # 1차 매수 반복되는 문제 수정
                                 PRINT_DEBUG(f"[{self.stocks[code]['name']}] {curr_price}(현재가) {buy_target_price}(매수가) {lowest_price}(저가)")
-                                if lowest_price <= buy_target_price:
-                                    buy_target_qty = self.get_buy_target_qty(code)
-                                    if self.buy(code, curr_price, buy_target_qty, ORDER_TYPE_IMMEDIATE_ORDER) == True:
-                                        self.set_order_done(code, BUY_CODE)
-                                        if curr_price >= int(lowest_price * buy_margin):
-                                            PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 주문, {buy_target_qty}주 {curr_price}(현재가) >= {int(lowest_price * buy_margin)}({lowest_price}(저가) * {buy_margin})")
-                                        else:
-                                            PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 주문, {buy_target_qty}주 {curr_price}(현재가) > {buy_target_price}(매수 목표가)")
+                                buy_target_qty = self.get_buy_target_qty(code)
+                                if self.buy(code, curr_price, buy_target_qty, ORDER_TYPE_IMMEDIATE_ORDER) == True:
+                                    self.set_order_done(code, BUY_CODE)
+                                    if curr_price >= int(lowest_price * buy_margin):
+                                        PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 주문, {buy_target_qty}주 {curr_price}(현재가) >= {int(lowest_price * buy_margin)}({lowest_price}(저가) * {buy_margin})")
+                                    else:
+                                        PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 주문, {buy_target_qty}주 {curr_price}(현재가) > {buy_target_price}(매수 목표가)")
                 else:
                     # 불타기
                     if self.stocks[code]['buy_done'][0] == False:
                         # 1차 매수 안된 경우 매수가 이하에서 매수
                         if self.stocks[code]['allow_monitoring_buy'] == False:
                             # 목표가 왔다 -> 매수 감시 시작
-                            # 순간적으로 매수가 터치하고 올라간 경우 처리 보완(최저가와 현재가의 차이가 2% 이내이면서 최저가가 매수가 이하 경우)
-                            if lowest_price <=buy_target_price and abs((curr_price - lowest_price) / lowest_price) < 0.02:
+                            if curr_price <= buy_target_price:
                                 # 1차 매수 시 시총 10조미만 "전일 대비율"(현재 등락율) < -X% 조건 추가
-                                if self.stocks[code]['market_cap'] < 10000:
+                                if self.stocks[code]['market_cap'] < 100000:
                                     if float(price_data['prdy_ctrt']) < PRICE_CHANGE_RATE_P:
                                         PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 감시 시작, {curr_price}(현재가) {buy_target_price}(매수 목표가)")
                                         self.stocks[code]['allow_monitoring_buy'] = True                                    
@@ -2190,14 +2190,13 @@ class Stocks_info:
                                     # 1차 매수 상태에서 allow_monitoring_buy 가 false 안된 상태에서 2차 매수 들어갈 때
                                     # 1차 매수 반복되는 문제 수정
                                     PRINT_DEBUG(f"[{self.stocks[code]['name']}] {curr_price}(현재가) {buy_target_price}(매수가) {lowest_price}(저가)")
-                                    if lowest_price <= buy_target_price:
-                                        buy_target_qty = self.get_buy_target_qty(code)
-                                        if self.buy(code, curr_price, buy_target_qty, ORDER_TYPE_IMMEDIATE_ORDER) == True:
-                                            self.set_order_done(code, BUY_CODE)
-                                            if curr_price >= int(lowest_price * buy_margin):
-                                                PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 주문, {buy_target_qty}주 {curr_price}(현재가) >= {int(lowest_price * buy_margin)}({lowest_price}(저가) * {buy_margin})")
-                                            else:
-                                                PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 주문, {buy_target_qty}주 {curr_price}(현재가) > {buy_target_price}(매수 목표가)")                                            
+                                    buy_target_qty = self.get_buy_target_qty(code)
+                                    if self.buy(code, curr_price, buy_target_qty, ORDER_TYPE_IMMEDIATE_ORDER) == True:
+                                        self.set_order_done(code, BUY_CODE)
+                                        if curr_price >= int(lowest_price * buy_margin):
+                                            PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 주문, {buy_target_qty}주 {curr_price}(현재가) >= {int(lowest_price * buy_margin)}({lowest_price}(저가) * {buy_margin})")
+                                        else:
+                                            PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 주문, {buy_target_qty}주 {curr_price}(현재가) > {buy_target_price}(매수 목표가)")                                            
                     else:
                         # 불타기는 2차 매수까지만 진행
                         # 상승 추세 경우만 불타기
@@ -2248,7 +2247,6 @@ class Stocks_info:
                 if curr_price == 0:
                     PRINT_ERR(f"[{self.stocks[code]['name']}] curr_price {curr_price}원")
                     continue
-                highest_price = int(price_data['stck_hgpr'])
 
                 if self.trade_strategy.loss_cut_time == LOSS_CUT_MARKET_CLOSE:
                     # 종가 손절
@@ -2269,16 +2267,20 @@ class Stocks_info:
                                 else:
                                     self.SEND_MSG_ERR(f"[{self.stocks[code]['name']}] 손절 주문 실패")
 
+
+                sell_target_price = self.my_stocks[code]['sell_target_price']
+                if sell_target_price == 0:
+                    PRINT_ERR(f"[{self.stocks[code]['name']}] sell_target_price {sell_target_price}원")
+                    continue
+
                 if self.stocks[code]['sell_done'][0] == False:
                     # 1차 매도 안된 상태
-                    sell_target_price = self.my_stocks[code]['sell_target_price']
 
                     if self.trade_strategy.sell_trailing_stop == True:
                         # 트레일잉 스탑으로 매도 처리
                         if self.stocks[code]['allow_monitoring_sell'] == False:
                             # 목표가 왔다 -> 매도 감시 시작
-                            # 순간적으로 매도가 터치하고 내려간 경우 처리 보완(최고가와 현재가의 차이가 2% 이내이면서 최고가가 매도가 이상 경우)
-                            if highest_price >= sell_target_price and abs((highest_price - curr_price) / curr_price) < 0.02 and sell_target_price > 0:
+                            if curr_price >= sell_target_price and sell_target_price > 0:
                                 PRINT_INFO(f"[{self.stocks[code]['name']}] 매도 감시 시작, {curr_price}(현재가) 매도 목표가({sell_target_price})")
                                 self.stocks[code]['allow_monitoring_sell'] = True
                         else:
@@ -2297,8 +2299,7 @@ class Stocks_info:
                                         PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매도 주문, {qty}주 {curr_price}(현재가) <= {take_profit_price}(익절가) {self.stocks[code]['highest_price_ever']}(최고가)")
                     else:
                         # 목표가 매도 처리(not 트레일링 스탑)
-                        # 순간적으로 매도가 터치하고 내려간 경우 처리 보완(최고가와 현재가의 차이가 2% 이내이면서 최고가가 매도가 이상 경우)
-                        if highest_price >= sell_target_price and abs((highest_price - curr_price) / curr_price) < 0.02 and sell_target_price > 0:
+                        if curr_price >= sell_target_price and sell_target_price > 0:
                             self.stocks[code]['allow_monitoring_sell'] = True
                             qty = self.get_sell_qty(code)
                             # 지정가 매도
@@ -2309,13 +2310,10 @@ class Stocks_info:
                 else:
                     # 반 매도된 상태
                     # N차 매도가 : N-1차 매도가 * x (N>=2)
-                    sell_target_price = self.my_stocks[code]['sell_target_price']
-
                     if self.trade_strategy.take_profit_strategy == TAKE_PROFIT_STRATEGY_SLOW:
                         # "현재가 >= 목표가" 경우 매도
                         # 익절은 handle_loss_cut 에서 처리
-                        # 순간적으로 매도가 터치하고 내려간 경우 처리 보완(최고가와 현재가의 차이가 2% 이내이면서 최고가가 매도가 이상 경우)
-                        if highest_price >= sell_target_price and abs((highest_price - curr_price) / curr_price) < 0.02 and sell_target_price > 0:
+                        if curr_price >= sell_target_price and sell_target_price > 0:
                             # 1차 매도 후 다음날 매도 가능하게
                             self.stocks[code]['allow_monitoring_sell'] = True
                             qty = self.get_sell_qty(code)
@@ -2325,8 +2323,7 @@ class Stocks_info:
                                 PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매도 주문, {qty}주 {curr_price}(현재가) >= {sell_target_price}(목표가)")
                     else:
                         # "현재가 >= 목표가" or "현재가 <= 1차 목표가" 경우 매도
-                        # 순간적으로 매도가 터치하고 내려간 경우 처리 보완(최고가와 현재가의 차이가 2% 이내이면서 최고가가 매도가 이상 경우)
-                        if (highest_price >= sell_target_price and abs((highest_price - curr_price) / curr_price) < 0.02 and sell_target_price > 0) or (curr_price <= self.stocks[code]['first_sell_target_price']):
+                        if curr_price >= sell_target_price and sell_target_price > 0:
                             # 1차 매도 후 다음날 매도 가능하게
                             self.stocks[code]['allow_monitoring_sell'] = True                            
                             if curr_price <= self.stocks[code]['first_sell_target_price']:
@@ -3000,7 +2997,7 @@ class Stocks_info:
                             # 손절 주문 안된 경우만 체크
                             if self.stocks[code]['loss_cut_order'] == False:
                                 do_loss_cut = True
-                                PRINT_INFO(f'{recent_buy_date} 매수 후 {today} 까지 {days_diff} 동안 매수 없어 손절')
+                                PRINT_INFO(f'{recent_buy_date} 매수 후 {today} 까지 {days_diff}일 동안 매수 없어 손절')
 
                 curr_price = self.get_curr_price(code)
                 loss_cut_price = self.get_loss_cut_price(code)
@@ -3011,7 +3008,7 @@ class Stocks_info:
                     # 손절 주문 안된 경우만 주문
                     if self.stocks[code]['loss_cut_order'] == False:
                         # 주문 완료 했으면 다시 주문하지 않는다
-                        if self.already_ordered(code, SELL_CODE) == False and self.sell(code, curr_price, stockholdings, ORDER_TYPE_MARKET_ORDER) == True:
+                        if self.already_ordered(code, SELL_CODE) == False and self.sell(code, curr_price, stockholdings, ORDER_TYPE_IMMEDIATE_ORDER) == True:
                             self.set_order_done(code, SELL_CODE)
                             PRINT_INFO(f"[{self.stocks[code]['name']}] 손절 주문 성공, 현재가({curr_price}) < 손절가({loss_cut_price})")
                             self.stocks[code]['loss_cut_order'] = True
@@ -3271,7 +3268,8 @@ class Stocks_info:
             # 한 달은 약 21일
             highest_end_price = self.get_highest_end_pirce(code, 22)
             # 최고 종가에서 최소 X% 폭락 가격
-            margine_p = self.to_percent(max(18, self.stocks[code]['envelope_p'] * 1.5))
+            # margine_p = self.to_percent(max(18, self.stocks[code]['envelope_p'] * 1.5))
+            margine_p = self.to_percent(22)
             price = highest_end_price * (1 - margine_p)
         except Exception as ex:
             result = False
@@ -3544,7 +3542,7 @@ class Stocks_info:
             # 이평선 기울기 구하기 위해 last, recent ma price 구한다
             recent_ma_price = ma_price
             last_ma_price = self.get_ma(code, ma, consecutive_days + past_day - 1, period)
-            ma_diff = abs(1 - (recent_ma_price/last_ma_price))
+            ma_diff = (recent_ma_price - last_ma_price) / recent_ma_price
             
             for i in range(start_day, last_day):
                 if i < last_day:
