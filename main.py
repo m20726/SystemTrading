@@ -50,9 +50,9 @@ def main():
         stocks_info = Stocks_info()
         stocks_info.initialize()
 
-        # # stocks_info.json 에 추가
+        # # stocks_info.json 에 추가/변경
         # for code in stocks_info.stocks.keys():
-        #     stocks_info.stocks[code]['sell_all_done'] = False
+        #     stocks_info.stocks[code]['status'] = ""
         # stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
         
         # # stocks_info.json 에 key 제거
@@ -60,12 +60,6 @@ def main():
         #     del stocks_info.stocks[code]['buy_order_price']
         #     del stocks_info.stocks[code]['sell_order_price']
         # stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
-
-        # # # stocks_info.json 변경
-        # for code in stocks_info.stocks.keys():
-        #     stocks_info.stocks[code]['sell_qty'] = [0, 0, 0, 0]
-        # stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
-
 
         t_now = datetime.datetime.now()
         t_start = t_now.replace(hour=9, minute=0, second=0, microsecond=0)

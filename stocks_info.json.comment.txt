@@ -76,6 +76,8 @@
             0,
             0
         ],
-        "sell_all_done": false                                  전체 매도 완료 여부
+        "sell_all_done": false,                                 전체 매도 완료 여부
+        "status": "1차 매도 완료"                                 상태
+
     }
 }
