@@ -68,7 +68,7 @@ INVEST_TYPE = "real_invest"                 # sim_invest : 모의 투자, real_i
 
 if INVEST_TYPE == "real_invest":
     MAX_MY_STOCK_COUNT = 6
-    INVEST_MONEY_PER_STOCK = 600000         # 종목 당 투자 금액(원)
+    INVEST_MONEY_PER_STOCK = 800000         # 종목 당 투자 금액(원)
 else:
     MAX_MY_STOCK_COUNT = 10                 # MAX 보유 주식 수
     INVEST_MONEY_PER_STOCK = 2000000        # 종목 당 투자 금액(원)
@@ -78,7 +78,7 @@ else:
 BUYABLE_GAP = 8
 
 # 상위 몇개 종목까지 매수 가능 종목으로 유지
-BUYABLE_COUNT = 15                          
+BUYABLE_COUNT = 10
 
 # 빠른 익절 전략
 # 1차 매도 후 나머지 물량은 익절선을 높여 빠르게 익절한다
@@ -141,7 +141,7 @@ SORT_BY_UNDER_VALUE = 1
 LOSS_CUT_MARKET_OPEN = 0        # 장중 손절
 LOSS_CUT_MARKET_CLOSE = 1       # 종가 손절
 
-NEXT_SELL_TARGET_MARGIN_P = 3       # N차 매도가 : N-1차 매도가 * (1 + MARGIN_P) (N>=2), ex) 3%
+NEXT_SELL_TARGET_MARGIN_P = 2       # N차 매도가 : N-1차 매도가 * (1 + MARGIN_P) (N>=2), ex) 2%
 
 MAX_REQUEST_RETRY_COUNT = 3         # request 실패 시 최대 retry 횟수
 
@@ -149,12 +149,12 @@ MAX_REQUEST_RETRY_COUNT = 3         # request 실패 시 최대 retry 횟수
 TODAY_DATE = f"{datetime.datetime.now().strftime('%Y%m%d')}"
 
 # 60이평선 상승 추세 판단 기울기
-TREND_UP_DOWN_DIFF_60MA = 0.03       # ex) (recent ma - last ma) 기울기 x% 이상되어야 추세 up down
+TREND_UP_DOWN_DIFF_60MA_P = 3       # ex) (recent ma - last ma) 기울기 x% 이상되어야 추세 up down
 
 # 90이평선 상승 추세 판단 기울기
-TREND_UP_DOWN_DIFF_90MA = 0.003       # ex) 0.003 -> 0.3%
+TREND_UP_DOWN_DIFF_90MA_P = 0.3       # ex) 0.3%
 
-MA_DIFF_P = 1                       # 이평선 간의 이격 ex) 60, 90 이평선 간에 3% 이격이상 있어야 정배열
+MA_DIFF_P = 1                       # 이평선 간의 이격 ex) 60, 90 이평선 간에 1% 이격이상 있어야 정배열
 DEFAULT_ENVELOPE_P = 14             # 1차 매수 시 envelope value
 
 ##############################################################
@@ -561,11 +561,9 @@ class Stocks_info:
         result = True
         msg = ""
         try:
-            if self.trade_strategy.buy_split_strategy == BUY_SPLIT_STRATEGY_DOWN:
-                # 물타기
+            if self.trade_strategy.buy_split_strategy == BUY_SPLIT_STRATEGY_DOWN:   # 물타기
                 buy_margin = 0.9
-            else:
-                # 불타기
+            else:   # 불타기
                 buy_margin = 1.02
 
             # 1차 매수 안된 경우 envelope 기반으로 매수가 세팅
@@ -847,11 +845,9 @@ class Stocks_info:
             if self.stocks[code]['sell_done'][0] == False:
                 # 1차 매도 안된 경우
                 sell_target_p = self.to_percent(self.stocks[code]['sell_target_p'])
-                if self.trade_strategy.buy_split_strategy == BUY_SPLIT_STRATEGY_DOWN:
-                    # 물타기 경우
+                if self.trade_strategy.buy_split_strategy == BUY_SPLIT_STRATEGY_DOWN:   # 물타기
                     price = self.stocks[code]['avg_buy_price'] * (1 + sell_target_p)
-                else:
-                    # 불타기 경우
+                else:   # 불타기
                     # 1차 매수 시 목표가 유지
                     # 2,3차 매수 했다고 목표가 업데이트하지 않는다.
                     if self.stocks[code]['sell_target_price'] == 0 or self.stocks[code]['buy_done'][0] == False:
@@ -1328,7 +1324,7 @@ class Stocks_info:
                     self.stocks[code]['ma_trend'] = self.get_ma_trend(code)             
                 if self.trade_strategy.use_trend_90ma == True:
                     # 90 이평 추세, 90 이평은 연속 최대 8일 이하만 가능
-                    self.stocks[code]['ma_trend2'] = self.get_ma_trend(code, 1, 90, 8, "D", TREND_UP_DOWN_DIFF_90MA)
+                    self.stocks[code]['ma_trend2'] = self.get_ma_trend(code, 1, 90, 8, "D", TREND_UP_DOWN_DIFF_90MA_P)
 
                 # 손절가 세팅
                 self.stocks[code]['loss_cut_price'] = self.get_loss_cut_price(code)
@@ -2130,6 +2126,11 @@ class Stocks_info:
             # 매수 가능 종목내에서만 매수
             self.buyable_stocks_lock.acquire()    
             for code in self.buyable_stocks.keys():
+                # # 종목당 1초 소요
+                # # 한 종목 당 약 23초 마다 체크(23 = BUYABLE_COUNT(15) + 보유 종목 수(2) + 6)
+                # # buyable 종목, 보유 종목 많을 수록 종목 체크 시간이 길어짐
+                # PRINT_DEBUG(f"[{self.stocks[code]['name']}]")
+
                 #TODO: temp 삼성전자 제외
                 if code in self.not_handle_stock_list:
                     continue
@@ -2146,8 +2147,7 @@ class Stocks_info:
                 lowest_price = int(price_data['stck_lwpr'])
 
                 buy_target_price = self.get_buy_target_price(code)
-                if self.trade_strategy.buy_split_strategy == BUY_SPLIT_STRATEGY_DOWN:
-                    # 물타기
+                if self.trade_strategy.buy_split_strategy == BUY_SPLIT_STRATEGY_DOWN:   # 물타기
                     if self.stocks[code]['allow_monitoring_buy'] == False:
                         # 목표가 왔다 -> 매수 감시 시작
                         if curr_price <= buy_target_price:
@@ -2180,9 +2180,8 @@ class Stocks_info:
                                     if curr_price >= int(lowest_price * buy_margin):
                                         PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 주문, {buy_target_qty}주 {curr_price}(현재가) >= {int(lowest_price * buy_margin)}({lowest_price}(저가) * {buy_margin})")
                                     else:
-                                        PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 주문, {buy_target_qty}주 {curr_price}(현재가) > {buy_target_price}(매수 목표가)")
-                else:
-                    # 불타기
+                                        PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 주문, {buy_target_qty}주 {curr_price}(현재가) {buy_target_price}(매수 목표가)")
+                else:   # 불타기
                     if self.stocks[code]['buy_done'][0] == False:
                         # 1차 매수 안된 경우 매수가 이하에서 매수
                         if self.stocks[code]['allow_monitoring_buy'] == False:
@@ -2214,7 +2213,7 @@ class Stocks_info:
                                         if curr_price >= int(lowest_price * buy_margin):
                                             PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 주문, {buy_target_qty}주 {curr_price}(현재가) >= {int(lowest_price * buy_margin)}({lowest_price}(저가) * {buy_margin})")
                                         else:
-                                            PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 주문, {buy_target_qty}주 {curr_price}(현재가) > {buy_target_price}(매수 목표가)")                                            
+                                            PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 주문, {buy_target_qty}주 {curr_price}(현재가) {buy_target_price}(매수 목표가)")                                            
                     else:
                         # 불타기는 2차 매수까지만 진행
                         # 상승 추세 경우만 불타기
@@ -2253,6 +2252,11 @@ class Stocks_info:
             t_loss_cut = t_now.replace(hour=9, minute=1, second=0, microsecond=0)
 
             for code in self.my_stocks.keys():
+                # # 종목당 1초 소요
+                # # 한 종목 당 약 23초 마다 체크(23 = BUYABLE_COUNT(15) + 보유 종목 수(2) + 6)
+                # # buyable 종목, 보유 종목 많을 수록 종목 체크 시간이 길어짐
+                # PRINT_DEBUG(f"[{self.stocks[code]['name']}]")
+
                 #TODO: temp 삼성전자 제외
                 if code in self.not_handle_stock_list:
                     continue
@@ -2953,12 +2957,11 @@ class Stocks_info:
         msg = ""
         price = 0
         try:
-            if self.trade_strategy.buy_split_strategy == BUY_SPLIT_STRATEGY_DOWN:
-                # 물타기
+            if self.trade_strategy.buy_split_strategy == BUY_SPLIT_STRATEGY_DOWN:   # 물타기
                 last_split_buy_index = len(self.stocks[code]['buy_price']) - 1
                 price = self.stocks[code]['buy_price'][last_split_buy_index] * (1 - self.to_percent(LOSS_CUT_P))
-            else:
-                # 불타기 경우 2차 매수까지 완료 됐으면 -2% 이탈 시 손절
+            else:   # 불타기
+                # 2차 매수까지 완료 됐으면 -2% 이탈 시 손절
                 if self.stocks[code]['buy_done'][1] == True:
                     price = self.stocks[code]['avg_buy_price'] * 0.98
                 else:
@@ -3027,21 +3030,25 @@ class Stocks_info:
 
                 curr_price = self.get_curr_price(code)
                 loss_cut_price = self.get_loss_cut_price(code)
-                # PRINT_DEBUG(f"[{self.stocks[code]['name']}] {curr_price}(현재가) {loss_cut_price}(손절가) {self.stocks[code]['loss_cut_order']}(loss_cut_order)")
                 if do_loss_cut or (curr_price > 0 and curr_price < loss_cut_price):
+                    if loss_cut_price > self.stocks[code]['avg_buy_price']:                    
+                        sell_type = '익절'
+                    else:
+                        sell_type = '손절'
+
                     self.stocks[code]['allow_monitoring_sell'] = True
                     self.stocks[code]['status'] = "매도 모니터링"
                     stockholdings = self.stocks[code]['stockholdings']
-                    # 손절 주문 안된 경우만 주문
+                    # 주문 안된 경우만 주문
                     if self.stocks[code]['loss_cut_order'] == False:
                         # 주문 완료 했으면 다시 주문하지 않는다
                         if self.already_ordered(code, SELL_CODE) == False and self.sell(code, curr_price, stockholdings, ORDER_TYPE_IMMEDIATE_ORDER) == True:
                             self.set_order_done(code, SELL_CODE)
-                            PRINT_INFO(f"[{self.stocks[code]['name']}] 손절 주문 성공, 현재가({curr_price}) < 손절가({loss_cut_price})")
+                            PRINT_INFO(f"[{self.stocks[code]['name']}] {sell_type} 주문 성공, 현재가({curr_price}) < {sell_type}가({loss_cut_price})")
                             self.stocks[code]['loss_cut_order'] = True
-                            self.stocks[code]['status'] = "손절 주문"
+                            self.stocks[code]['status'] = f"{sell_type} 주문"
                         else:
-                            self.SEND_MSG_ERR(f"[{self.stocks[code]['name']}] 손절 주문 실패")
+                            self.SEND_MSG_ERR(f"[{self.stocks[code]['name']}] {sell_type} 주문 실패")
 
                 if self.stocks[code]['loss_cut_order'] == True:
                     ret = True
@@ -3222,10 +3229,11 @@ class Stocks_info:
             return int(price)
 
     ##############################################################
-    # 장 종료 후 clear
+    # clear before market
     #   전날에 조건에 맞았지만 체결안된 경우 다음 날 다시 조건 검사부터 한다.
+    #   한투 MTS 등에서 주문 취소 경우 sell_order_done 등이 false 안된다 -> clear 해줘야한다.
     ##############################################################
-    def clear_after_market(self):
+    def clear_before_market(self):
         result = True
         msg = ""
         try:
@@ -3553,9 +3561,9 @@ class Stocks_info:
     #                       ex) 0 : 금일 X일선, 1 : 어제 X일선    
     #   consecutive_days    X일동안 연속 상승이면 상승추세, 하락이면 하락, 그외 보합
     #   period              D : 일, W : 주, M : 월, Y : 년
-    #   ref_ma_diff         이 값 이상 이평 이격 있어야 정배열
+    #   ref_ma_diff_p       이 값(%) 이상 이평 이격 있어야 정배열
     ##############################################################
-    def get_ma_trend(self, code: str, past_day=1, ma=60, consecutive_days=15, period="D", ref_ma_diff=TREND_UP_DOWN_DIFF_60MA):
+    def get_ma_trend(self, code: str, past_day=1, ma=60, consecutive_days=15, period="D", ref_ma_diff_p=TREND_UP_DOWN_DIFF_60MA_P):
         result = True
         msg = ""
         ma_trend = TREND_DOWN
@@ -3570,7 +3578,7 @@ class Stocks_info:
             # 이평선 기울기 구하기 위해 last, recent ma price 구한다
             recent_ma_price = ma_price
             last_ma_price = self.get_ma(code, ma, consecutive_days + past_day - 1, period)
-            ma_diff = (recent_ma_price - last_ma_price) / recent_ma_price
+            ma_diff_p = ((recent_ma_price - last_ma_price) / recent_ma_price) * 100
             
             for i in range(start_day, last_day):
                 if i < last_day:
@@ -3581,9 +3589,9 @@ class Stocks_info:
                         trend_down_count += 1
                     ma_price = yesterdat_ma_price
             
-            if trend_up_count >= (consecutive_days - 1) and ma_diff > ref_ma_diff:
+            if trend_up_count >= (consecutive_days - 1) and ma_diff_p > ref_ma_diff_p:
                 ma_trend = TREND_UP
-            elif trend_down_count >= (consecutive_days - 1) and ma_diff > ref_ma_diff:
+            elif trend_down_count >= (consecutive_days - 1) and ma_diff_p > ref_ma_diff_p:
                 ma_trend = TREND_DOWN
             else:
                 ma_trend = TREND_SIDE
