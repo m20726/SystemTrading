@@ -92,6 +92,9 @@ TAKE_PROFIT_STRATEGY_SLOW = 1
 # ex) -6% 미만
 PRICE_CHANGE_RATE_P = -6
 
+# 1차 매수 시 시가총액(억) 미만 경우 PRICE_CHANGE_RATE_P % 미만에서 매수
+PRICE_CHANGE_RATE_CHECK_MARKET_CAP = 50000
+
 ##############################################################
 
 STOCKS_INFO_FILE_PATH = './stocks_info.json'    # 주식 정보 file
@@ -2148,15 +2151,15 @@ class Stocks_info:
                     if self.stocks[code]['allow_monitoring_buy'] == False:
                         # 목표가 왔다 -> 매수 감시 시작
                         if curr_price <= buy_target_price:
-                            # 1차 매수 시 시총 10조미만 "전일 대비율"(현재 등락율) < -X% 조건 추가
-                            if self.stocks[code]['buy_done'][0] == False and self.stocks[code]['market_cap'] < 100000:
+                            # 1차 매수 시 시총 x조미만 "전일 대비율"(현재 등락율) < -X% 조건 추가
+                            if self.stocks[code]['buy_done'][0] == False and self.stocks[code]['market_cap'] < PRICE_CHANGE_RATE_CHECK_MARKET_CAP:
                                 if float(price_data['prdy_ctrt']) < PRICE_CHANGE_RATE_P:
                                     PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 감시 시작, {curr_price}(현재가) {buy_target_price}(매수 목표가)")
                                     self.stocks[code]['allow_monitoring_buy'] = True
                                     self.stocks[code]['status'] = "매수 모니터링"
                                 else:
-                                    # PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 보류, 등락율 {float(price_data['prdy_ctrt'])}% < {PRICE_CHANGE_RATE_P}")                                  
-                                    self.stocks[code]['status'] = f"매수 보류, 등락율 {float(price_data['prdy_ctrt'])}% < {PRICE_CHANGE_RATE_P}"
+                                    # PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 보류, 등락율 {float(price_data['prdy_ctrt'])}% < {PRICE_CHANGE_RATE_P}%")                                  
+                                    self.stocks[code]['status'] = f"매수 보류, 등락율 {float(price_data['prdy_ctrt'])}% < {PRICE_CHANGE_RATE_P}%"
                             else:
                                 PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 감시 시작, {curr_price}(현재가) {buy_target_price}(매수 목표가)")
                                 self.stocks[code]['allow_monitoring_buy'] = True
@@ -2185,8 +2188,8 @@ class Stocks_info:
                         if self.stocks[code]['allow_monitoring_buy'] == False:
                             # 목표가 왔다 -> 매수 감시 시작
                             if curr_price <= buy_target_price:
-                                # 1차 매수 시 시총 10조미만 "전일 대비율"(현재 등락율) < -X% 조건 추가
-                                if self.stocks[code]['market_cap'] < 100000:
+                                # 1차 매수 시 시총 x조미만 "전일 대비율"(현재 등락율) < -X% 조건 추가
+                                if self.stocks[code]['market_cap'] < PRICE_CHANGE_RATE_CHECK_MARKET_CAP:
                                     if float(price_data['prdy_ctrt']) < PRICE_CHANGE_RATE_P:
                                         PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 감시 시작, {curr_price}(현재가) {buy_target_price}(매수 목표가)")
                                         self.stocks[code]['allow_monitoring_buy'] = True
@@ -2317,34 +2320,30 @@ class Stocks_info:
                                     else:
                                         PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매도 주문, {qty}주 {curr_price}(현재가) <= {take_profit_price}(익절가) {self.stocks[code]['highest_price_ever']}(최고가)")
                     else:
-                        # 목표가 매도 처리(not 트레일링 스탑)
-                        if curr_price >= sell_target_price and sell_target_price > 0:
+                        # 목표가에 바로 매도 주문(not 트레일링 스탑)
+                        if self.already_ordered(code, SELL_CODE) == False:
                             self.stocks[code]['allow_monitoring_sell'] = True
-                            self.stocks[code]['status'] = "매도 모니터링"
                             qty = self.get_sell_qty(code)
-                            # 지정가 매도
-                            # 주문 완료 했으면 다시 주문하지 않는다
-                            if self.already_ordered(code, SELL_CODE) == False and self.sell(code, curr_price, qty, ORDER_TYPE_LIMIT_ORDER) == True:
+                            # 주문 완료 했으면 다시 주문하지 않는다                        
+                            if self.sell(code, sell_target_price, qty, ORDER_TYPE_LIMIT_ORDER) == True:
                                 self.set_order_done(code, SELL_CODE)
-                                PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매도 주문, {qty}주 {curr_price}(현재가) >= {sell_target_price}(목표가)")
+                                PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매도 주문, {qty}주 {curr_price}(현재가) {sell_target_price}(목표가)")
                 else:
                     # 반 매도된 상태
                     # N차 매도가 : N-1차 매도가 * x (N>=2)
                     if self.trade_strategy.take_profit_strategy == TAKE_PROFIT_STRATEGY_SLOW:
                         # "현재가 >= 목표가" 경우 매도
                         # 익절은 handle_loss_cut 에서 처리
-                        if curr_price >= sell_target_price and sell_target_price > 0:
-                            # 1차 매도 후 다음날 매도 가능하게
+                        if self.already_ordered(code, SELL_CODE) == False:
                             self.stocks[code]['allow_monitoring_sell'] = True
-                            self.stocks[code]['status'] = "매도 모니터링"
                             qty = self.get_sell_qty(code)
                             # 주문 완료 했으면 다시 주문하지 않는다
-                            if self.already_ordered(code, SELL_CODE) == False and self.sell(code, curr_price, qty, ORDER_TYPE_LIMIT_ORDER) == True:
+                            if self.sell(code, sell_target_price, qty, ORDER_TYPE_LIMIT_ORDER) == True:
                                 self.set_order_done(code, SELL_CODE)
-                                PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매도 주문, {qty}주 {curr_price}(현재가) >= {sell_target_price}(목표가)")
+                                PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매도 주문, {qty}주 {curr_price}(현재가) {sell_target_price}(목표가)")
                     else:
                         # "현재가 >= 목표가" or "현재가 <= 1차 목표가" 경우 매도
-                        if curr_price >= sell_target_price and sell_target_price > 0:
+                        if (curr_price >= sell_target_price and sell_target_price > 0) or (curr_price <= self.stocks[code]['first_sell_target_price']):
                             # 1차 매도 후 다음날 매도 가능하게
                             self.stocks[code]['allow_monitoring_sell'] = True
                             self.stocks[code]['status'] = "매도 모니터링"
