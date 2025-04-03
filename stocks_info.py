@@ -3231,9 +3231,8 @@ class Stocks_info:
     ##############################################################
     # clear before market
     #   전날에 조건에 맞았지만 체결안된 경우 다음 날 다시 조건 검사부터 한다.
-    #   한투 MTS 등에서 주문 취소 경우 sell_order_done 등이 false 안된다 -> clear 해줘야한다.
     ##############################################################
-    def clear_before_market(self):
+    def clear_after_market(self):
         result = True
         msg = ""
         try:
@@ -3249,7 +3248,7 @@ class Stocks_info:
                 if self.stocks[code]['sell_all_done'] == True:
                     self.stocks[code]['avg_buy_price'] = 0
             
-                # system traing 대신 한투MTS 등에서 매도 처리한 경우 set_sell_done 호출이 안된다. -> clear 해줘야한다.
+                # system trading 대신 한투MTS 등에서 매도 처리한 경우 set_sell_done 호출이 안된다. -> clear 해줘야한다.
                 if self.is_my_stock(code) == False:
                     self.clear_buy_sell_info(code)
         except Exception as ex:

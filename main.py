@@ -47,9 +47,8 @@ def main():
             PRINT_DEBUG("=== Weekend, Program End ===")
             return
 
-        stocks_info = Stocks_info()
+        stocks_info = Stocks_info()        
         stocks_info.initialize()
-        stocks_info.clear_before_market()
 
         # # stocks_info.json 에 추가/변경
         # for code in stocks_info.stocks.keys():
@@ -147,6 +146,7 @@ def main():
         stocks_info.show_trade_done_stocks(BUY_CODE)
         stocks_info.show_trade_done_stocks(SELL_CODE)
         stocks_info.get_stock_balance(True)
+        stocks_info.clear_after_market()
         stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
         
         # 종료 이벤트 설정하여 thread 종료
