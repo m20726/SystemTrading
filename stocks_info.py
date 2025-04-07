@@ -55,11 +55,11 @@ INVEST_RISK_MIDDLE = 1
 INVEST_RISK_HIGH = 2
 
 LOSS_CUT_P = 5                              # x% 이탈 시 손절
-SELL_TARGET_P = 5                           # 1차 매도 목표가 %
-NEXT_SELL_TARGET_MARGIN_P = 2               # N차 매도가 : N-1차 매도가 * (1 + MARGIN_P) (N>=2), ex) 2%
+SELL_TARGET_P = 6                           # 1차 매도 목표가 %
+NEXT_SELL_TARGET_MARGIN_P = 4               # N차 매도가 : N-1차 매도가 * (1 + MARGIN_P) (N>=2), ex) 2%
 MIN_SELL_TARGET_P = 4                       # 최소 목표가 %
 
-TAKE_PROFIT_P = 0.5                         # 익절가 %
+TAKE_PROFIT_P = 1                           # 익절가 %
 BUY_MARGIN_P = 1                            # ex) 최저가 + x% 에서 매수
 SELL_MARGIN_P = 2                           # ex) 목표가 + x% 에서 매도
 
@@ -82,7 +82,7 @@ BUYABLE_COUNT = 10
 
 # 빠른 익절 전략
 # 1차 매도 후 나머지 물량은 익절선을 높여 빠르게 익절한다
-# TAKE_PROFIT_STRATEGY_FAST = 0
+TAKE_PROFIT_STRATEGY_FAST = 0
 
 # 느린 익절(수익 길게) 전략
 # 1차 매도 후 나머지 물량은 익절선을 낮추어 길게 간다
@@ -579,7 +579,7 @@ class Stocks_info:
                 # done_nth 차 매수 bought_price 가격에 완료
                 # 실제 bought_price 를 기반으로 업데이트
                 if done_nth > 0 and bought_price > 0:
-                    PRINT_INFO(f"[{self.stocks[code]['name']}] {done_nth}차 매수 {bought_price}원 완료, 매수가 업데이트")
+                    # PRINT_INFO(f"[{self.stocks[code]['name']}] {done_nth}차 매수 {bought_price}원 완료, 매수가 업데이트")
                     self.stocks[code]['buy_price'][done_nth-1] = bought_price
                     for i in range(done_nth, BUY_SPLIT_COUNT):
                         self.stocks[code]['buy_price'][i] = int(self.stocks[code]['buy_price'][i-1] * buy_margin)
@@ -641,7 +641,7 @@ class Stocks_info:
         msg = ""
         try:
             self.buy_done_lock.acquire()
-            PRINT_INFO(f"[{self.stocks[code]['name']}] 매수가 {bought_price}원")
+            # PRINT_INFO(f"[{self.stocks[code]['name']}] 매수가 {bought_price}원")
             if bought_price <= 0:
                 self.SEND_MSG_ERR(f"[{self.stocks[code]['name']}] 매수가 오류 {bought_price}원")
 
@@ -708,7 +708,7 @@ class Stocks_info:
         msg = ""
         try:
             self.sell_done_lock.acquire()
-            PRINT_INFO(f"[{self.stocks[code]['name']}] 매도가 {sold_price}원")
+            # PRINT_INFO(f"[{self.stocks[code]['name']}] 매도가 {sold_price}원")
             if sold_price <= 0:
                 self.SEND_MSG_ERR(f"[{self.stocks[code]['name']}] 매도가 오류 {sold_price}원")
 
@@ -2062,7 +2062,7 @@ class Stocks_info:
                 self.stocks[code]['buy_order_done'] = True
             else:
                 self.stocks[code]['sell_order_done'] = True
-            self.show_order_list()
+            # self.show_order_list()
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -2239,10 +2239,9 @@ class Stocks_info:
                     PRINT_ERR(f"[{self.stocks[code]['name']}] sell_target_price {sell_target_price}원")
                     continue
 
-                if self.stocks[code]['sell_done'][0] == False:
-                    # 1차 매도 안된 상태
+                if self.stocks[code]['sell_done'][0] == False:  # 1차 매도 안된 상태
                     if self.trade_strategy.sell_trailing_stop == True:
-                        # 트레일잉 스탑으로 매도 처리
+                        # 트레일링 스탑으로 매도 처리
                         if self.stocks[code]['allow_monitoring_sell'] == False:
                             # 목표가 왔다 -> 매도 감시 시작
                             if curr_price >= sell_target_price:
@@ -2275,8 +2274,10 @@ class Stocks_info:
                             if self.already_ordered(code, SELL_CODE) == False and self.sell(code, curr_price, qty, ORDER_TYPE_LIMIT_ORDER) == True:
                                 self.set_order_done(code, SELL_CODE)
                                 PRINT_INFO(f"[{self.stocks[code]['name']}] 매도 주문, {qty}주 {curr_price}(현재가) >= {sell_target_price}(목표가)")                        
-                else:
-                    # 반 매도된 상태
+                else:   # 1차 매도된 상태
+                    # TODO: 수익 길게
+                    # ex) 2차 매도가오면 monitoring 하면서 trailing stop
+
                     # N차 매도가 : N-1차 매도가 * x (N>=2)
                     if self.trade_strategy.take_profit_strategy == TAKE_PROFIT_STRATEGY_SLOW:
                         # "현재가 >= 목표가" 경우 매도
@@ -2567,7 +2568,7 @@ class Stocks_info:
                 self.show_trade_done_stocks(SELL_CODE)
                 # 종목 체결로 종목 수 변경된 경우 관련 정보 업데이트
                 after_trade_done_my_stock_count = self.get_my_stock_count()
-                PRINT_INFO(f"체결전 보유 종목수({self.my_stock_count}), 체결 후 보유 종목수({after_trade_done_my_stock_count})")
+                PRINT_DEBUG(f"체결전 보유 종목수({self.my_stock_count}), 체결 후 보유 종목수({after_trade_done_my_stock_count})")
                 if self.my_stock_count != after_trade_done_my_stock_count:
                     self.my_stock_count = after_trade_done_my_stock_count
                     self.init_trade_strategy()
