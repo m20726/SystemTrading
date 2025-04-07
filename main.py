@@ -57,8 +57,10 @@ def main():
         
         # # stocks_info.json 에 key 제거
         # for code in stocks_info.stocks.keys():
-        #     del stocks_info.stocks[code]['buy_order_price']
-        #     del stocks_info.stocks[code]['sell_order_price']
+        #     del stocks_info.stocks[code]['sell_qty'][3]
+        #     del stocks_info.stocks[code]['sell_qty'][2]
+        #     del stocks_info.stocks[code]['sell_done'][3]
+        #     del stocks_info.stocks[code]['sell_done'][2]
         # stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
 
         t_now = datetime.datetime.now()
