@@ -14,8 +14,6 @@
         "sell_target_price": 21422,                             매도 목표가
         "sell_done": [                                          분할 매도 여부
             false,
-            false,
-            false,
             false
         ],        
         "sell_done": false,                                     매도 완료 여부
@@ -44,23 +42,14 @@
         "loss_cut_done": false,                                 손절 처리 여부
         "stock_invest_info_valid": true,                        주식 투자 정보가 valid 한지 여부, ex) update_stock_invest_info 실행 시 exception 발생 시 false
         "buy_price": [                                          분할 매수가 리스트
-            252304,
-            239688,
-            227703,
             216317,
             205501
         ],
         "buy_qty": [                                            분할 매수 수량 리스트
             1,
-            1,
-            1,
-            1,
             1
         ],
         "buy_done": [                                           분할 매수 여부
-            false,
-            false,
-            false,
             false,
             false
         ],
@@ -71,8 +60,6 @@
         "first_sell_target_price": 0,                           1차 매도가
         "ma_trend2": 0,                                         90이평선 추세
         "sell_qty": [                                           분할 매도 수량 리스트
-            0,
-            0,
             0,
             0
         ],
