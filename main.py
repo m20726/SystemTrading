@@ -52,15 +52,21 @@ def main():
 
         # # stocks_info.json 에 추가/변경
         # for code in stocks_info.stocks.keys():
-        #     stocks_info.stocks[code]['status'] = ""
+        #     stocks_info.stocks[code]['buy_price'].append(0)
+        #     stocks_info.stocks[code]['buy_price'].append(0)
+        #     stocks_info.stocks[code]['buy_qty'].append(0)
+        #     stocks_info.stocks[code]['buy_qty'].append(0)
+        #     stocks_info.stocks[code]['buy_done'].append(False)
+        #     stocks_info.stocks[code]['buy_done'].append(False)
+        #     stocks_info.stocks[code]['new1'] = True
+        #     stocks_info.stocks[code]['new2'] = 0
         # stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
         
         # # stocks_info.json 에 key 제거
         # for code in stocks_info.stocks.keys():
-        #     del stocks_info.stocks[code]['sell_qty'][3]
-        #     del stocks_info.stocks[code]['sell_qty'][2]
-        #     del stocks_info.stocks[code]['sell_done'][3]
-        #     del stocks_info.stocks[code]['sell_done'][2]
+        #     del stocks_info.stocks[code]['buy_price'][1]
+        #     del stocks_info.stocks[code]['buy_qty'][1]
+        #     del stocks_info.stocks[code]['buy_done'][1]
         # stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
 
         t_now = datetime.datetime.now()
