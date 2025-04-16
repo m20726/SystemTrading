@@ -2351,8 +2351,10 @@ class Stocks_info:
             if result == False:
                 self.SEND_MSG_ERR(msg)
             self.sell_done_lock.release()
-            # handle_loss_cut() 호출되어 release 된 상태에서 또다시 release 되지 않게
-            if self.my_stocks_lock.acquire(blocking=False):
+            if self.trade_strategy.loss_cut_time == LOSS_CUT_MARKET_OPEN:
+                # 이미 위에서 release 했으므로 다시 release 하지 않음
+                pass
+            else:
                 self.my_stocks_lock.release()
 
     ##############################################################
