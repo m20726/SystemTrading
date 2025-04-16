@@ -73,8 +73,8 @@ def main():
         t_start = t_now.replace(hour=9, minute=0, second=0, microsecond=0)
         # 종가 손절은 15:15분에 체크
         t_loss_cut = t_now.replace(hour=15, minute=15, second=0, microsecond=0)
-        # 장 종료 후 15:38분에 미체결 주문 없으면 종료 위해 
-        t_market_end_order_check = t_now.replace(hour=15, minute=38, second=0, microsecond=0)
+        # 장 종료 후 15:36분에 미체결 주문 없으면 종료 위해 
+        t_market_end_order_check = t_now.replace(hour=15, minute=36, second=0, microsecond=0)
         # 종가 매매 위해 16:00 에 종료
         t_exit = t_now.replace(hour=16, minute=00, second=0,microsecond=0)
 
@@ -117,11 +117,6 @@ def main():
                     if len(stocks_info.get_order_list("02")) == 0:
                         PRINT_DEBUG(f"=== Exit loop {t_now} ===")
                         break
-
-                # 보유 종목 없고 buyable 종목 없으면 종료
-                if len(stocks_info.my_stocks) == 0 and len(stocks_info.buyable_stocks) == 0:
-                    PRINT_DEBUG(f"=== 보유 종목 없고 buyable 종목 없어서 종료 ===")
-                    break
                 
                 # thread start 는 한 번만 호출
                 if worker_thread.is_alive() == False:

@@ -156,7 +156,7 @@ class Trade_strategy:
         self.trend = TREND_SIDE                                 # 추세선이 이거 이상이여야 매수
         self.use_trend_60ma = False                             # 60이평선 추세선 사용 여부
         self.use_trend_90ma = False                             # 90이평선 추세선 사용 여부
-        self.loss_cut_time = LOSS_CUT_MARKET_CLOSE               # 손절은 언제 할지
+        self.loss_cut_time = LOSS_CUT_MARKET_CLOSE              # 손절은 언제 할지
         
 class Stocks_info:
     def __init__(self) -> None:
@@ -2329,8 +2329,10 @@ class Stocks_info:
             if result == False:
                 self.SEND_MSG_ERR(msg)
             self.sell_done_lock.release()
-            # handle_loss_cut() 호출되어 release 된 상태에서 또다시 release 되지 않게
-            if self.my_stocks_lock.acquire(blocking=False):
+            if self.trade_strategy.loss_cut_time == LOSS_CUT_MARKET_OPEN:
+                # 이미 위에서 release 했으므로 다시 release 하지 않음
+                pass
+            else:
                 self.my_stocks_lock.release()
 
     ##############################################################
@@ -3280,10 +3282,10 @@ class Stocks_info:
             # 최고 종가에서 최소 X% 폭락 가격            
             # 시총 10조 이상이면 envelope_p = X
             if self.stocks[code]['market_cap'] >= 100000:
-                margine_p = self.to_percent(28)
+                margine_p = self.to_percent(24)
             # 시총 2조 이상
             elif self.stocks[code]['market_cap'] >= 20000:
-                margine_p = self.to_percent(28)
+                margine_p = self.to_percent(26)
             else:
                 # 시총 2조 미만
                 margine_p = self.to_percent(28)
