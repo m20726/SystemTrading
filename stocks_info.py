@@ -55,6 +55,7 @@ INVEST_RISK_MIDDLE = 1
 INVEST_RISK_HIGH = 2
 
 LOSS_CUT_P = 5                              # x% 이탈 시 손절
+LOSS_CUT_P_BUY_2_DONE = 2                   # 불타기에서 2차 매수 완료 후 x% 이탈 시 손절
 SELL_TARGET_P = 6                           # 1차 매도 목표가 %
 NEXT_SELL_TARGET_MARGIN_P = 6               # N차 매도가 : N-1차 매도가 * (1 + MARGIN_P) (N>=2), ex) 2%
 MIN_SELL_TARGET_P = 4                       # 최소 목표가 %
@@ -146,6 +147,8 @@ TREND_UP_DOWN_DIFF_90MA_P = 0.3       # ex) 0.3%
 
 MA_DIFF_P = 1                       # 이평선 간의 이격 ex) 60, 90 이평선 간에 1% 이격이상 있어야 정배열
 DEFAULT_ENVELOPE_P = 15             # 1차 매수 시 envelope value
+PRICE_TYPE_CLOSE = "stck_clpr"      # 종가
+PRICE_TYPE_LOWEST = "stck_lwpr"     # 최저가
 
 ##############################################################
 
@@ -455,7 +458,7 @@ class Stocks_info:
             return False
 
     ##############################################################
-    # percent 값으로 변경
+    # percent 값 리턴
     #   ex) to_percent(10) return 0.1
     # param :
     #   percent         이 값을 %로 변경
@@ -905,7 +908,7 @@ class Stocks_info:
                 if days > 99:
                     PRINT_INFO(f'can read over 99 data. make days to 99')
                     days = 99
-                lowest_price_list = self.get_price_list(code, "D", "stck_lwpr", days)
+                lowest_price_list = self.get_price_list(code, "D", PRICE_TYPE_LOWEST, days)
                 lowest_lowest_price = min(lowest_price_list[:days])
         except Exception as ex:
             result = False
@@ -940,7 +943,7 @@ class Stocks_info:
                 PRINT_INFO(f'can read over 99 data. make past_day to 99')
                 past_day = 99
                 
-            end_price_list = self.get_price_list(code, "D", "stck_clpr", past_day+1)
+            end_price_list = self.get_price_list(code, "D", PRICE_TYPE_CLOSE, past_day+1)
             end_price = end_price_list[past_day]
         except Exception as ex:
             result = False
@@ -1640,7 +1643,7 @@ class Stocks_info:
     #                   최고가 : stck_hgpr
     #   data_cnt        몇 건의 가격을 리턴할건가
     ##############################################################
-    def get_price_list(self, code: str, period="D", type="stck_clpr", data_cnt=100):
+    def get_price_list(self, code: str, period="D", type=PRICE_TYPE_CLOSE, data_cnt=100):
         result = True
         msg = ""
         end_price_list = []
@@ -1704,7 +1707,7 @@ class Stocks_info:
         msg = ""
         value_ma = 0
         try:
-            end_price_list = self.get_price_list(code, period, "stck_clpr")
+            end_price_list = self.get_price_list(code, period, PRICE_TYPE_CLOSE)
 
             # x일 이평선 구하기 위해 x일간의 종가 구한다
             days_last = past_day + ma
@@ -2974,7 +2977,7 @@ class Stocks_info:
                 if BUY_SPLIT_COUNT > 1:
                     # 2차 매수까지 완료 됐으면 -2% 이탈 시 손절
                     if self.stocks[code]['buy_done'][1] == True:
-                        price = self.stocks[code]['avg_buy_price'] * 0.98
+                        price = self.stocks[code]['avg_buy_price'] * (1 - self.to_percent(LOSS_CUT_P_BUY_2_DONE))
                     else:
                         # 1차 매수 후 손절은 -x% 이탈 시
                         price = self.stocks[code]['avg_buy_price'] * (1 - self.to_percent(LOSS_CUT_P))
@@ -3289,7 +3292,7 @@ class Stocks_info:
             elif days <= 0:
                 days = 1
 
-            end_price_list = self.get_price_list(code, "D", "stck_clpr", days)
+            end_price_list = self.get_price_list(code, "D", PRICE_TYPE_CLOSE, days)
             highest_end_price = max(end_price_list[:days])
         except Exception as ex:
             result = False
@@ -3312,7 +3315,7 @@ class Stocks_info:
         msg = ""
         try:
             price = 0
-            # 한 달은 약 21일
+            # 22일(영업일 기준 약 한 달)
             highest_end_price = self.get_highest_end_pirce(code, 22)
 
             # TODO: 기회 너무 적으면 margine_p 줄인다
@@ -3475,7 +3478,7 @@ class Stocks_info:
         msg = ""
         try:
             # 종가 100건 구하기, index 0 이 금일
-            end_price_list = self.get_price_list(code, "D", "stck_clpr")
+            end_price_list = self.get_price_list(code, "D", PRICE_TYPE_CLOSE)
 
             # x일간의 종가 구한다
             # 마지막 날의 상승/하락분을 위해 마지막날 이전날 데이터까지 구한다
@@ -3558,7 +3561,8 @@ class Stocks_info:
         msg = ""
         buy_rsi = 0
         try:
-            buy_rsi = int(490 / self.stocks[code]['envelope_p'])
+            RSI_BASE_NUMBER = 490
+            buy_rsi = int(RSI_BASE_NUMBER / self.stocks[code]['envelope_p'])
             market_cap = max(1, int(self.stocks[code]['market_cap'] / 10000))
 
             if self.stocks[code]['ma_trend'] == TREND_UP:
