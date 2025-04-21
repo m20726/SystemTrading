@@ -220,6 +220,8 @@ class Stocks_info:
         self.available_buy_new_stock_count = 0
         self.old_available_buy_new_stock_count = 0
 
+        self.str_trend = {0: "하락", 1: "보합", 2: "상승"}
+
 
     ##############################################################
     # 초기화 시 처리 할 내용
@@ -678,7 +680,7 @@ class Stocks_info:
             if self.trade_strategy.buy_split_strategy == BUY_SPLIT_STRATEGY_DOWN:
                 # 2차 매수 한 경우 목표가 낮추어 빨리 빠져나온다
                 for i in range(1, BUY_SPLIT_COUNT): # 1 ~ (BUY_SPLIT_COUNT-1)
-                    if self.stocks[code]['buy_done'][BUY_SPLIT_COUNT-i] == True:
+                    if self.stocks[code]['buy_done'][i] == True:
                         self.stocks[code]['sell_target_p'] = MIN_SELL_TARGET_P
                         break
 
@@ -1203,7 +1205,7 @@ class Stocks_info:
             # + : 저평가
             # - : 고평가
             if self.stocks[code]['sell_target_price'] > 0:
-                self.stocks[code]['gap_max_sell_target_price_p'] = int(100 * (self.stocks[code]['max_target_price'] - self.stocks[code]['sell_target_price']) / self.stocks[code]['sell_target_price'])
+                self.stocks[code]['gap_max_sell_target_price_p'] = int(100 * (self.stocks[code]['max_target_price'] - self.stocks[code]['sell_target_price']) / self.stocks[code]['max_target_price'])
             self.set_stock_undervalue(code)
         except Exception as ex:
             result = False
@@ -1593,14 +1595,14 @@ class Stocks_info:
                 # 60일선 하락 추세 매수 금지
                 if self.stocks[code]['ma_trend'] < self.trade_strategy.trend_60ma:
                     if print_msg:
-                        PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 60일선 추세 체크({self.stocks[code]['ma_trend']})")
+                        PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 60일선 추세 체크({self.str_trend[self.stocks[code]['ma_trend']]})")
                     return False
 
             # 90일선 추세 체크
             if self.trade_strategy.use_trend_90ma == True:
                 if self.stocks[code]['ma_trend2'] < self.trade_strategy.trend_90ma:
                     if print_msg:
-                        PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 90일선 추세 체크({self.stocks[code]['ma_trend2']})")
+                        PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 90일선 추세 체크({self.str_trend[self.stocks[code]['ma_trend2']]})")
                     return False
             
             # # 1차 매수가 < 90일선 경우 매수 금지, 단 공격적 전략 경우 제외
@@ -3159,24 +3161,11 @@ class Stocks_info:
                 data['매수가GAP(%)'].append(sorted_data[code]['buy_target_price_gap'])
                 data['Envelope'].append(sorted_data[code]['envelope_p'])
  
-                trend_str = ""
-                if self.trade_strategy.use_trend_60ma == True:             
-                    if sorted_data[code]['ma_trend'] == TREND_DOWN:
-                        trend_str = '하락'
-                    elif sorted_data[code]['ma_trend'] == TREND_SIDE:
-                        trend_str = '보합'
-                    elif sorted_data[code]['ma_trend'] == TREND_UP:
-                        trend_str = '상승'
-                    data['60일선추세'].append(trend_str)
+                if self.trade_strategy.use_trend_60ma == True:
+                    data['60일선추세'].append(self.str_trend[sorted_data[code]['ma_trend']])
 
                 if self.trade_strategy.use_trend_90ma == True:
-                    if sorted_data[code]['ma_trend2'] == TREND_DOWN:
-                        trend_str = '하락'
-                    elif sorted_data[code]['ma_trend2'] == TREND_SIDE:
-                        trend_str = '보합'
-                    elif sorted_data[code]['ma_trend2'] == TREND_UP:
-                        trend_str = '상승'
-                    data['90일선추세'].append(trend_str)
+                    data['90일선추세'].append(self.str_trend[sorted_data[code]['ma_trend2']])
 
                 data['상태'].append(self.stocks[code]['status'])
 
@@ -4038,7 +4027,7 @@ class Stocks_info:
             curr_price = self.get_curr_price(code)
             buy_target_price = self.get_buy_target_price(code)
             if buy_target_price > 0:
-                buy_target_price_gap = int((curr_price - buy_target_price) * 100 / buy_target_price)
+                buy_target_price_gap = int((curr_price - buy_target_price) * 100 / curr_price)
             else:
                 buy_target_price_gap = 0
         except Exception as ex:
