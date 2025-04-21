@@ -228,6 +228,8 @@ class Stocks_info:
         self.available_buy_new_stock_count = 0
         self.old_available_buy_new_stock_count = 0
 
+        self.str_trend = {0: "하락", 1: "보합", 2: "상승"}
+
     ##############################################################
     # 초기화 시 처리 할 내용
     ##############################################################
@@ -684,7 +686,7 @@ class Stocks_info:
             if self.trade_strategy.buy_split_strategy == BUY_SPLIT_STRATEGY_DOWN:
                 # 2차 매수 한 경우 목표가 낮추어 빨리 빠져나온다
                 for i in range(1, BUY_SPLIT_COUNT): # 1 ~ (BUY_SPLIT_COUNT-1)
-                    if self.stocks[code]['buy_done'][BUY_SPLIT_COUNT-i] == True:
+                    if self.stocks[code]['buy_done'][i] == True:
                         self.stocks[code]['sell_target_p'] = MIN_SELL_TARGET_P
                         break
 
@@ -1205,11 +1207,11 @@ class Stocks_info:
             # 목표 주가 = 미래 당기순이익(원) * PER_E / 상장주식수
             if total_stock_count > 0:
                 self.stocks[code]['max_target_price'] = int((self.stocks[code]['curr_profit'] * 100000000) * self.stocks[code]['PER_E'] / total_stock_count)
-            # 목표 주가 gap = (목표 주가 - 목표가) / 목표가
+            # 목표 주가 gap = (목표 주가 - 목표가) / 목표 주가
             # + : 저평가
             # - : 고평가
             if self.stocks[code]['sell_target_price'] > 0:
-                self.stocks[code]['gap_max_sell_target_price_p'] = int(100 * (self.stocks[code]['max_target_price'] - self.stocks[code]['sell_target_price']) / self.stocks[code]['sell_target_price'])
+                self.stocks[code]['gap_max_sell_target_price_p'] = int(100 * (self.stocks[code]['max_target_price'] - self.stocks[code]['sell_target_price']) / self.stocks[code]['max_target_price'])
             self.set_stock_undervalue(code)
         except Exception as ex:
             result = False
@@ -1598,14 +1600,14 @@ class Stocks_info:
             if self.trade_strategy.use_trend_60ma == True:
                 if self.stocks[code]['ma_trend'] < self.trade_strategy.trend_60ma:
                     if print_msg:
-                        PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 60일선 추세 체크({self.stocks[code]['ma_trend']})")
+                        PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 60일선 추세 체크({self.str_trend[self.stocks[code]['ma_trend']]})")
                     return False
 
             # 90일선 추세 체크
             if self.trade_strategy.use_trend_90ma == True:
                 if self.stocks[code]['ma_trend2'] < self.trade_strategy.trend_90ma:
                     if print_msg:
-                        PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 90일선 추세 체크({self.stocks[code]['ma_trend2']})")
+                        PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 90일선 추세 체크({self.str_trend[self.stocks[code]['ma_trend2']]})")
                     return False
             
             # # 1차 매수가 < 90일선 경우 매수 금지, 단 공격적 전략 경우 제외
@@ -3129,8 +3131,6 @@ class Stocks_info:
 
                         if gap_p <= BUYABLE_GAP or need_buy == True:
                             temp_stock = copy.deepcopy({code: self.stocks[code]})
-                            # 매수가GAP 작은 순으로 정렬위해 임시로 추가
-                            temp_stock[code]['buy_target_price_gap'] = gap_p
                             temp_buyable_stocks[code] = temp_stock[code]
                         else:
                             PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, buyable gap({gap_p})")
@@ -3142,9 +3142,9 @@ class Stocks_info:
             self.buyable_stocks.clear()
             self.buyable_stocks = copy.deepcopy(temp_buyable_stocks)
             
-            # 매수가GAP 작은 순으로 정렬하여 최대 x개 까지 유지
+            # 기회 적어서 저평가, 목표주가GAP 을 크게 따지지 않는다 -> 목표주가GAP 내림차순으로(큰거->작은거) 정렬하여 최대 x개 까지 유지
             buyable_count = min(BUYABLE_COUNT, len(self.buyable_stocks))
-            sorted_list = sorted(self.buyable_stocks.items(), key=lambda x: x[1]['buy_target_price_gap'], reverse=False)
+            sorted_list = sorted(self.buyable_stocks.items(), key=lambda x: x[1]['gap_max_sell_target_price_p'], reverse=True)
             self.buyable_stocks = dict(sorted_list[:buyable_count])
         except Exception as ex:
             result = False
@@ -3189,24 +3189,11 @@ class Stocks_info:
                 data['매수가GAP(%)'].append(sorted_data[code]['buy_target_price_gap'])
                 data['Envelope'].append(sorted_data[code]['envelope_p'])
  
-                trend_str = ""
-                if self.trade_strategy.use_trend_60ma == True:             
-                    if sorted_data[code]['ma_trend'] == TREND_DOWN:
-                        trend_str = '하락'
-                    elif sorted_data[code]['ma_trend'] == TREND_SIDE:
-                        trend_str = '보합'
-                    elif sorted_data[code]['ma_trend'] == TREND_UP:
-                        trend_str = '상승'
-                    data['60일선추세'].append(trend_str)
+                if self.trade_strategy.use_trend_60ma == True:
+                    data['60일선추세'].append(self.str_trend[sorted_data[code]['ma_trend']])
 
                 if self.trade_strategy.use_trend_90ma == True:
-                    if sorted_data[code]['ma_trend2'] == TREND_DOWN:
-                        trend_str = '하락'
-                    elif sorted_data[code]['ma_trend2'] == TREND_SIDE:
-                        trend_str = '보합'
-                    elif sorted_data[code]['ma_trend2'] == TREND_UP:
-                        trend_str = '상승'
-                    data['90일선추세'].append(trend_str)
+                    data['90일선추세'].append(self.str_trend[sorted_data[code]['ma_trend2']])
                 
                 data['상태'].append(self.stocks[code]['status'])
 
@@ -3426,9 +3413,10 @@ class Stocks_info:
             self.trade_strategy.use_trend_60ma = True           # 60일선 추세 사용 여부
             self.trade_strategy.use_trend_90ma = True           # 90일선 추세 사용 여부
 
-            invest_risk_high_under_value = -15
-            invest_risk_high_gap_max_sell_target_price_p = -5
-            invest_risk_high_sum_under_value_sell_target_gap = -10            
+            # 기회 적다 -> 조건을 완화하여 매수 기회 늘림
+            invest_risk_high_under_value = -50
+            invest_risk_high_gap_max_sell_target_price_p = -30
+            invest_risk_high_sum_under_value_sell_target_gap = -100            
             
             if self.trade_strategy.invest_risk == INVEST_RISK_HIGH:
                 # 저평가가 이 값 미만은 매수 금지
@@ -4069,7 +4057,7 @@ class Stocks_info:
             curr_price = self.get_curr_price(code)
             buy_target_price = self.get_buy_target_price(code)
             if buy_target_price > 0:
-                buy_target_price_gap = int((curr_price - buy_target_price) * 100 / buy_target_price)
+                buy_target_price_gap = int((curr_price - buy_target_price) * 100 / curr_price)
             else:
                 buy_target_price_gap = 0
         except Exception as ex:
