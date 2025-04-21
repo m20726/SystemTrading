@@ -52,7 +52,9 @@ def main():
 
         # # stocks_info.json 에 추가/변경
         # for code in stocks_info.stocks.keys():
-        #     stocks_info.stocks[code]['status'] = ""
+        #     stocks_info.stocks[code]['buy_price'].append(0)
+        #     stocks_info.stocks[code]['buy_qty'].append(0)
+        #     stocks_info.stocks[code]['buy_done'].append(False)
         # stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
         
         # # stocks_info.json 에 key 제거

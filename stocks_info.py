@@ -37,7 +37,7 @@ import threading
 #                       Config                               #
 ##############################################################
 # 분할 매수 횟수
-BUY_SPLIT_COUNT = 1
+BUY_SPLIT_COUNT = 2
 # 분할 매도 획수
 SELL_SPLIT_COUNT = 2
 
@@ -56,8 +56,8 @@ INVEST_RISK_HIGH = 2
 
 LOSS_CUT_P = 5                              # x% 이탈 시 손절
 SELL_TARGET_P = 6                           # 1차 매도 목표가 %
-NEXT_SELL_TARGET_MARGIN_P = 4               # N차 매도가 : N-1차 매도가 * (1 + MARGIN_P) (N>=2), ex) 2%
-MIN_SELL_TARGET_P = 3                       # 최소 목표가 %
+NEXT_SELL_TARGET_MARGIN_P = 6               # N차 매도가 : N-1차 매도가 * (1 + MARGIN_P) (N>=2), ex) 2%
+MIN_SELL_TARGET_P = 4                       # 최소 목표가 %
 
 TAKE_PROFIT_P = 1                           # 익절가 %
 BUY_MARGIN_P = 1                            # ex) 최저가 + x% 에서 매수
@@ -68,7 +68,7 @@ INVEST_TYPE = "real_invest"                 # sim_invest : 모의 투자, real_i
 
 if INVEST_TYPE == "real_invest":
     MAX_MY_STOCK_COUNT = 6
-    INVEST_MONEY_PER_STOCK = 600000         # 종목 당 투자 금액(원)
+    INVEST_MONEY_PER_STOCK = 800000         # 종목 당 투자 금액(원)
 else:
     MAX_MY_STOCK_COUNT = 10                 # MAX 보유 주식 수
     INVEST_MONEY_PER_STOCK = 2000000        # 종목 당 투자 금액(원)
@@ -80,12 +80,12 @@ BUYABLE_GAP = 10
 # 상위 몇개 종목까지 매수 가능 종목으로 유지
 BUYABLE_COUNT = 10
 
-# 1차 매수 시 전일 대비율(현재 등락율)이 PRICE_CHANGE_RATE_P % 미만에서 매수
-# ex) -6% 미만
-PRICE_CHANGE_RATE_P = -4
+# # 1차 매수 시 전일 대비율(현재 등락율)이 PRICE_CHANGE_RATE_P % 미만에서 매수
+# # ex) -6% 미만
+# PRICE_CHANGE_RATE_P = -4
 
-# 1차 매수 시 시가총액(억) 미만 경우 PRICE_CHANGE_RATE_P % 미만에서 매수
-PRICE_CHANGE_RATE_CHECK_MARKET_CAP = 50000
+# # 1차 매수 시 시가총액(억) 미만 경우 PRICE_CHANGE_RATE_P % 미만에서 매수
+# PRICE_CHANGE_RATE_CHECK_MARKET_CAP = 50000
 
 ##############################################################
 
@@ -161,7 +161,8 @@ class Trade_strategy:
         self.buy_split_strategy = BUY_SPLIT_STRATEGY_DOWN       # 2차 분할 매수 전략(물타기, 불타기)
         self.buy_trailing_stop = False                          # 매수 시 트레일링 스탑으로 할지
         self.sell_trailing_stop = False                         # 매도 시 트레일링 스탑으로 할지
-        self.trend = TREND_SIDE                                 # 추세선이 이거 이상이여야 매수
+        self.trend_60ma = TREND_UP                              # 추세선이 이거 이상이여야 매수
+        self.trend_90ma = TREND_UP                              # 추세선이 이거 이상이여야 매수
         self.use_trend_60ma = False                             # 60이평선 추세선 사용 여부
         self.use_trend_90ma = False                             # 90이평선 추세선 사용 여부
         self.loss_cut_time = LOSS_CUT_MARKET_OPEN               # 손절은 언제 할지
@@ -267,23 +268,32 @@ class Stocks_info:
         PRINT_DEBUG(f'저평가+목표가GAP {self.trade_strategy.sum_under_value_sell_target_gap} 이상')
         PRINT_DEBUG(f'시총 {self.trade_strategy.buyable_market_cap/10000}조 이상')
         if self.trade_strategy.buy_split_strategy == BUY_SPLIT_STRATEGY_DOWN:
-            PRINT_DEBUG(f'2차 매수 물타기')
+            PRINT_DEBUG(f'{BUY_SPLIT_COUNT}차 매수 물타기')
         elif self.trade_strategy.buy_split_strategy == BUY_SPLIT_STRATEGY_UP:
-            PRINT_DEBUG(f'2차 매수 불타기')
+            PRINT_DEBUG(f'{BUY_SPLIT_COUNT}차 매수 불타기')
+        
+        # 목표가 출력
+        for i in range(BUY_SPLIT_COUNT):
+            if i == 0:
+                target_p = SELL_TARGET_P
+                PRINT_DEBUG(f'{i + 1}차 목표가 {target_p} %')
+            else:
+                target_p = SELL_TARGET_P + (NEXT_SELL_TARGET_MARGIN_P * i)
+                PRINT_DEBUG(f'{i + 1}차 목표가 {target_p} %')
 
         if self.trade_strategy.use_trend_60ma == True:
             trend_msg = dict()
             trend_msg[TREND_DOWN] = "하락 추세"
             trend_msg[TREND_SIDE] = "보합 추세"
             trend_msg[TREND_UP] = "상승 추세"
-            PRINT_DEBUG(f'60일선 {trend_msg[self.trade_strategy.trend]} 이상 매수')
+            PRINT_DEBUG(f'60일선 {trend_msg[self.trade_strategy.trend_60ma]} 이상 매수')
 
         if self.trade_strategy.use_trend_90ma == True:
             trend_msg = dict()
             trend_msg[TREND_DOWN] = "하락 추세"
             trend_msg[TREND_SIDE] = "보합 추세"
             trend_msg[TREND_UP] = "상승 추세"
-            PRINT_DEBUG(f'90일선 {trend_msg[self.trade_strategy.trend]} 이상 매수')
+            PRINT_DEBUG(f'90일선 {trend_msg[self.trade_strategy.trend_90ma]} 이상 매수')
 
         if BUY_QTY_1 == True:
             PRINT_DEBUG('1주만 매수')
@@ -1583,25 +1593,25 @@ class Stocks_info:
 
             # 60일선 추세 체크
             if self.trade_strategy.use_trend_60ma == True:
-                if self.stocks[code]['ma_trend'] < self.trade_strategy.trend:
+                if self.stocks[code]['ma_trend'] < self.trade_strategy.trend_60ma:
                     if print_msg:
                         PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 60일선 추세 체크({self.stocks[code]['ma_trend']})")
                     return False
 
             # 90일선 추세 체크
             if self.trade_strategy.use_trend_90ma == True:
-                if self.stocks[code]['ma_trend2'] < self.trade_strategy.trend:
+                if self.stocks[code]['ma_trend2'] < self.trade_strategy.trend_90ma:
                     if print_msg:
                         PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 90일선 추세 체크({self.stocks[code]['ma_trend2']})")
                     return False
             
-            # 1차 매수가 < 90일선 경우 매수 금지, 단 공격적 전략 경우 제외
-            if self.trade_strategy.invest_risk != INVEST_RISK_HIGH:
-                ma_90 = self.get_ma(code, 90)
-                if self.stocks[code]['buy_price'][0] < ma_90:
-                    if print_msg:
-                        PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 1차 매수가({self.stocks[code]['buy_price'][0]}) < 90일선({ma_90})")
-                    return False
+            # # 1차 매수가 < 90일선 경우 매수 금지, 단 공격적 전략 경우 제외
+            # if self.trade_strategy.invest_risk != INVEST_RISK_HIGH:
+            #     ma_90 = self.get_ma(code, 90)
+            #     if self.stocks[code]['buy_price'][0] < ma_90:
+            #         if print_msg:
+            #             PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 1차 매수가({self.stocks[code]['buy_price'][0]}) < 90일선({ma_90})")
+            #         return False
 
             # 20,60,90 정배열 체크
             # 이평선 간에 x% 이상 차이나야 정배열
@@ -2119,19 +2129,22 @@ class Stocks_info:
                     if self.stocks[code]['allow_monitoring_buy'] == False:
                         # 목표가 왔다 -> 매수 감시 시작
                         if curr_price <= buy_target_price:
-                            # 1차 매수 시 시총 x조미만 "전일 대비율"(현재 등락율) < -X% 조건 추가
-                            if self.stocks[code]['buy_done'][0] == False and self.stocks[code]['market_cap'] < PRICE_CHANGE_RATE_CHECK_MARKET_CAP:
-                                if float(price_data['prdy_ctrt']) < PRICE_CHANGE_RATE_P:
-                                    PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 감시 시작, {curr_price}(현재가) {buy_target_price}(매수 목표가)")
-                                    self.stocks[code]['allow_monitoring_buy'] = True
-                                    self.stocks[code]['status'] = "매수 모니터링"
-                                else:
-                                    # PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 보류, 등락율 {float(price_data['prdy_ctrt'])}% < {PRICE_CHANGE_RATE_P}%")                                  
-                                    self.stocks[code]['status'] = f"매수 보류, 등락율 {float(price_data['prdy_ctrt'])}% < {PRICE_CHANGE_RATE_P}%"
-                            else:
-                                PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 감시 시작, {curr_price}(현재가) {buy_target_price}(매수 목표가)")
-                                self.stocks[code]['allow_monitoring_buy'] = True
-                                self.stocks[code]['status'] = "매수 모니터링"
+                            # # 1차 매수 시 시총 x조미만 "전일 대비율"(현재 등락율) < -X% 조건 추가
+                            # if self.stocks[code]['buy_done'][0] == False and self.stocks[code]['market_cap'] < PRICE_CHANGE_RATE_CHECK_MARKET_CAP:
+                            #     if float(price_data['prdy_ctrt']) < PRICE_CHANGE_RATE_P:
+                            #         PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 감시 시작, {curr_price}(현재가) {buy_target_price}(매수 목표가)")
+                            #         self.stocks[code]['allow_monitoring_buy'] = True
+                            #         self.stocks[code]['status'] = "매수 모니터링"
+                            #     else:
+                            #         # PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 보류, 등락율 {float(price_data['prdy_ctrt'])}% < {PRICE_CHANGE_RATE_P}%")                                  
+                            #         self.stocks[code]['status'] = f"매수 보류, 등락율 {float(price_data['prdy_ctrt'])}% < {PRICE_CHANGE_RATE_P}%"
+                            # else:
+                            #     PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 감시 시작, {curr_price}(현재가) {buy_target_price}(매수 목표가)")
+                            #     self.stocks[code]['allow_monitoring_buy'] = True
+                            #     self.stocks[code]['status'] = "매수 모니터링"
+                            PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 감시 시작, {curr_price}(현재가) {buy_target_price}(매수 목표가)")
+                            self.stocks[code]['allow_monitoring_buy'] = True
+                            self.stocks[code]['status'] = "매수 모니터링"                            
                     else:
                         # buy 모니터링 중
                         # "현재가 >= 저가 + BUY_MARGIN_P% and 현재가 < 저가 + (BUY_MARGIN_P+1)%" 에서 매수
@@ -2152,16 +2165,19 @@ class Stocks_info:
                         if self.stocks[code]['allow_monitoring_buy'] == False:
                             # 목표가 왔다 -> 매수 감시 시작
                             if curr_price <= buy_target_price:
-                                # 1차 매수 시 시총 x조미만 "전일 대비율"(현재 등락율) < -X% 조건 추가
-                                if self.stocks[code]['market_cap'] < PRICE_CHANGE_RATE_CHECK_MARKET_CAP:
-                                    if float(price_data['prdy_ctrt']) < PRICE_CHANGE_RATE_P:
-                                        PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 감시 시작, {curr_price}(현재가) {buy_target_price}(매수 목표가)")
-                                        self.stocks[code]['allow_monitoring_buy'] = True
-                                        self.stocks[code]['status'] = "매수 모니터링"                                   
-                                else:
-                                    PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 감시 시작, {curr_price}(현재가) <= {buy_target_price}(매수 목표가)")
-                                    self.stocks[code]['allow_monitoring_buy'] = True
-                                    self.stocks[code]['status'] = "매수 모니터링"
+                                # # 1차 매수 시 시총 x조미만 "전일 대비율"(현재 등락율) < -X% 조건 추가
+                                # if self.stocks[code]['market_cap'] < PRICE_CHANGE_RATE_CHECK_MARKET_CAP:
+                                #     if float(price_data['prdy_ctrt']) < PRICE_CHANGE_RATE_P:
+                                #         PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 감시 시작, {curr_price}(현재가) {buy_target_price}(매수 목표가)")
+                                #         self.stocks[code]['allow_monitoring_buy'] = True
+                                #         self.stocks[code]['status'] = "매수 모니터링"                                   
+                                # else:
+                                #     PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 감시 시작, {curr_price}(현재가) <= {buy_target_price}(매수 목표가)")
+                                #     self.stocks[code]['allow_monitoring_buy'] = True
+                                #     self.stocks[code]['status'] = "매수 모니터링"
+                                PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 감시 시작, {curr_price}(현재가) <= {buy_target_price}(매수 목표가)")
+                                self.stocks[code]['allow_monitoring_buy'] = True
+                                self.stocks[code]['status'] = "매수 모니터링"
                         else:
                             # buy 모니터링 중
                             # "현재가 >= 저가 + BUY_MARGIN_P% and 현재가 < 저가 + (BUY_MARGIN_P+1)%" 에서 매수
@@ -2272,7 +2288,8 @@ class Stocks_info:
                         if self.already_ordered(code, SELL_CODE) == False and self.sell(code, curr_price, qty, ORDER_TYPE_LIMIT_ORDER) == True:
                             self.set_order_done(code, SELL_CODE)
                             PRINT_INFO(f"[{self.stocks[code]['name']}] 매도 주문, {qty}주 {curr_price}(현재가) >= {sell_target_price}(목표가)")                        
-
+                    
+                    # # 1차 매도에 trailing stop 처리
                     # if self.trade_strategy.sell_trailing_stop == True:
                     #     # 트레일링 스탑으로 매도 처리
                     #     if self.stocks[code]['allow_monitoring_sell'] == False:
@@ -2308,7 +2325,6 @@ class Stocks_info:
                     #             self.set_order_done(code, SELL_CODE)
                     #             PRINT_INFO(f"[{self.stocks[code]['name']}] 매도 주문, {qty}주 {curr_price}(현재가) >= {sell_target_price}(목표가)")                        
                 else:   # 1차 매도된 상태
-                    # TODO: 수익 길게
                     # ex) 2차 매도가오면 monitoring 하면서 trailing stop
                     if self.trade_strategy.sell_trailing_stop == True:
                         # 트레일링 스탑으로 매도 처리
@@ -3303,12 +3319,8 @@ class Stocks_info:
             # 최고 종가에서 최소 X% 폭락 가격
             # 시총 10조 이상이면 envelope_p = X
             if self.stocks[code]['market_cap'] >= 100000:
-                margine_p = self.to_percent(28)
-            # 시총 2조 이상
-            elif self.stocks[code]['market_cap'] >= 20000:
-                margine_p = self.to_percent(28)
+                margine_p = self.to_percent(26)
             else:
-                # 시총 2조 미만
                 margine_p = self.to_percent(28)
           
             # # 전략에 따라 폭락 가격 조정
@@ -3318,6 +3330,7 @@ class Stocks_info:
             #     margine_p = margine_p + self.to_percent(2)
 
             price = highest_end_price * (1 - margine_p)
+            # PRINT_DEBUG(f"[{self.stocks[code]['name']}] 최고 종가 : {highest_end_price}원, 폭락 가격 : {price}원")
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -3403,13 +3416,16 @@ class Stocks_info:
             else:
                 self.trade_strategy.invest_risk = INVEST_RISK_LOW
             
+            self.trade_strategy.sell_trailing_stop = True
+
             self.trade_strategy.max_per = 70                    # PER가 이 값 이상이면 매수 금지
             self.trade_strategy.buy_trailing_stop = True        # 매수 후 트레일링 스탑 사용 여부
             self.trade_strategy.use_trend_60ma = True           # 60일선 추세 사용 여부
+            self.trade_strategy.use_trend_90ma = True           # 90일선 추세 사용 여부
 
             invest_risk_high_under_value = -15
             invest_risk_high_gap_max_sell_target_price_p = -5
-            invest_risk_high_sum_under_value_sell_target_gap = -10
+            invest_risk_high_sum_under_value_sell_target_gap = -10            
             
             if self.trade_strategy.invest_risk == INVEST_RISK_HIGH:
                 # 저평가가 이 값 미만은 매수 금지
@@ -3421,19 +3437,22 @@ class Stocks_info:
                 # 시총 X 미만 매수 금지(억)
                 self.trade_strategy.buyable_market_cap = 8000               
                 # 추세선이 이거 이상이여야 매수
-                self.trade_strategy.trend = TREND_UP
+                self.trade_strategy.trend_60ma = TREND_UP
+                self.trade_strategy.trend_90ma = TREND_SIDE
             elif self.trade_strategy.invest_risk == INVEST_RISK_MIDDLE:
                 self.trade_strategy.under_value = invest_risk_high_under_value + 5
                 self.trade_strategy.gap_max_sell_target_price_p = invest_risk_high_gap_max_sell_target_price_p + 5
                 self.trade_strategy.sum_under_value_sell_target_gap = invest_risk_high_sum_under_value_sell_target_gap + 5
                 self.trade_strategy.buyable_market_cap = 10000
-                self.trade_strategy.trend = TREND_UP
+                self.trade_strategy.trend_60ma = TREND_UP
+                self.trade_strategy.trend_90ma = TREND_SIDE
             else:   # INVEST_RISK_LOW
                 self.trade_strategy.under_value = invest_risk_high_under_value + 10
                 self.trade_strategy.gap_max_sell_target_price_p = invest_risk_high_gap_max_sell_target_price_p + 10
                 self.trade_strategy.sum_under_value_sell_target_gap = invest_risk_high_sum_under_value_sell_target_gap + 10
                 self.trade_strategy.buyable_market_cap = 20000    
-                self.trade_strategy.trend = TREND_UP
+                self.trade_strategy.trend_60ma = TREND_UP
+                self.trade_strategy.trend_90ma = TREND_SIDE
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -3696,11 +3715,7 @@ class Stocks_info:
             # 시총 10조 이상이면 envelope_p = X
             if self.stocks[code]['market_cap'] >= 100000:
                 envelope_p = DEFAULT_ENVELOPE_P - 2
-            # 시총 2조 이상
-            elif self.stocks[code]['market_cap'] >= 20000:
-                envelope_p = DEFAULT_ENVELOPE_P - 1
             else:
-                # 시총 2조 미만
                 envelope_p = DEFAULT_ENVELOPE_P
 
             # 목표가GAP 에 따라 envelope_p 조정
