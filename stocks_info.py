@@ -74,7 +74,8 @@ else:
 
 # "현재가 - 매수가 gap" 이 X% 이하 경우만 매수 가능 종목으로 처리
 # gap 이 클수록 종목이 많아 실시간 처리가 느려진다
-BUYABLE_GAP = 15
+BUYABLE_GAP_MAX = 15
+BUYABLE_GAP_MIN = -20  # 액면 분할 후 거래 해제날 buyable gap 이 BUYABLE_GAP_MAX 보다 낮은 현상으로 매수되는 것 방지 위함
 
 # 상위 몇개 종목까지 매수 가능 종목으로 유지
 BUYABLE_COUNT = 10
@@ -3102,7 +3103,8 @@ class Stocks_info:
                                     need_buy = True
                                     break
 
-                        if gap_p <= BUYABLE_GAP or need_buy == True:
+                        # 액면 분할 후 거래 해제날 buyable gap 이 BUYABLE_GAP_MAX 보다 낮은 현상으로 매수되는 것 방지
+                        if (gap_p >= BUYABLE_GAP_MIN and gap_p <= BUYABLE_GAP_MAX) or need_buy == True:
                             temp_stock = copy.deepcopy({code: self.stocks[code]})
                             # 매수가GAP 작은 순으로 정렬위해 임시로 추가
                             temp_stock[code]['buy_target_price_gap'] = gap_p
@@ -4015,7 +4017,7 @@ class Stocks_info:
         
             
     ##############################################################
-    # 매수가gap(%) 리턴
+    # 현재가와 매수가의 Gap(%) 리턴
     # param :
     #   code            종목 코드
     ##############################################################
