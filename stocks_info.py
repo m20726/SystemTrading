@@ -76,7 +76,8 @@ else:
 
 # "현재가 - 매수가 gap" 이 X% 이하 경우만 매수 가능 종목으로 처리
 # gap 이 클수록 종목이 많아 실시간 처리가 느려진다
-BUYABLE_GAP = 10
+BUYABLE_GAP_MAX = 15
+BUYABLE_GAP_MIN = -20  # 액면 분할 후 거래 해제날 buyable gap 이 BUYABLE_GAP_MAX 보다 낮은 현상으로 매수되는 것 방지 위함
 
 # 상위 몇개 종목까지 매수 가능 종목으로 유지
 BUYABLE_COUNT = 10
@@ -140,7 +141,7 @@ MAX_REQUEST_RETRY_COUNT = 3         # request 실패 시 최대 retry 횟수
 TODAY_DATE = f"{datetime.datetime.now().strftime('%Y%m%d')}"
 
 # 60이평선 상승 추세 판단 기울기
-TREND_UP_DOWN_DIFF_60MA_P = 3       # ex) (recent ma - last ma) 기울기 x% 이상되어야 추세 up down
+TREND_UP_DOWN_DIFF_60MA_P = 1       # ex) (recent ma - last ma) 기울기 x% 이상되어야 추세 up down
 
 # 90이평선 상승 추세 판단 기울기
 TREND_UP_DOWN_DIFF_90MA_P = 0.3       # ex) 0.3%
@@ -3129,7 +3130,8 @@ class Stocks_info:
                                     need_buy = True
                                     break
 
-                        if gap_p <= BUYABLE_GAP or need_buy == True:
+                        # 액면 분할 후 거래 해제날 buyable gap 이 BUYABLE_GAP_MAX 보다 낮은 현상으로 매수되는 것 방지
+                        if (gap_p >= BUYABLE_GAP_MIN and gap_p <= BUYABLE_GAP_MAX) or need_buy == True:
                             temp_stock = copy.deepcopy({code: self.stocks[code]})
                             temp_buyable_stocks[code] = temp_stock[code]
                         else:
@@ -3585,7 +3587,7 @@ class Stocks_info:
     #   period              D : 일, W : 주, M : 월, Y : 년
     #   ref_ma_diff_p       이 값(%) 이상 이평 이격 있어야 정배열
     ##############################################################
-    def get_ma_trend(self, code: str, past_day=1, ma=60, consecutive_days=15, period="D", ref_ma_diff_p=TREND_UP_DOWN_DIFF_60MA_P):
+    def get_ma_trend(self, code: str, past_day=1, ma=60, consecutive_days=10, period="D", ref_ma_diff_p=TREND_UP_DOWN_DIFF_60MA_P):
         result = True
         msg = ""
         ma_trend = TREND_DOWN
