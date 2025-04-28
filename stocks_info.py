@@ -834,6 +834,7 @@ class Stocks_info:
                 self.stocks[code]['sell_done'].append(False)
             
             self.stocks[code]['status'] = ""
+            self.stocks[code]['lowest_price_1'] = 0
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -2130,14 +2131,20 @@ class Stocks_info:
                     if self.stocks[code]['allow_monitoring_buy'] == False:
                         # 목표가 왔다 -> 매수 감시 시작
                         if curr_price <= buy_target_price:
-                            PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 감시 시작, {curr_price}(현재가) {buy_target_price}(매수 목표가)")
-                            self.stocks[code]['allow_monitoring_buy'] = True
-                            self.stocks[code]['status'] = "매수 모니터링"
+                            if (lowest_price > 0) and (curr_price >= (lowest_price * buy_margin)) and (curr_price < (lowest_price * (buy_margin + self.to_percent(1)))):
+                                PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 감시 시작, {curr_price}(현재가) {buy_target_price}(매수 목표가)")
+                                self.stocks[code]['allow_monitoring_buy'] = True
+                                self.stocks[code]['status'] = "매수 모니터링"
+                                # 매수 모니터링 시작한 저가
+                                self.stocks[code]['lowest_price_1'] = lowest_price                                
                     else:
-                        # buy 모니터링 중                      
-                        # "현재가 >= 저가 + BUY_MARGIN_P% and 현재가 < 저가 + (BUY_MARGIN_P+1)%" 에서 매수
-                        # "15:15" 까지 매수 안됐고 "현재가 <= 매수가"면 매수                        
-                        if (lowest_price > 0) and (curr_price >= (lowest_price * buy_margin)) and (curr_price < (lowest_price * (buy_margin + self.to_percent(1)))) \
+                        # buy 모니터링 중
+                        # "저가 < 매수 모니터링 시작한 저가 and 현재가 >= 저가 + BUY_MARGIN_P% and 현재가 < 저가 + (BUY_MARGIN_P+1)%" 에서 매수
+                        # 즉, 두 번 째 최저가 + BUY_MARGIN_P 에서 매수                        
+                        # "15:15" 까지 매수 안됐고 "현재가 <= 매수가"면 매수
+                        if (lowest_price > 0 and lowest_price < self.stocks[code]['lowest_price_1']) \
+                            and (curr_price >= (lowest_price * buy_margin)) \
+                            and (curr_price < (lowest_price * (buy_margin + self.to_percent(1)))) \
                             or (t_now >= t_buy and curr_price <= buy_target_price):
                             if self.stocks[code]['buy_order_done'] == False:
                                 buy_target_qty = self.get_buy_target_qty(code)
@@ -2153,14 +2160,20 @@ class Stocks_info:
                         if self.stocks[code]['allow_monitoring_buy'] == False:
                             # 목표가 왔다 -> 매수 감시 시작
                             if curr_price <= buy_target_price:
-                                PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 감시 시작, {curr_price}(현재가) <= {buy_target_price}(매수 목표가)")
-                                self.stocks[code]['allow_monitoring_buy'] = True
-                                self.stocks[code]['status'] = "매수 모니터링"
+                                if (lowest_price > 0) and (curr_price >= (lowest_price * buy_margin)) and (curr_price < (lowest_price * (buy_margin + self.to_percent(1)))):
+                                    PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 감시 시작, {curr_price}(현재가) <= {buy_target_price}(매수 목표가)")
+                                    self.stocks[code]['allow_monitoring_buy'] = True
+                                    self.stocks[code]['status'] = "매수 모니터링"
+                                    # 매수 모니터링 시작한 저가
+                                    self.stocks[code]['lowest_price_1'] = lowest_price                                      
                         else:
                             # buy 모니터링 중
-                            # "현재가 >= 저가 + BUY_MARGIN_P% and 현재가 < 저가 + (BUY_MARGIN_P+1)%" 에서 매수
+                            # "저가 < 매수 모니터링 시작한 저가 and 현재가 >= 저가 + BUY_MARGIN_P% and 현재가 < 저가 + (BUY_MARGIN_P+1)%" 에서 매수
+                            # 즉, 두 번 째 최저가 + BUY_MARGIN_P 에서 매수                        
                             # "15:15" 까지 매수 안됐고 "현재가 <= 매수가"면 매수
-                            if (lowest_price > 0) and (curr_price >= (lowest_price * buy_margin)) and (curr_price < (lowest_price * (buy_margin + self.to_percent(1)))) \
+                            if (lowest_price > 0 and lowest_price < self.stocks[code]['lowest_price_1']) \
+                                and (curr_price >= (lowest_price * buy_margin)) \
+                                and (curr_price < (lowest_price * (buy_margin + self.to_percent(1)))) \
                                 or (t_now >= t_buy and curr_price <= buy_target_price):
                                 if self.stocks[code]['buy_order_done'] == False:
                                     buy_target_qty = self.get_buy_target_qty(code)
