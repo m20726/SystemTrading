@@ -560,6 +560,60 @@ class Stocks_info:
                 self.SEND_MSG_ERR(msg)
 
     ##############################################################
+    # 공격적인 매수 가능 환경이면 1차 매수가를 공격적으로 세팅
+    #   ex) 60일선 상승추세 and 시총>1조 and 매수가>60일선
+    # Parameter :
+    #       code            종목 코드
+    # Return : 공격적 매수가격 세팅했으면 True, 아니면 False
+    ##############################################################
+    def set_aggressive_first_buy_price(self, code):
+        result = True
+        msg = ""
+        ret = False
+        try:
+            # 1차 매수가 이미 됐으면 리턴
+            if self.stocks[code]['buy_done'][0] == True:
+                return False
+            
+            # 공격적 매수 시 시총 기준
+            AGREESIVE_BUY_MARKET_CAP = 10000    # 단위:억
+
+            if self.trade_strategy.use_trend_60ma == True:
+                # 60일선 상승 추세 and 시총 체크
+                if self.stocks[code]['ma_trend'] == TREND_UP and self.stocks[code]['market_cap'] > AGREESIVE_BUY_MARKET_CAP:
+                    # 공격적 매수가를 위해 envelope 는 기존 전략에 비해 적다
+                    # 더 일찍 매수
+                    AGREESIVE_BUY_ENVELOPE = 10
+                    # 공격적 매수 시 급락 가격은 한달 내 최고 종가에서 x% 빠졌을 때
+                    AGREESIVE_BUY_PLUNGE_PRICE_MARGIN_P = 22
+
+                    envelope_p = AGREESIVE_BUY_ENVELOPE
+                    envelope_support_line = self.stocks[code]['yesterday_20ma'] * (1 - envelope_p)
+
+                    # 1차 매수가는 단기간에 급락한 가격 이하여야한다.
+                    aggresive_buy_price = min(int(envelope_support_line * MARGIN_20MA), self.get_plunge_price(code, AGREESIVE_BUY_PLUNGE_PRICE_MARGIN_P))
+
+                    past_day = self.get_past_day()
+                    price_60ma = self.get_ma(code, 60, past_day)
+                    if past_day == 0:    # 장마감 후 상태
+                        MARGIN_TOMORROW_UP_60MA = 1.0026    # 냬일 상승 시 60ma = 오늘 60ma * margin
+                        price_60ma = price_60ma * MARGIN_TOMORROW_UP_60MA
+
+                    if aggresive_buy_price > price_60ma:
+                        PRINT_DEBUG(f"[{self.stocks[code]['name']}] 공격적 매수가 세팅, {aggresive_buy_price}(매수가) > {price_60ma}(60일선)")
+                        self.stocks[code]['buy_price'][0] = aggresive_buy_price
+                        ret = True
+                    else:
+                        ret = False
+        except Exception as ex:
+            result = False
+            msg = "{}".format(traceback.format_exc())
+        finally:
+            if result == False:
+                self.SEND_MSG_ERR(msg)
+            return ret
+
+    ##############################################################
     # 매수가 세팅
     #   분할 매수 개수만큼 리스트
     #   ex) 5차 분할 매수 [1000, 950, 900, 850, 800]
@@ -579,14 +633,16 @@ class Stocks_info:
 
             # 1차 매수 안된 경우 envelope 기반으로 매수가 세팅
             if self.stocks[code]['buy_done'][0] == False:
-                envelope_p = self.to_percent(self.stocks[code]['envelope_p'])
-                envelope_support_line = self.stocks[code]['yesterday_20ma'] * (1 - envelope_p)
+                if self.set_aggressive_first_buy_price(code) == False:
+                    # 공격적인 매수 전략 사용 아닌 경우 기존 방식
+                    envelope_p = self.to_percent(self.stocks[code]['envelope_p'])
+                    envelope_support_line = self.stocks[code]['yesterday_20ma'] * (1 - envelope_p)
 
-                # 1차 매수가는 min(envelope 가격, 90일선)
-                # self.stocks[code]['buy_price'][0] = min(int(envelope_support_line * MARGIN_20MA), self.get_ma(code, 90))
+                    # 1차 매수가는 min(envelope 가격, 90일선)
+                    # self.stocks[code]['buy_price'][0] = min(int(envelope_support_line * MARGIN_20MA), self.get_ma(code, 90))
 
-                # 1차 매수가는 단기간에 급락한 가격 이하여야한다.
-                self.stocks[code]['buy_price'][0] = min(int(envelope_support_line * MARGIN_20MA), self.get_plunge_price(code))
+                    # 1차 매수가는 단기간에 급락한 가격 이하여야한다.
+                    self.stocks[code]['buy_price'][0] = min(int(envelope_support_line * MARGIN_20MA), self.get_plunge_price(code))
 
                 # 1 ~ (BUY_SPLIT_COUNT-1)
                 for i in range(1, BUY_SPLIT_COUNT):
@@ -1213,7 +1269,7 @@ class Stocks_info:
             # + : 저평가
             # - : 고평가
             if self.stocks[code]['sell_target_price'] > 0:
-                self.stocks[code]['gap_max_sell_target_price_p'] = int(100 * (self.stocks[code]['max_target_price'] - self.stocks[code]['sell_target_price']) / self.stocks[code]['max_target_price'])
+                self.stocks[code]['gap_max_sell_target_price_p'] = int(100 * (self.stocks[code]['max_target_price'] - self.stocks[code]['sell_target_price']) / self.stocks[code]['sell_target_price'])
             self.set_stock_undervalue(code)
         except Exception as ex:
             result = False
@@ -3312,8 +3368,9 @@ class Stocks_info:
     #   ex) 한 달 내 최고 종가 - x%
     # param :
     #   code        종목 코드
+    #   margin_p   급락 margine percent
     ##############################################################
-    def get_plunge_price(self, code):
+    def get_plunge_price(self, code, margin_p=0):
         result = True
         msg = ""
         try:
@@ -3321,21 +3378,23 @@ class Stocks_info:
             # 22일(영업일 기준 약 한 달)
             highest_end_price = self.get_highest_end_pirce(code, 22)
 
-            # TODO: 기회 너무 적으면 margine_p 줄인다
-            # 최고 종가에서 최소 X% 폭락 가격
-            # 시총 10조 이상이면 envelope_p = X
-            if self.stocks[code]['market_cap'] >= 100000:
-                margine_p = self.to_percent(26)
-            else:
-                margine_p = self.to_percent(28)
+            # margin_p 가 주어지면 주어진 margin_p 사용
+            if margin_p == 0:
+                # TODO: 기회 너무 적으면 margin_p 줄인다
+                # 최고 종가에서 최소 X% 폭락 가격
+                # 시총 10조 이상이면 envelope_p = X
+                if self.stocks[code]['market_cap'] >= 100000:
+                    margin_p = self.to_percent(26)
+                else:
+                    margin_p = self.to_percent(28)
           
             # # 전략에 따라 폭락 가격 조정
             # if self.trade_strategy.invest_risk == INVEST_RISK_MIDDLE:
-            #     margine_p = margine_p + self.to_percent(1)
+            #     margin_p = margin_p + self.to_percent(1)
             # elif self.trade_strategy.invest_risk == INVEST_RISK_LOW:
-            #     margine_p = margine_p + self.to_percent(2)
+            #     margin_p = margin_p + self.to_percent(2)
 
-            price = highest_end_price * (1 - margine_p)
+            price = highest_end_price * (1 - margin_p)
             # PRINT_DEBUG(f"[{self.stocks[code]['name']}] 최고 종가 : {highest_end_price}원, 폭락 가격 : {price}원")
         except Exception as ex:
             result = False
@@ -3427,7 +3486,7 @@ class Stocks_info:
             self.trade_strategy.max_per = 70                    # PER가 이 값 이상이면 매수 금지
             self.trade_strategy.buy_trailing_stop = True        # 매수 후 트레일링 스탑 사용 여부
             self.trade_strategy.use_trend_60ma = True           # 60일선 추세 사용 여부
-            self.trade_strategy.use_trend_90ma = True           # 90일선 추세 사용 여부
+            # self.trade_strategy.use_trend_90ma = True           # 90일선 추세 사용 여부
 
             # 기회 적다 -> 조건을 완화하여 매수 기회 늘림
             invest_risk_high_under_value = -50
@@ -3616,7 +3675,7 @@ class Stocks_info:
             # 이평선 기울기 구하기 위해 last, recent ma price 구한다
             recent_ma_price = ma_price
             last_ma_price = self.get_ma(code, ma, consecutive_days + past_day - 1, period)
-            ma_diff_p = ((recent_ma_price - last_ma_price) / recent_ma_price) * 100
+            ma_diff_p = ((recent_ma_price - last_ma_price) / last_ma_price) * 100
             
             for i in range(start_day, last_day):
                 if i < last_day:
