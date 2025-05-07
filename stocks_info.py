@@ -12,6 +12,7 @@ import traceback
 from datetime import date, timedelta
 import inspect
 import threading
+from define import *
 
 ##############################################################
 #                           전략                             #
@@ -4054,18 +4055,20 @@ class Stocks_info:
             return buy_target_price_gap
 
     ##############################################################
-    # 장마감전은 어제 기준(1), 장마감 후는 금일 기준(0) 리턴
+    # 장마감전은 어제 기준(1), 장마감 후 or 휴일은 금일 기준(0) 리턴
     ##############################################################
     def get_past_day(self):
         result = True
         msg = ""
         past_day = 0
         try:
+            today = datetime.datetime.today().weekday()
+ 
             t_now = datetime.datetime.now()
             t_exit = t_now.replace(hour=15, minute=30, second=0, microsecond=0)
             # 15:30 장마감 후는 금일기준으로 20일선 구한다
-            if t_exit < t_now:
-                past_day = 0        # 장마감 후는 금일 기준
+            if t_exit < t_now or (today == SATURDAY or today == SUNDAY):
+                past_day = 0        # 장마감 후 or 휴일은 금일 기준
             else:
                 past_day = 1        # 어제 기준            
         except Exception as ex:
