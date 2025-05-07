@@ -1207,7 +1207,7 @@ class Stocks_info:
             # + : 저평가
             # - : 고평가
             if self.stocks[code]['sell_target_price'] > 0:
-                self.stocks[code]['gap_max_sell_target_price_p'] = int(100 * (self.stocks[code]['max_target_price'] - self.stocks[code]['sell_target_price']) / self.stocks[code]['max_target_price'])
+                self.stocks[code]['gap_max_sell_target_price_p'] = int(100 * (self.stocks[code]['max_target_price'] - self.stocks[code]['sell_target_price']) / self.stocks[code]['sell_target_price'])
             self.set_stock_undervalue(code)
         except Exception as ex:
             result = False
@@ -3295,21 +3295,21 @@ class Stocks_info:
             # 22일(영업일 기준 약 한 달)
             highest_end_price = self.get_highest_end_pirce(code, 22)
 
-            # TODO: 기회 너무 적으면 margine_p 줄인다
+            # TODO: 기회 너무 적으면 margin_p 줄인다
             # 최고 종가에서 최소 X% 폭락 가격            
             # 시총 10조 이상이면 envelope_p = X
             if self.stocks[code]['market_cap'] >= 100000:
-                margine_p = self.to_percent(26)
+                margin_p = self.to_percent(26)
             else:
-                margine_p = self.to_percent(26)
+                margin_p = self.to_percent(26)
 
             # # 전략에 따라 폭락 가격 조정
             # if self.trade_strategy.invest_risk == INVEST_RISK_MIDDLE:
-            #     margine_p = margine_p + self.to_percent(1)
+            #     margin_p = margin_p + self.to_percent(1)
             # elif self.trade_strategy.invest_risk == INVEST_RISK_LOW:
-            #     margine_p = margine_p + self.to_percent(2)
+            #     margin_p = margin_p + self.to_percent(2)
 
-            price = highest_end_price * (1 - margine_p)
+            price = highest_end_price * (1 - margin_p)
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -3389,7 +3389,7 @@ class Stocks_info:
             self.trade_strategy.old_invest_risk = self.trade_strategy.invest_risk
 
             self.trade_strategy.use_trend_60ma = True
-            self.trade_strategy.use_trend_90ma = True
+            # self.trade_strategy.use_trend_90ma = True
 
             # if self.my_stock_count <= MAX_MY_STOCK_COUNT * 1/3:
             #     self.trade_strategy.invest_risk = INVEST_RISK_HIGH
@@ -3574,7 +3574,7 @@ class Stocks_info:
     #   period              D : 일, W : 주, M : 월, Y : 년
     #   ref_ma_diff_p       이 값(%) 이상 이평 이격 있어야 정배열
     ##############################################################
-    def get_ma_trend(self, code: str, past_day=1, ma=60, consecutive_days=15, period="D", ref_ma_diff_p=TREND_UP_DOWN_DIFF_60MA_P):
+    def get_ma_trend(self, code: str, past_day=1, ma=60, consecutive_days=10, period="D", ref_ma_diff_p=TREND_UP_DOWN_DIFF_60MA_P):
         result = True
         msg = ""
         ma_trend = TREND_DOWN
@@ -3589,7 +3589,7 @@ class Stocks_info:
             # 이평선 기울기 구하기 위해 last, recent ma price 구한다
             recent_ma_price = ma_price
             last_ma_price = self.get_ma(code, ma, consecutive_days + past_day - 1, period)
-            ma_diff_p = ((recent_ma_price - last_ma_price) / recent_ma_price) * 100
+            ma_diff_p = ((recent_ma_price - last_ma_price) / last_ma_price) * 100
             
             for i in range(start_day, last_day):
                 if i < last_day:
