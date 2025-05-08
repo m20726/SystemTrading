@@ -12,8 +12,13 @@ import traceback
 from datetime import date, timedelta
 import inspect
 import threading
+from define import *
 
 # 2025.03.05 기준 원금 460만원
+
+#TODO: 한투MTS 에서 주문 취소 경우 처리
+# self.stocks[code]['buy_order_done'] = False
+# self.stocks[code]['sell_order_done'] = False
 
 ##############################################################
 #                           전략                             #
@@ -142,6 +147,7 @@ TODAY_DATE = f"{datetime.datetime.now().strftime('%Y%m%d')}"
 
 # 60이평선 상승 추세 판단 기울기
 TREND_UP_DOWN_DIFF_60MA_P = 1       # ex) (recent ma - last ma) 기울기 x% 이상되어야 추세 up down
+TREND_UP_CONSECUTIVE_DAYS = 10      # ex) 최근 5일 연속 상승 추세여야 매수 가능
 
 # 90이평선 상승 추세 판단 기울기
 TREND_UP_DOWN_DIFF_90MA_P = 0.3       # ex) 0.3%
@@ -150,6 +156,11 @@ MA_DIFF_P = 1                       # 이평선 간의 이격 ex) 60, 90 이평�
 DEFAULT_ENVELOPE_P = 15             # 1차 매수 시 envelope value
 PRICE_TYPE_CLOSE = "stck_clpr"      # 종가
 PRICE_TYPE_LOWEST = "stck_lwpr"     # 최저가
+
+# 시장 시간 상태
+BEFORE_MARKET = 0     # 장 전
+MARKET_ING = 1        # 장 중
+AFTER_MARKET = 2      # 장 후
 
 ##############################################################
 
@@ -587,20 +598,25 @@ class Stocks_info:
                     # 공격적 매수 시 급락 가격은 한달 내 최고 종가에서 x% 빠졌을 때
                     AGREESIVE_BUY_PLUNGE_PRICE_MARGIN_P = 22
 
-                    envelope_p = AGREESIVE_BUY_ENVELOPE
+                    envelope_p = self.to_percent(AGREESIVE_BUY_ENVELOPE)
                     envelope_support_line = self.stocks[code]['yesterday_20ma'] * (1 - envelope_p)
 
                     # 1차 매수가는 단기간에 급락한 가격 이하여야한다.
-                    aggresive_buy_price = min(int(envelope_support_line * MARGIN_20MA), self.get_plunge_price(code, AGREESIVE_BUY_PLUNGE_PRICE_MARGIN_P))
+                    aggresive_buy_price = min(int(envelope_support_line * MARGIN_20MA), self.get_plunge_price(code, self.to_percent(AGREESIVE_BUY_PLUNGE_PRICE_MARGIN_P)))
 
-                    past_day = self.get_past_day()
-                    price_60ma = self.get_ma(code, 60, past_day)
-                    if past_day == 0:    # 장마감 후 상태
-                        MARGIN_TOMORROW_UP_60MA = 1.0026    # 냬일 상승 시 60ma = 오늘 60ma * margin
+                    # 1차 매수가 정할 때 비교되는 60일선은 장중, 장전/장후 에 따라 다르다
+                    # 장 중 : 금일 60일선
+                    # 장 전 or 장 마감 후 : 금일 60일선 * 보정값으로 
+                    # 장 전(08:40) self.get_ma(code, 60) == self.get_ma(code, 60, 1) == 어제 60일선
+                    # 장마감 후 self.get_ma(code, 60, 1) 값은 어제 60일선이다.
+                    price_60ma = self.get_ma(code, 60)
+                    if self.get_market_time_state() != MARKET_ING:
+                        MARGIN_TOMORROW_UP_60MA = 1.0026
                         price_60ma = price_60ma * MARGIN_TOMORROW_UP_60MA
 
+                    # 공격적 매수가가 60일선 보다 높으면 공격적 매수 가능
                     if aggresive_buy_price > price_60ma:
-                        PRINT_DEBUG(f"[{self.stocks[code]['name']}] 공격적 매수가 세팅, {aggresive_buy_price}(매수가) > {price_60ma}(60일선)")
+                        PRINT_INFO(f"[{self.stocks[code]['name']}] 공격적 매수가 세팅, {aggresive_buy_price}(매수가) > {price_60ma}(60일선)")
                         self.stocks[code]['buy_price'][0] = aggresive_buy_price
                         ret = True
                     else:
@@ -2147,6 +2163,7 @@ class Stocks_info:
 
     ##############################################################
     # 매수 처리
+    # TODO: 엔벨 찍고 매수 말고 5일선 돌파 거래량 - 다음날 종가이하에서 trailing stop 매수?
     ##############################################################
     def handle_buy_stock(self):
         result = True
@@ -3660,7 +3677,7 @@ class Stocks_info:
     #   period              D : 일, W : 주, M : 월, Y : 년
     #   ref_ma_diff_p       이 값(%) 이상 이평 이격 있어야 정배열
     ##############################################################
-    def get_ma_trend(self, code: str, past_day=1, ma=60, consecutive_days=10, period="D", ref_ma_diff_p=TREND_UP_DOWN_DIFF_60MA_P):
+    def get_ma_trend(self, code: str, past_day=1, ma=60, consecutive_days=TREND_UP_CONSECUTIVE_DAYS, period="D", ref_ma_diff_p=TREND_UP_DOWN_DIFF_60MA_P):
         result = True
         msg = ""
         ma_trend = TREND_DOWN
@@ -4144,18 +4161,20 @@ class Stocks_info:
             return buy_target_price_gap
         
     ##############################################################
-    # 장마감전은 어제 기준(1), 장마감 후는 금일 기준(0) 리턴
-    ##############################################################
+    # 장마감전은 어제 기준(1), 장마감 후 or 휴일은 금일 기준(0) 리턴
+    #   어제 X값을 구하기위해 장마감 후인지 아닌지에 따라 다르다
+    # ##############################################################
     def get_past_day(self):
         result = True
         msg = ""
         past_day = 0
         try:
+            today = datetime.datetime.today().weekday()
             t_now = datetime.datetime.now()
             t_exit = t_now.replace(hour=15, minute=30, second=0, microsecond=0)
             # 15:30 장마감 후는 금일기준으로 20일선 구한다
-            if t_exit < t_now:
-                past_day = 0        # 장마감 후는 금일 기준
+            if t_exit < t_now or (today == SATURDAY or today == SUNDAY):
+                past_day = 0        # 장마감 후 or 휴일은 금일 기준
             else:
                 past_day = 1        # 어제 기준            
         except Exception as ex:
@@ -4166,6 +4185,28 @@ class Stocks_info:
                 self.SEND_MSG_ERR(msg)
             return past_day
 
-    #TODO: 한투MTS 에서 주문 취소 경우 처리
-    # self.stocks[code]['buy_order_done'] = False
-    # self.stocks[code]['sell_order_done'] = False
+    ##############################################################
+    # 장 전, 장 중, 장 마감 후로 나누어 시장 시간 상태 리턴
+    #   장 전 : BEFORE_MARKET, 장 중 : MARKET_ING, 장 마감 후 : AFTER_MARKET
+    ##############################################################
+    def get_market_time_state(self):
+        result = True
+        msg = ""
+        market_time_state = BEFORE_MARKET
+        try:
+            t_now = datetime.datetime.now()
+            t_start = t_now.replace(hour=9, minute=0, second=0, microsecond=0)
+            t_exit = t_now.replace(hour=15, minute=30, second=0, microsecond=0)
+            if t_now < t_start:
+                market_time_state = BEFORE_MARKET
+            elif t_start <= t_now < t_exit:
+                market_time_state = MARKET_ING
+            elif t_now >= t_exit:
+                market_time_state = AFTER_MARKET          
+        except Exception as ex:
+            result = False
+            msg = "{}".format(traceback.format_exc())
+        finally:
+            if result == False:
+                self.SEND_MSG_ERR(msg)
+            return market_time_state

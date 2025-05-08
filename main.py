@@ -4,9 +4,8 @@ import time
 from libs.debug import *
 import datetime
 import threading
+from define import *
 
-SATURDAY = 5
-SUNDAY = 6
 PERIODIC_PRINT_TIME_M = 30      # 30분마다 주기적으로 출력
 
 ##############################################################
