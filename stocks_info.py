@@ -572,7 +572,7 @@ class Stocks_info:
 
     ##############################################################
     # 공격적인 매수 가능 환경이면 1차 매수가를 공격적으로 세팅
-    #   ex) 60일선 상승추세 and 시총>1조 and 매수가>60일선
+    #   ex) 90일선 상승추세 and 시총 > 1조 and 매수가 > 90일선
     # Parameter :
     #       code            종목 코드
     # Return : 공격적 매수가격 세팅했으면 True, 아니면 False
@@ -589,9 +589,9 @@ class Stocks_info:
             # 공격적 매수 시 시총 기준
             AGREESIVE_BUY_MARKET_CAP = 10000    # 단위:억
 
-            if self.trade_strategy.use_trend_60ma == True:
-                # 60일선 상승 추세 and 시총 체크
-                if self.stocks[code]['ma_trend'] == TREND_UP and self.stocks[code]['market_cap'] > AGREESIVE_BUY_MARKET_CAP:
+            if self.trade_strategy.use_trend_90ma == True:
+                # 90일선 상승 추세 and 시총 체크
+                if self.stocks[code]['ma_trend2'] == TREND_UP and self.stocks[code]['market_cap'] > AGREESIVE_BUY_MARKET_CAP:
                     # 공격적 매수가를 위해 envelope 는 기존 전략에 비해 적다
                     # 더 일찍 매수
                     AGREESIVE_BUY_ENVELOPE = 10
@@ -604,19 +604,19 @@ class Stocks_info:
                     # 1차 매수가는 단기간에 급락한 가격 이하여야한다.
                     aggresive_buy_price = min(int(envelope_support_line * MARGIN_20MA), self.get_plunge_price(code, self.to_percent(AGREESIVE_BUY_PLUNGE_PRICE_MARGIN_P)))
 
-                    # 1차 매수가 정할 때 비교되는 60일선은 장중, 장전/장후 에 따라 다르다
-                    # 장 중 : 금일 60일선
-                    # 장 전 or 장 마감 후 : 금일 60일선 * 보정값으로 
-                    # 장 전(08:40) self.get_ma(code, 60) == self.get_ma(code, 60, 1) == 어제 60일선
-                    # 장마감 후 self.get_ma(code, 60, 1) 값은 어제 60일선이다.
-                    price_60ma = self.get_ma(code, 60)
+                    # 1차 매수가 정할 때 비교되는 90일선은 장중, 장전/장후 에 따라 다르다
+                    # 장 중 : 금일 90일선
+                    # 장 전 or 장 마감 후 : 금일 90일선 * 보정값으로 
+                    # 장 전(08:40) self.get_ma(code, 90) == self.get_ma(code, 90, 1) == 어제 90일선
+                    # 장마감 후 self.get_ma(code, 90, 1) 값은 어제 90일선이다.
+                    price_90ma = self.get_ma(code, 90)
                     if self.get_market_time_state() != MARKET_ING:
-                        MARGIN_TOMORROW_UP_60MA = 1.0026
-                        price_60ma = price_60ma * MARGIN_TOMORROW_UP_60MA
+                        MARGIN_TOMORROW_UP_90MA = 1.0009
+                        price_90ma = int(price_90ma * MARGIN_TOMORROW_UP_90MA)
 
-                    # 공격적 매수가가 60일선 보다 높으면 공격적 매수 가능
-                    if aggresive_buy_price > price_60ma:
-                        PRINT_INFO(f"[{self.stocks[code]['name']}] 공격적 매수가 세팅, {aggresive_buy_price}(매수가) > {price_60ma}(60일선)")
+                    # 공격적 매수가가 90일선 보다 높으면 공격적 매수 가능
+                    if aggresive_buy_price > price_90ma:
+                        PRINT_INFO(f"[{self.stocks[code]['name']}] 공격적 매수가 세팅, {aggresive_buy_price}(매수가) > {price_90ma}(90일선)")
                         self.stocks[code]['buy_price'][0] = aggresive_buy_price
                         ret = True
                     else:
@@ -3503,7 +3503,7 @@ class Stocks_info:
             self.trade_strategy.max_per = 70                    # PER가 이 값 이상이면 매수 금지
             self.trade_strategy.buy_trailing_stop = True        # 매수 후 트레일링 스탑 사용 여부
             self.trade_strategy.use_trend_60ma = True           # 60일선 추세 사용 여부
-            # self.trade_strategy.use_trend_90ma = True           # 90일선 추세 사용 여부
+            self.trade_strategy.use_trend_90ma = True           # 90일선 추세 사용 여부
 
             # 기회 적다 -> 조건을 완화하여 매수 기회 늘림
             invest_risk_high_under_value = -50
@@ -3545,8 +3545,22 @@ class Stocks_info:
             self.print_strategy()
 
     #TODO: ta lib 로 대체
+    # # 1. 종가 데이터 (list)
+    # closes[0] = oldest
+    # closes[-1] = today
+    # closes = [35200, 36250, 37250, 36400, 37000, 36650, 36650, 37450, 37750, 40500, 39750, 40400, 39800, 40600, 39850, 42900, 48850]
+
+    # # 2. 리스트를 pandas Series로 변환
+    # close_series = pd.Series(closes)
+
+    # # 3. RSI 계산 (ta.momentum.RSIIndicator 사용)
+    # rsi_indicator = ta.momentum.RSIIndicator(close=close_series, window=14)
+    # rsi_values = rsi_indicator.rsi()
+
     ##############################################################
     # get RSI
+    #   RIS 는 최초 데이터부터 계산되어야 정확하다
+    #   데이터가 적을수록 RSI 값이 정확하지 않다
     # param :
     #   code        종목 코드                
     #   past_day    과거 언제 RSI 구할건지
