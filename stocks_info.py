@@ -298,18 +298,15 @@ class Stocks_info:
                 target_p = SELL_TARGET_P + (NEXT_SELL_TARGET_MARGIN_P * i)
                 PRINT_DEBUG(f'{i + 1}차 목표가 {target_p} %')
 
+        trend_msg = dict()
+        trend_msg[TREND_DOWN] = "하락 추세"
+        trend_msg[TREND_SIDE] = "보합 추세"
+        trend_msg[TREND_UP] = "상승 추세"
+
         if self.trade_strategy.use_trend_60ma == True:
-            trend_msg = dict()
-            trend_msg[TREND_DOWN] = "하락 추세"
-            trend_msg[TREND_SIDE] = "보합 추세"
-            trend_msg[TREND_UP] = "상승 추세"
             PRINT_DEBUG(f'60일선 {trend_msg[self.trade_strategy.trend_60ma]} 이상 매수')
 
         if self.trade_strategy.use_trend_90ma == True:
-            trend_msg = dict()
-            trend_msg[TREND_DOWN] = "하락 추세"
-            trend_msg[TREND_SIDE] = "보합 추세"
-            trend_msg[TREND_UP] = "상승 추세"
             PRINT_DEBUG(f'90일선 {trend_msg[self.trade_strategy.trend_90ma]} 이상 매수')
 
         if BUY_QTY_1 == True:
@@ -590,13 +587,13 @@ class Stocks_info:
             AGREESIVE_BUY_MARKET_CAP = 10000    # 단위:억
 
             if self.trade_strategy.use_trend_90ma == True:
-                # 90일선 상승 추세 and 시총 체크
-                if self.stocks[code]['ma_trend2'] == TREND_UP and self.stocks[code]['market_cap'] > AGREESIVE_BUY_MARKET_CAP:
+                # 60일선 상승 추세 and 시총 체크
+                if self.stocks[code]['ma_trend'] == TREND_UP and self.stocks[code]['market_cap'] > AGREESIVE_BUY_MARKET_CAP:
                     # 공격적 매수가를 위해 envelope 는 기존 전략에 비해 적다
                     # 더 일찍 매수
                     AGREESIVE_BUY_ENVELOPE = 10
                     # 공격적 매수 시 급락 가격은 한달 내 최고 종가에서 x% 빠졌을 때
-                    AGREESIVE_BUY_PLUNGE_PRICE_MARGIN_P = 22
+                    AGREESIVE_BUY_PLUNGE_PRICE_MARGIN_P = 20
 
                     envelope_p = self.to_percent(AGREESIVE_BUY_ENVELOPE)
                     envelope_support_line = self.stocks[code]['yesterday_20ma'] * (1 - envelope_p)
@@ -3399,11 +3396,10 @@ class Stocks_info:
             if margin_p == 0:
                 # TODO: 기회 너무 적으면 margin_p 줄인다
                 # 최고 종가에서 최소 X% 폭락 가격
-                # 시총 10조 이상이면 envelope_p = X
-                if self.stocks[code]['market_cap'] >= 100000:
-                    margin_p = self.to_percent(26)
+                if self.stocks[code]['market_cap'] >= 100000:   # 시총 10조 이상이면
+                    margin_p = self.to_percent(24)
                 else:
-                    margin_p = self.to_percent(28)
+                    margin_p = self.to_percent(26)
           
             # # 전략에 따라 폭락 가격 조정
             # if self.trade_strategy.invest_risk == INVEST_RISK_MIDDLE:
@@ -3518,7 +3514,7 @@ class Stocks_info:
                 # 저평가 + 목표가GAP 이 이 값 미만은 매수 금지
                 self.trade_strategy.sum_under_value_sell_target_gap = invest_risk_high_sum_under_value_sell_target_gap     
                 # 시총 X 미만 매수 금지(억)
-                self.trade_strategy.buyable_market_cap = 8000               
+                self.trade_strategy.buyable_market_cap = 5000               
                 # 추세선이 이거 이상이여야 매수
                 self.trade_strategy.trend_60ma = TREND_UP
                 self.trade_strategy.trend_90ma = TREND_SIDE
