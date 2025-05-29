@@ -18,14 +18,9 @@ from define import *
 #                           전략                             #
 ##############################################################
 # 매수
-#   1차 매수
-#       1. 60,90 정배열
-#       2. Envelope 21 값 이하에서 트레일링스탑 1차 매수
+#   3 분할 매수
 # 매도
-#   목표가에 반 매도
-#   나머지는 익절가 이탈 시 전량 매도
-#       목표가 올려가며 남은 물량의 1/2 매도
-#       N차 매도가 : N-1차 매도가 * 1.0x (N>=2)
+#   2 분할 매도
 # 손절
 #   1. last차 매수가 -5% 종가 이탈
 #   2. 오늘 > 최근 매수일 + x day, 즉 x 일 동안 매수 없고
@@ -68,7 +63,7 @@ INVEST_TYPE = "real_invest"                 # sim_invest : 모의 투자, real_i
 
 if INVEST_TYPE == "real_invest":
     MAX_MY_STOCK_COUNT = 6
-    INVEST_MONEY_PER_STOCK = 600000        # 종목 당 투자 금액(원)
+    INVEST_MONEY_PER_STOCK = 700000        # 종목 당 투자 금액(원)
 else:
     MAX_MY_STOCK_COUNT = 10                 # MAX 보유 주식 수
     INVEST_MONEY_PER_STOCK = 2000000        # 종목 당 투자 금액(원)
@@ -273,7 +268,7 @@ class Stocks_info:
             PRINT_DEBUG(f'{BUY_SPLIT_COUNT}차 매수 불타기')
         
         # 목표가 출력
-        for i in range(BUY_SPLIT_COUNT):
+        for i in range(SELL_SPLIT_COUNT):
             if i == 0:
                 target_p = SELL_TARGET_P
                 PRINT_DEBUG(f'{i + 1}차 목표가 {target_p} %')
@@ -281,18 +276,15 @@ class Stocks_info:
                 target_p = SELL_TARGET_P + (NEXT_SELL_TARGET_MARGIN_P * i)
                 PRINT_DEBUG(f'{i + 1}차 목표가 {target_p} %')
 
+        trend_msg = dict()
+        trend_msg[TREND_DOWN] = "하락 추세"
+        trend_msg[TREND_SIDE] = "보합 추세"
+        trend_msg[TREND_UP] = "상승 추세"
+
         if self.trade_strategy.use_trend_60ma == True:
-            trend_msg = dict()
-            trend_msg[TREND_DOWN] = "하락 추세"
-            trend_msg[TREND_SIDE] = "보합 추세"
-            trend_msg[TREND_UP] = "상승 추세"
             PRINT_DEBUG(f'60일선 {trend_msg[self.trade_strategy.trend_60ma]} 이상 매수')
 
         if self.trade_strategy.use_trend_90ma == True:
-            trend_msg = dict()
-            trend_msg[TREND_DOWN] = "하락 추세"
-            trend_msg[TREND_SIDE] = "보합 추세"
-            trend_msg[TREND_UP] = "상승 추세"
             PRINT_DEBUG(f'90일선 {trend_msg[self.trade_strategy.trend_90ma]} 이상 매수')
 
         if BUY_QTY_1 == True:
@@ -3416,7 +3408,7 @@ class Stocks_info:
                 # 저평가 + 목표가GAP 이 이 값 미만은 매수 금지
                 self.trade_strategy.sum_under_value_sell_target_gap = invest_risk_high_sum_under_value_sell_target_gap     
                 # 시총 X 미만 매수 금지(억)
-                self.trade_strategy.buyable_market_cap = 8000
+                self.trade_strategy.buyable_market_cap = 5000
                 # 추세선이 이거 이상이여야 매수
                 self.trade_strategy.trend_60ma = TREND_SIDE
                 self.trade_strategy.trend_90ma = TREND_SIDE
@@ -4056,6 +4048,7 @@ class Stocks_info:
 
     ##############################################################
     # 장마감전은 어제 기준(1), 장마감 후 or 휴일은 금일 기준(0) 리턴
+    #   어제 X값을 구하기위해 장마감 후인지 아닌지에 따라 다르다
     ##############################################################
     def get_past_day(self):
         result = True
@@ -4063,7 +4056,6 @@ class Stocks_info:
         past_day = 0
         try:
             today = datetime.datetime.today().weekday()
- 
             t_now = datetime.datetime.now()
             t_exit = t_now.replace(hour=15, minute=30, second=0, microsecond=0)
             # 15:30 장마감 후는 금일기준으로 20일선 구한다

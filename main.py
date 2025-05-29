@@ -161,6 +161,9 @@ def main():
         stocks_info.update_stocks_trade_info()
         stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
 
+        stocks_info.update_buyable_stocks()
+        stocks_info.show_buyable_stocks()
+        
         PRINT_DEBUG("=== Program End ===")
     except Exception as ex:
         result = False
