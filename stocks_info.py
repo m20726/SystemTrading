@@ -76,6 +76,9 @@ BUYABLE_GAP_MIN = -20  # 액면 분할 후 거래 해제날 buyable gap 이 BUYA
 # 상위 몇개 종목까지 매수 가능 종목으로 유지
 BUYABLE_COUNT = 10
 
+# 1차 매수 시 하한가 매수 금지 위해 전일 대비율(현재 등락율)이 MIN_PRICE_CHANGE_RATE_P % 이상에서 매수
+MIN_PRICE_CHANGE_RATE_P = -20
+
 ##############################################################
 
 STOCKS_INFO_FILE_PATH = './stocks_info.json'    # 주식 정보 file
@@ -2125,11 +2128,13 @@ class Stocks_info:
                         # 목표가 왔다 -> 매수 감시 시작
                         if curr_price <= buy_target_price:
                             if (lowest_price > 0) and (curr_price >= (lowest_price * buy_margin)) and (curr_price < (lowest_price * (buy_margin + self.to_percent(1)))):
-                                PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 감시 시작, {curr_price}(현재가) {buy_target_price}(매수 목표가)")
-                                self.stocks[code]['allow_monitoring_buy'] = True
-                                self.stocks[code]['status'] = "매수 모니터링"
-                                # 매수 모니터링 시작한 저가
-                                self.stocks[code]['lowest_price_1'] = lowest_price                                
+                                # 1차 매수 시 하한가 매수 금지 위해 전일 대비율(현재 등락율)이 MIN_PRICE_CHANGE_RATE_P % 이상에서 매수
+                                if self.stocks[code]['buy_done'][0] == False and float(price_data['prdy_ctrt']) >= MIN_PRICE_CHANGE_RATE_P:
+                                    PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 감시 시작, {curr_price}(현재가) {buy_target_price}(매수 목표가)")
+                                    self.stocks[code]['allow_monitoring_buy'] = True
+                                    self.stocks[code]['status'] = "매수 모니터링"
+                                    # 매수 모니터링 시작한 저가
+                                    self.stocks[code]['lowest_price_1'] = lowest_price                                
                     else:
                         # buy 모니터링 중
                         # "저가 < 매수 모니터링 시작한 저가 and 현재가 >= 저가 + BUY_MARGIN_P% and 현재가 < 저가 + (BUY_MARGIN_P+1)%" 에서 매수
@@ -2154,11 +2159,13 @@ class Stocks_info:
                             # 목표가 왔다 -> 매수 감시 시작
                             if curr_price <= buy_target_price:
                                 if (lowest_price > 0) and (curr_price >= (lowest_price * buy_margin)) and (curr_price < (lowest_price * (buy_margin + self.to_percent(1)))):
-                                    PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 감시 시작, {curr_price}(현재가) <= {buy_target_price}(매수 목표가)")
-                                    self.stocks[code]['allow_monitoring_buy'] = True
-                                    self.stocks[code]['status'] = "매수 모니터링"
-                                    # 매수 모니터링 시작한 저가
-                                    self.stocks[code]['lowest_price_1'] = lowest_price                                      
+                                    # 1차 매수 시 하한가 매수 금지 위해 전일 대비율(현재 등락율)이 MIN_PRICE_CHANGE_RATE_P % 이상에서 매수
+                                    if self.stocks[code]['buy_done'][0] == False and float(price_data['prdy_ctrt']) >= MIN_PRICE_CHANGE_RATE_P:
+                                        PRINT_INFO(f"[{self.stocks[code]['name']}] 매수 감시 시작, {curr_price}(현재가) <= {buy_target_price}(매수 목표가)")
+                                        self.stocks[code]['allow_monitoring_buy'] = True
+                                        self.stocks[code]['status'] = "매수 모니터링"
+                                        # 매수 모니터링 시작한 저가
+                                        self.stocks[code]['lowest_price_1'] = lowest_price                                      
                         else:
                             # buy 모니터링 중
                             # "저가 < 매수 모니터링 시작한 저가 and 현재가 >= 저가 + BUY_MARGIN_P% and 현재가 < 저가 + (BUY_MARGIN_P+1)%" 에서 매수
