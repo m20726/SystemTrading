@@ -287,8 +287,9 @@ class Stocks_info:
                 target_p = SELL_TARGET_P
                 PRINT_DEBUG(f'{i + 1}차 목표가 {target_p} %')
             else:
-                target_p = SELL_TARGET_P + (NEXT_SELL_TARGET_MARGIN_P * i)
-                PRINT_DEBUG(f'{i + 1}차 목표가 {target_p} %')
+                if self.trade_strategy.sell_strategy == SELL_STRATEGY_TARGET_PRICE: 
+                    target_p = SELL_TARGET_P + (NEXT_SELL_TARGET_MARGIN_P * i)
+                    PRINT_DEBUG(f'{i + 1}차 목표가 {target_p} %')
 
         trend_msg = dict()
         trend_msg[TREND_DOWN] = "하락 추세"
@@ -3585,6 +3586,9 @@ class Stocks_info:
         msg = ""
         ma_trend = TREND_DOWN
         try:
+            # diff 는 절대값으로 비교
+            ref_ma_diff_p = abs(ref_ma_diff_p)
+            
             # x일 연속 상승,하락인지 체크 그외 보합
             trend_up_count = 0
             trend_down_count = 0
@@ -3595,7 +3599,8 @@ class Stocks_info:
             # 이평선 기울기 구하기 위해 last, recent ma price 구한다
             recent_ma_price = ma_price
             last_ma_price = self.get_ma(code, ma, consecutive_days + past_day - 1, period)
-            ma_diff_p = ((recent_ma_price - last_ma_price) / last_ma_price) * 100
+            # diff 는 절대값으로 비교
+            ma_diff_p = abs(((recent_ma_price - last_ma_price) / last_ma_price) * 100)
             
             for i in range(start_day, last_day):
                 if i < last_day:
