@@ -554,18 +554,6 @@ class Stocks_info:
                 self.SEND_MSG_ERR(msg)        
 
     ##############################################################
-    # stocks 에서 code 에 해당하는 stock 리턴
-    # param :
-    #   code            종목 코드    
-    ##############################################################
-    def get_stock(self, code: str):
-        try:
-            return self.stocks[code]
-        except KeyError:
-            self.SEND_MSG_ERR(f'KeyError : {code} is not found')
-            return None
-
-    ##############################################################
     # stocks file 에서 stocks 정보 가져온다
     # param :
     #   file_path       stock file path    
@@ -1410,67 +1398,56 @@ class Stocks_info:
         try:
             past_day = self.get_past_day()
 
-            stocks_codes = list(self.stocks.keys())
+            for code in self.stocks.keys():
+                PRINT_DEBUG(f"[{self.stocks[code]['name']}]")
+                # 순서 변경 금지
+                # ex) 목표가를 구하기 위해선 평단가가 먼저 있어야한다
+                # 시가 총액
+                self.stocks[code]['market_cap'] = self.get_market_cap(code)
+                
+                # yesterday 20일선
+                self.stocks[code]['yesterday_20ma'] = self.get_ma(code, 20, past_day)
 
-            def process_update_stock_trade_info(code):
-                try:
-                    stock = self.stocks[code]
-                    PRINT_DEBUG(f"[{stock['name']}]")
-                    # 순서 변경 금지
-                    # ex) 목표가를 구하기 위해선 평단가가 먼저 있어야한다
-                    # 시가 총액
-                    stock['market_cap'] = self.get_market_cap(code)
-                    
-                    # yesterday 20일선
-                    stock['yesterday_20ma'] = self.get_ma(code, 20, past_day)
+                # 1차 매수 안된 경우만 업데이트
+                if self.stocks[code]['buy_done'][0] == False:
+                    self.stocks[code]['sell_target_p'] = SELL_TARGET_P
+                    self.stocks[code]['envelope_p'] = self.get_envelope_p(code)
+                    # 매수가 세팅
+                    self.set_buy_price(code)
+                    # 매수 수량 세팅
+                    self.set_buy_qty(code)
 
-                    # 1차 매수 안된 경우만 업데이트
-                    if stock['buy_done'][0] == False:
-                        stock['sell_target_p'] = SELL_TARGET_P
-                        stock['envelope_p'] = self.get_envelope_p(code)
-                        # 매수가 세팅
-                        self.set_buy_price(code)
-                        # 매수 수량 세팅
-                        self.set_buy_qty(code)
+                # 추세 세팅
+                if self.trade_strategy.use_trend_60ma == True:
+                    # 60 이평 추세
+                    self.stocks[code]['trend_60ma'] = self.get_ma_trend(code, past_day)             
+                if self.trade_strategy.use_trend_90ma == True:
+                    # 90 이평 추세, 90 이평은 연속 최대 8일 이하만 가능
+                    self.stocks[code]['trend_90ma'] = self.get_ma_trend(code, past_day, 90, 8, "D", TREND_UP_DOWN_DIFF_90MA_P)
 
-                    # 추세 세팅
-                    if self.trade_strategy.use_trend_60ma == True:
-                        # 60 이평 추세
-                        stock['trend_60ma'] = self.get_ma_trend(code, past_day)             
-                    if self.trade_strategy.use_trend_90ma == True:
-                        # 90 이평 추세, 90 이평은 연속 최대 8일 이하만 가능
-                        stock['trend_90ma'] = self.get_ma_trend(code, past_day, 90, 8, "D", TREND_UP_DOWN_DIFF_90MA_P)
+                # 손절가 세팅
+                self.stocks[code]['loss_cut_price'] = self.get_loss_cut_price(code)
 
-                    # 손절가 세팅
-                    stock['loss_cut_price'] = self.get_loss_cut_price(code)
+                # 어제 종가 세팅
+                self.stocks[code]['yesterday_end_price'] = self.get_end_price(code, past_day)
 
-                    # 어제 종가 세팅
-                    stock['yesterday_end_price'] = self.get_end_price(code, past_day)
+                # 매도 완료 후 "어제 종가 > 어제 20ma" 여야 재매수 가능
+                if self.stocks[code]['sell_all_done'] == True:
+                    # 어제 종가 > 어제 20ma
+                    if self.stocks[code]['yesterday_end_price'] > self.stocks[code]['yesterday_20ma']:
+                        # 재매수 가능
+                        self.stocks[code]['end_price_higher_than_20ma_after_sold'] = True
+                        self.stocks[code]['sell_all_done'] = False
 
-                    # 매도 완료 후 "어제 종가 > 어제 20ma" 여야 재매수 가능
-                    if stock['sell_all_done'] == True:
-                        # 어제 종가 > 어제 20ma
-                        if stock['yesterday_end_price'] > stock['yesterday_20ma']:
-                            # 재매수 가능
-                            stock['end_price_higher_than_20ma_after_sold'] = True
-                            stock['sell_all_done'] = False
+                # 보유 주식 아닌 경우에 업데이트
+                if self.is_my_stock(code) == False:
+                    # 평단가 = 1차 매수가
+                    self.stocks[code]['avg_buy_price'] = self.stocks[code]['buy_price'][0]
+                    # 목표가
+                    self.stocks[code]['sell_target_price'] = self.get_sell_target_price(code)
 
-                    # 보유 주식 아닌 경우에 업데이트
-                    if self.is_my_stock(code) == False:
-                        # 평단가 = 1차 매수가
-                        stock['avg_buy_price'] = stock['buy_price'][0]
-                        # 목표가
-                        stock['sell_target_price'] = self.get_sell_target_price(code)
-
-                    # 주식 투자 정보 업데이트(상장 주식 수, 저평가, BPS, PER, EPS)
-                    stock['stock_invest_info_valid'] = self.update_stock_invest_info(code)
-
-                except Exception as e:
-                    PRINT_ERR(f"[{stock['name']}] 처리 중 오류: {e}")
-            #################### end of process_update_stock_trade_info() ####################
-
-            with ThreadPoolExecutor(max_workers=14) as executor:
-                executor.map(process_update_stock_trade_info, stocks_codes)
+                # 주식 투자 정보 업데이트(상장 주식 수, 저평가, BPS, PER, EPS)
+                self.stocks[code]['stock_invest_info_valid'] = self.update_stock_invest_info(code)
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
