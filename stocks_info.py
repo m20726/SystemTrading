@@ -592,7 +592,7 @@ class Stocks_info:
 
             if self.trade_strategy.use_trend_90ma == True:
                 # 90일선 상승 추세 and 시총 체크
-                if self.stocks[code]['ma_trend2'] == TREND_UP and self.stocks[code]['market_cap'] > AGREESIVE_BUY_MARKET_CAP:
+                if self.stocks[code]['trend_90ma'] == TREND_UP and self.stocks[code]['market_cap'] > AGREESIVE_BUY_MARKET_CAP:
                     # 공격적 매수가를 위해 envelope 는 기존 전략에 비해 적다
                     # 더 일찍 매수
                     AGREESIVE_BUY_ENVELOPE = 10
@@ -901,8 +901,8 @@ class Stocks_info:
             self.stocks[code]['loss_cut_price'] = 0
             self.stocks[code]['loss_cut_done'] = False
             self.stocks[code]['recent_buy_date'] = None
-            self.stocks[code]['ma_trend'] = TREND_DOWN
-            self.stocks[code]['ma_trend2'] = TREND_DOWN
+            self.stocks[code]['trend_60ma'] = TREND_DOWN
+            self.stocks[code]['trend_90ma'] = TREND_DOWN
             self.stocks[code]['recent_sold_price'] = 0
             self.stocks[code]['first_sell_target_price'] = 0
 
@@ -1404,10 +1404,10 @@ class Stocks_info:
                 # 추세 세팅
                 if self.trade_strategy.use_trend_60ma == True:
                     # 60 이평 추세
-                    self.stocks[code]['ma_trend'] = self.get_ma_trend(code, past_day)             
+                    self.stocks[code]['trend_60ma'] = self.get_ma_trend(code, past_day)             
                 if self.trade_strategy.use_trend_90ma == True:
                     # 90 이평 추세, 90 이평은 연속 최대 8일 이하만 가능
-                    self.stocks[code]['ma_trend2'] = self.get_ma_trend(code, past_day, 90, 8, "D", TREND_UP_DOWN_DIFF_90MA_P)
+                    self.stocks[code]['trend_90ma'] = self.get_ma_trend(code, past_day, 90, 8, "D", TREND_UP_DOWN_DIFF_90MA_P)
 
                 # 손절가 세팅
                 self.stocks[code]['loss_cut_price'] = self.get_loss_cut_price(code)
@@ -1673,16 +1673,16 @@ class Stocks_info:
 
             # 60일선 추세 체크
             if self.trade_strategy.use_trend_60ma == True:
-                if self.stocks[code]['ma_trend'] < self.trade_strategy.trend_60ma:
+                if self.stocks[code]['trend_60ma'] < self.trade_strategy.trend_60ma:
                     if print_msg:
-                        PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 60일선 추세 체크({self.str_trend[self.stocks[code]['ma_trend']]})")
+                        PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 60일선 추세 체크({self.str_trend[self.stocks[code]['trend_60ma']]})")
                     return False
 
             # 90일선 추세 체크
             if self.trade_strategy.use_trend_90ma == True:
-                if self.stocks[code]['ma_trend2'] < self.trade_strategy.trend_90ma:
+                if self.stocks[code]['trend_90ma'] < self.trade_strategy.trend_90ma:
                     if print_msg:
-                        PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 90일선 추세 체크({self.str_trend[self.stocks[code]['ma_trend2']]})")
+                        PRINT_DEBUG(f"[{self.stocks[code]['name']}] 매수 금지, 90일선 추세 체크({self.str_trend[self.stocks[code]['trend_90ma']]})")
                     return False
             
             # # 1차 매수가 < 90일선 경우 매수 금지, 단 공격적 전략 경우 제외
@@ -2295,7 +2295,7 @@ class Stocks_info:
                         # 불타기는 2차 매수까지만 진행
                         if BUY_SPLIT_COUNT > 1:
                             # 상승 추세 경우만 불타기
-                            if self.stocks[code]['buy_done'][1] == False and self.stocks[code]['ma_trend'] == TREND_UP:
+                            if self.stocks[code]['buy_done'][1] == False and self.stocks[code]['trend_60ma'] == TREND_UP:
                                 self.stocks[code]['allow_monitoring_buy'] = True
                                 self.stocks[code]['status'] = "매수 모니터링"
                                 # 1차 매수 완료 경우 평단가 2~2.5% 사이에서 2차 매수(불타기)
@@ -3265,7 +3265,7 @@ class Stocks_info:
 
             # 매수가GAP 작은 순으로 정렬
             sorted_data = dict(sorted(temp_stocks.items(), key=lambda x: x[1]['buy_target_price_gap'], reverse=False))
-            data = {'종목명':[], '저평가':[], '목표가GAP(%)':[], '매수가':[], '현재가':[], '매수가GAP(%)':[], 'Envelope':[]}
+            data = {'종목명':[], '매수가gap(%)':[], '매수가':[], '현재가':[], '저평가':[], '목표가gap(%)':[], 'Envelope':[]}
             if self.trade_strategy.use_trend_60ma == True:
                 data['60일선추세'] = []
             if self.trade_strategy.use_trend_90ma == True:
@@ -3277,18 +3277,18 @@ class Stocks_info:
                 curr_price = self.get_curr_price(code)
                 buy_target_price = self.get_buy_target_price(code)
                 data['종목명'].append(sorted_data[code]['name'])
-                data['저평가'].append(sorted_data[code]['undervalue'])
-                data['목표가GAP(%)'].append(sorted_data[code]['gap_max_sell_target_price_p'])
+                data['매수가gap(%)'].append(sorted_data[code]['buy_target_price_gap'])
                 data['매수가'].append(buy_target_price)
                 data['현재가'].append(curr_price)
-                data['매수가GAP(%)'].append(sorted_data[code]['buy_target_price_gap'])
+                data['저평가'].append(sorted_data[code]['undervalue'])
+                data['목표가gap(%)'].append(sorted_data[code]['gap_max_sell_target_price_p'])
                 data['Envelope'].append(sorted_data[code]['envelope_p'])
  
                 if self.trade_strategy.use_trend_60ma == True:
-                    data['60일선추세'].append(self.str_trend[sorted_data[code]['ma_trend']])
+                    data['60일선추세'].append(self.str_trend[sorted_data[code]['trend_60ma']])
 
                 if self.trade_strategy.use_trend_90ma == True:
-                    data['90일선추세'].append(self.str_trend[sorted_data[code]['ma_trend2']])
+                    data['90일선추세'].append(self.str_trend[sorted_data[code]['trend_90ma']])
                 
                 data['상태'].append(self.stocks[code]['status'])
 
@@ -3667,11 +3667,11 @@ class Stocks_info:
             buy_rsi = int(RSI_BASE_NUMBER / self.stocks[code]['envelope_p'])
             market_cap = max(1, int(self.stocks[code]['market_cap'] / 10000))
 
-            if self.stocks[code]['ma_trend'] == TREND_UP:
+            if self.stocks[code]['trend_60ma'] == TREND_UP:
                 # 조단위 시총
                 # 시총에 따라 buy rsi 변경
                 buy_rsi += min(6, market_cap*2)
-            elif self.stocks[code]['ma_trend'] == TREND_SIDE:
+            elif self.stocks[code]['trend_60ma'] == TREND_SIDE:
                 buy_rsi += min(4, market_cap)
             # 최소 buy_rsi
             buy_rsi = max(37, buy_rsi)
