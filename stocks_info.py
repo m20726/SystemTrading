@@ -1410,56 +1410,67 @@ class Stocks_info:
         try:
             past_day = self.get_past_day()
 
-            for code in self.stocks.keys():
-                PRINT_DEBUG(f"[{self.stocks[code]['name']}]")
-                # 순서 변경 금지
-                # ex) 목표가를 구하기 위해선 평단가가 먼저 있어야한다
-                # 시가 총액
-                self.stocks[code]['market_cap'] = self.get_market_cap(code)
-                
-                # yesterday 20일선
-                self.stocks[code]['yesterday_20ma'] = self.get_ma(code, 20, past_day)
+            stocks_codes = list(self.stocks.keys())
 
-                # 1차 매수 안된 경우만 업데이트
-                if self.stocks[code]['buy_done'][0] == False:
-                    self.stocks[code]['sell_target_p'] = SELL_TARGET_P
-                    self.stocks[code]['envelope_p'] = self.get_envelope_p(code)
-                    # 매수가 세팅
-                    self.set_buy_price(code)
-                    # 매수 수량 세팅
-                    self.set_buy_qty(code)
+            def process_update_stock_trade_info(code):
+                try:
+                    stock = self.stocks[code]
+                    PRINT_DEBUG(f"[{stock['name']}]")
+                    # 순서 변경 금지
+                    # ex) 목표가를 구하기 위해선 평단가가 먼저 있어야한다
+                    # 시가 총액
+                    stock['market_cap'] = self.get_market_cap(code)
+                    
+                    # yesterday 20일선
+                    stock['yesterday_20ma'] = self.get_ma(code, 20, past_day)
 
-                # 추세 세팅
-                if self.trade_strategy.use_trend_60ma == True:
-                    # 60 이평 추세
-                    self.stocks[code]['trend_60ma'] = self.get_ma_trend(code, past_day)             
-                if self.trade_strategy.use_trend_90ma == True:
-                    # 90 이평 추세, 90 이평은 연속 최대 8일 이하만 가능
-                    self.stocks[code]['trend_90ma'] = self.get_ma_trend(code, past_day, 90, 8, "D", TREND_UP_DOWN_DIFF_90MA_P)
+                    # 1차 매수 안된 경우만 업데이트
+                    if stock['buy_done'][0] == False:
+                        stock['sell_target_p'] = SELL_TARGET_P
+                        stock['envelope_p'] = self.get_envelope_p(code)
+                        # 매수가 세팅
+                        self.set_buy_price(code)
+                        # 매수 수량 세팅
+                        self.set_buy_qty(code)
 
-                # 손절가 세팅
-                self.stocks[code]['loss_cut_price'] = self.get_loss_cut_price(code)
+                    # 추세 세팅
+                    if self.trade_strategy.use_trend_60ma == True:
+                        # 60 이평 추세
+                        stock['trend_60ma'] = self.get_ma_trend(code, past_day)             
+                    if self.trade_strategy.use_trend_90ma == True:
+                        # 90 이평 추세, 90 이평은 연속 최대 8일 이하만 가능
+                        stock['trend_90ma'] = self.get_ma_trend(code, past_day, 90, 8, "D", TREND_UP_DOWN_DIFF_90MA_P)
 
-                # 어제 종가 세팅
-                self.stocks[code]['yesterday_end_price'] = self.get_end_price(code, past_day)
+                    # 손절가 세팅
+                    stock['loss_cut_price'] = self.get_loss_cut_price(code)
 
-                # 매도 완료 후 "어제 종가 > 어제 20ma" 여야 재매수 가능
-                if self.stocks[code]['sell_all_done'] == True:
-                    # 어제 종가 > 어제 20ma
-                    if self.stocks[code]['yesterday_end_price'] > self.stocks[code]['yesterday_20ma']:
-                        # 재매수 가능
-                        self.stocks[code]['end_price_higher_than_20ma_after_sold'] = True
-                        self.stocks[code]['sell_all_done'] = False
+                    # 어제 종가 세팅
+                    stock['yesterday_end_price'] = self.get_end_price(code, past_day)
 
-                # 보유 주식 아닌 경우에 업데이트
-                if self.is_my_stock(code) == False:
-                    # 평단가 = 1차 매수가
-                    self.stocks[code]['avg_buy_price'] = self.stocks[code]['buy_price'][0]
-                    # 목표가
-                    self.stocks[code]['sell_target_price'] = self.get_sell_target_price(code)
+                    # 매도 완료 후 "어제 종가 > 어제 20ma" 여야 재매수 가능
+                    if stock['sell_all_done'] == True:
+                        # 어제 종가 > 어제 20ma
+                        if stock['yesterday_end_price'] > stock['yesterday_20ma']:
+                            # 재매수 가능
+                            stock['end_price_higher_than_20ma_after_sold'] = True
+                            stock['sell_all_done'] = False
 
-                # 주식 투자 정보 업데이트(상장 주식 수, 저평가, BPS, PER, EPS)
-                self.stocks[code]['stock_invest_info_valid'] = self.update_stock_invest_info(code)
+                    # 보유 주식 아닌 경우에 업데이트
+                    if self.is_my_stock(code) == False:
+                        # 평단가 = 1차 매수가
+                        stock['avg_buy_price'] = stock['buy_price'][0]
+                        # 목표가
+                        stock['sell_target_price'] = self.get_sell_target_price(code)
+
+                    # 주식 투자 정보 업데이트(상장 주식 수, 저평가, BPS, PER, EPS)
+                    stock['stock_invest_info_valid'] = self.update_stock_invest_info(code)
+
+                except Exception as e:
+                    PRINT_ERR(f"[{stock['name']}] 처리 중 오류: {e}")
+            #################### end of process_update_stock_trade_info() ####################
+
+            with ThreadPoolExecutor(max_workers=14) as executor:
+                executor.map(process_update_stock_trade_info, stocks_codes)
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -2477,6 +2488,7 @@ class Stocks_info:
             if code not in self.stocks.keys():
                 # 보유는 하지만 stocks_info.json 에 없는 종목 제외 ex) 공모주
                 return False, 0
+            
             order_list = self.get_order_list()
             for stock in order_list:
                 if stock['pdno'] == code:
@@ -3883,27 +3895,40 @@ class Stocks_info:
         msg = ""
         try:
             PRINT_INFO(F"지수 폭락({market_profit_p}%)으로 envelope 증가시켜 1차 매수가 낮춘다")
-            for code in self.stocks.keys():                
-                # 1차 매수 안된 경우만 업데이트
-                if self.stocks[code]['buy_done'][0] == False:
-                    # envelope 증가 등으로 보수적으로 접근
-                    # ex) 지수가 4% 폭락 시 4/2+1 = 3 을 envelope 증가
-                    self.stocks[code]['envelope_p'] = self.get_envelope_p(code, True, market_profit_p)
 
-                    # 매수가 세팅
-                    self.set_buy_price(code)
-                    # 매수 수량 세팅
-                    self.set_buy_qty(code)                    
+            stocks_codes = list(self.stocks.keys())
 
-                # 보유 주식 아닌 경우에 업데이트
-                if self.is_my_stock(code) == False:
-                    # 평단가 = 1차 매수가
-                    self.stocks[code]['avg_buy_price'] = self.stocks[code]['buy_price'][0]
-                    # 목표가
-                    self.stocks[code]['sell_target_price'] = self.get_sell_target_price(code)
-                    PRINT_DEBUG(f"[{self.stocks[code]['name']}] new envelope {self.stocks[code]['envelope_p']}")
+            def process_update_stock_trade_info_market_crash(code):
+                try:
+                    stock = self.stocks[code]
 
-                time.sleep(0.001)   # context switching between threads(main thread 와 buy_sell_task 가 context switching)
+                    # 1차 매수 안된 경우만 업데이트
+                    if stock['buy_done'][0] == False:
+                        # envelope 증가 등으로 보수적으로 접근
+                        # ex) 지수가 4% 폭락 시 4/2+1 = 3 을 envelope 증가
+                        stock['envelope_p'] = self.get_envelope_p(code, True, market_profit_p)
+
+                        # 매수가 세팅
+                        self.set_buy_price(code)
+                        # 매수 수량 세팅
+                        self.set_buy_qty(code)                    
+
+                    # 보유 주식 아닌 경우에 업데이트
+                    if self.is_my_stock(code) == False:
+                        # 평단가 = 1차 매수가
+                        stock['avg_buy_price'] = stock['buy_price'][0]
+                        # 목표가
+                        stock['sell_target_price'] = self.get_sell_target_price(code)
+                        PRINT_DEBUG(f"[{stock['name']}] new envelope {stock['envelope_p']}")
+
+                    time.sleep(0.001)   # context switching between threads(main thread 와 buy_sell_task 가 context switching)
+
+                except Exception as e:
+                    PRINT_ERR(f"[{stock['name']}] 처리 중 오류: {e}")
+            #################### end of process_update_stock_trade_info_market_crash() ####################
+
+            with ThreadPoolExecutor(max_workers=14) as executor:
+                executor.map(process_update_stock_trade_info_market_crash, stocks_codes)
             
             # 매수 주문 후 시장 폭락으로 buy_qty 변경되었는데 변경 전 buy_qty 로 매수 완료 경우 매수 완료 처리 안되는 문제 발생
             # -> 기존 미체결 매수 주문 취소
