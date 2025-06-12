@@ -3294,10 +3294,10 @@ class Stocks_info:
         result = True
         msg = ""
         try:
-            # dict 접근을 한번만 하여 성능 향상
-            stock = self.stocks[code]
-
             for code in self.stocks.keys():
+                # dict 접근을 한번만 하여 성능 향상
+                stock = self.stocks[code]
+                
                 stock['allow_monitoring_buy'] = False
                 stock['allow_monitoring_sell'] = False                 
                 stock['loss_cut_order'] = False
