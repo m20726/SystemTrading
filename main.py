@@ -41,8 +41,7 @@ def main():
     try:
         PRINT_DEBUG("=== Program Start ===")
 
-        today = datetime.datetime.today().weekday()
-        if today == SATURDAY or today == SUNDAY:  # 토요일이나 일요일이면 자동 종료
+        if TODAY == SATURDAY or TODAY == SUNDAY:  # 토요일이나 일요일이면 자동 종료
             PRINT_DEBUG("=== Weekend, Program End ===")
             return
 
@@ -72,17 +71,8 @@ def main():
         #     del stocks_info.stocks[code]['sell_done'][2]
         # stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
 
-        t_now = datetime.datetime.now()
-        t_start = t_now.replace(hour=9, minute=0, second=0, microsecond=0)
-        # 종가 손절은 15:15분에 체크
-        t_loss_cut = t_now.replace(hour=15, minute=15, second=0, microsecond=0)
-        # 장 종료 후 15:35분에 미체결 주문 없으면 종료 위해 
-        t_market_end_order_check = t_now.replace(hour=15, minute=35, second=0, microsecond=0)
-        # 종가 매매 위해 16:00 에 종료
-        t_exit = t_now.replace(hour=16, minute=00, second=0,microsecond=0)
-
         # # 주식 정보 업데이트는 장 전후
-        # if t_now < t_start or t_now > t_market_end_order_check:
+        # if t_now < T_MARKET_START or t_now > T_MARKET_END_ORDER_CHECK:
         #     stocks_info.update_stocks_trade_info()
         #     stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
         # else:
@@ -108,14 +98,14 @@ def main():
 
         while True:
             t_now = datetime.datetime.now()
-            if t_start <= t_now:
-                if t_exit < t_now:  # 종료
+            if T_MARKET_START <= t_now:
+                if T_PROGRAM_EXIT < t_now:  # 종료
                     PRINT_DEBUG(f"=== Exit loop {t_now} ===")
                     break
-                elif stocks_info.trade_strategy.loss_cut_time == LOSS_CUT_MARKET_CLOSE and t_loss_cut < t_now:  # 종가 매매
+                elif stocks_info.trade_strategy.loss_cut_time == LOSS_CUT_MARKET_CLOSE and T_LOSS_CUT < t_now:  # 종가 매매
                     stocks_info.handle_loss_cut()
 
-                if t_market_end_order_check < t_now:
+                if T_MARKET_END_ORDER_CHECK < t_now:
                     # 미체결 주문 없으면 종료
                     if len(stocks_info.get_order_list("02")) == 0:
                         PRINT_DEBUG(f"=== Exit loop {t_now} ===")
