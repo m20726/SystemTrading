@@ -44,6 +44,8 @@ def main():
         if TODAY == SATURDAY or TODAY == SUNDAY:  # 토요일이나 일요일이면 자동 종료
             PRINT_DEBUG("=== Weekend, Program End ===")
             return
+        
+        t_now = datetime.datetime.now()
 
         stocks_info = Stocks_info()        
         stocks_info.initialize()
@@ -74,8 +76,10 @@ def main():
         stocks_info.show_stocks(False)
         stocks_info.get_stock_balance()
 
-        stocks_info.update_buyable_stocks()
-        stocks_info.show_buyable_stocks()
+        # 장 종료 후는 매수 가능 종목 불필요
+        if t_now < T_MARKET_END:
+            stocks_info.update_buyable_stocks()
+            stocks_info.show_buyable_stocks()
 
         pre_stocks = copy.deepcopy(stocks_info.stocks)
 
