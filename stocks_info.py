@@ -575,7 +575,7 @@ class Stocks_info:
                 return False
             
             # 공격적 매수 시 시총 기준
-            AGREESIVE_BUY_MARKET_CAP = 10000    # 단위:억
+            AGREESIVE_BUY_MARKET_CAP = 9000    # 단위:억
 
             if self.trade_strategy.use_trend_90ma:
                 # 90일선 상승 추세 and 시총 체크
