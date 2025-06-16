@@ -191,7 +191,6 @@ class Stocks_info:
         self.trade_strategy = Trade_strategy()
 
         self.buyable_stocks_lock = threading.Lock()
-
         self.request_lock = threading.Lock()
 
         self.before_trade_done_my_stock_count = 0       # 체결 전 보유 종목 수
@@ -442,8 +441,7 @@ class Stocks_info:
     def is_request_ok(self, res):
         if res.json()['rt_cd'] == '0':
             return True
-        else:
-            return False
+        return False
 
     ##############################################################
     # percent 값 리턴
@@ -736,7 +734,7 @@ class Stocks_info:
                             stock['sell_done'][i] = True
                             stock['status'] = f"{i+1}차 매도 완료"
                             # 1차 매도 완료 시 매도가 > 10ma 체크하여 2차 매도 길게 처리할지 판단
-                            if i == 1:
+                            if i == 0:
                                 self.set_sell_strategy(code, sold_price)
                             break
                     stock['recent_sold_price'] = sold_price
@@ -2138,6 +2136,10 @@ class Stocks_info:
             # 매수 가능 종목내에서만 매수
             with self.buyable_stocks_lock:
                 for code in self.buyable_stocks.keys():
+                    # 매수,매도 등 처리하지 않는 종목, stocks_info.json 에 없는 종목은 제외
+                    if code in self.not_handle_stock_list or code not in self.stocks.keys():
+                        continue
+
                     # 종목별로 lock 걸어서 공유 자원 보호
                     with self.stock_locks[code]:
                         # dict 접근을 한번만 하여 성능 향상
@@ -2148,15 +2150,7 @@ class Stocks_info:
                         # # buyable 종목, 보유 종목 많을 수록 종목 체크 시간이 길어짐
                         # PRINT_DEBUG(f"[{stock['name']}]")
 
-                        # 매수,매도 등 처리하지 않는 종목
-                        if code in self.not_handle_stock_list:
-                            continue
                         
-                        # stocks_info.json 에 없는 종목은 제외
-                        if code not in self.stocks.keys():
-                            continue                
-
-
                         price_data = self.get_price_data(code)
                         curr_price = int(price_data['stck_prpr'])
                         if curr_price == 0:
@@ -2236,9 +2230,13 @@ class Stocks_info:
         result = True
         msg = ""
         try:
-            # 종목별로 lock 걸어서 공유 자원 보호
-            with self.stock_locks[code]:            
-                for code in self.my_stocks.keys():
+            for code in self.my_stocks.keys():
+                # 매수,매도 등 처리하지 않는 종목, stocks_info.json 에 없는 종목은 제외
+                if code in self.not_handle_stock_list or code not in self.stocks.keys():
+                    continue
+
+                # 종목별로 lock 걸어서 공유 자원 보호
+                with self.stock_locks[code]:
                     # dict 접근을 한번만 하여 성능 향상
                     stock = self.stocks[code]
 
@@ -2247,13 +2245,6 @@ class Stocks_info:
                     # # buyable 종목, 보유 종목 많을 수록 종목 체크 시간이 길어짐
                     # PRINT_DEBUG(f"[{stock['name']}]")
 
-                    # 매수,매도 등 처리하지 않는 종목
-                    if code in self.not_handle_stock_list:
-                        continue
-
-                    # stocks_info.json 에 없는 종목은 제외
-                    if code not in self.stocks.keys():
-                        continue
 
                     price_data = self.get_price_data(code)
                     curr_price = int(price_data['stck_prpr'])
@@ -2986,16 +2977,12 @@ class Stocks_info:
             NO_BUY_DAYS = 15
 
             for code in self.my_stocks.keys():
+                # 매수,매도 등 처리하지 않는 종목, stocks_info.json 에 없는 종목은 제외
+                if code in self.not_handle_stock_list or code not in self.stocks.keys():
+                    continue
+                
                 # 종목별로 lock 걸어서 공유 자원 보호
                 with self.stock_locks[code]:                
-                    # 매수,매도 등 처리하지 않는 종목
-                    if code in self.not_handle_stock_list:
-                        continue
-
-                    # stocks_info.json 에 없는 종목은 제외
-                    if code not in self.stocks.keys():
-                        continue
-
                     # dict 접근을 한번만 하여 성능 향상
                     stock = self.stocks[code]
 
@@ -3899,25 +3886,24 @@ class Stocks_info:
         msg = ""
         ret = None
         try:
-            self.request_lock.acquire()
-            # requests.Session()을 사용하여 세션 객체를 생성하고(rs), 그 세션을 통해 get 요청을 보내는 것입니다.
-            # 세션 객체는 요청 간에 쿠키나 연결 상태를 유지합니다. 이를 통해 서버와의 지속적인 연결을 유지하고, 
-            # 같은 서버로의 반복적인 요청을 효율적으로 처리할 수 있습니다.
-            rs = requests.session()
-            # HTTPAdapter를 통해 HTTP 연결 풀의 크기 및 재시도 횟수를 설정합니다
-            # pool_connections=3: 연결 풀에 최대 3개의 연결을 유지합니다.
-            # pool_maxsize=10: 이 세션을 통해 최대 10개의 연결을 동시에 처리할 수 있습니다
-            # max_retries=3: 요청이 실패했을 때 최대 3번 재시도합니다.
-            rs.mount('https://', requests.adapters.HTTPAdapter(pool_connections=3, pool_maxsize=10, max_retries=3))
-            ret = rs.get(URL, headers=headers, params=params)
-            time.sleep(API_DELAY_S)
+            with self.request_lock:
+                # requests.Session()을 사용하여 세션 객체를 생성하고(rs), 그 세션을 통해 get 요청을 보내는 것입니다.
+                # 세션 객체는 요청 간에 쿠키나 연결 상태를 유지합니다. 이를 통해 서버와의 지속적인 연결을 유지하고, 
+                # 같은 서버로의 반복적인 요청을 효율적으로 처리할 수 있습니다.
+                rs = requests.session()
+                # HTTPAdapter를 통해 HTTP 연결 풀의 크기 및 재시도 횟수를 설정합니다
+                # pool_connections=3: 연결 풀에 최대 3개의 연결을 유지합니다.
+                # pool_maxsize=10: 이 세션을 통해 최대 10개의 연결을 동시에 처리할 수 있습니다
+                # max_retries=3: 요청이 실패했을 때 최대 3번 재시도합니다.
+                rs.mount('https://', requests.adapters.HTTPAdapter(pool_connections=3, pool_maxsize=10, max_retries=3))
+                ret = rs.get(URL, headers=headers, params=params)
+                time.sleep(API_DELAY_S)
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
         finally:
             if result == False:
                 self.SEND_MSG_ERR(msg)
-            self.request_lock.release()
             return ret
 
     ##############################################################
@@ -3933,16 +3919,12 @@ class Stocks_info:
         need_total_invest_money = 0
         try:
             for code in self.my_stocks.keys():
+                # 매수,매도 등 처리하지 않는 종목, stocks_info.json 에 없는 종목은 제외
+                if code in self.not_handle_stock_list or code not in self.stocks.keys():
+                    continue
+                
                 # 종목별로 lock 걸어서 공유 자원 보호
-                with self.stock_locks[code]:                 
-                    # 매수,매도 등 처리하지 않는 종목
-                    if code in self.not_handle_stock_list:
-                        continue
-
-                    # stocks_info.json 에 없는 종목은 제외
-                    if code not in self.stocks.keys():
-                        continue
-                    
+                with self.stock_locks[code]:
                     # 보유 주식 중 투자에 필요한 금액
                     for i in range(len(self.buy_invest_money)):
                         if self.stocks[code]['buy_done'][i] == False:
