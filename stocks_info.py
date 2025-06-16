@@ -161,7 +161,6 @@ class Trade_strategy:
         self.max_per = 0                                        # PER가 이 값 이상이면 매수 금지
         self.buyable_market_cap = 10000                         # 시총 X 미만 매수 금지(억)
         self.buy_split_strategy = BUY_SPLIT_STRATEGY_DOWN       # 2차 분할 매수 전략(물타기, 불타기)
-        self.sell_strategy = SELL_STRATEGY_TARGET_PRICE         # 매도 전략
         self.buy_trailing_stop = False                          # 매수 시 트레일링 스탑으로 할지
         self.sell_trailing_stop = False                         # 매도 시 트레일링 스탑으로 할지
         self.trend_60ma = TREND_SIDE                            # 추세선이 이거 이상이여야 매수
@@ -277,11 +276,6 @@ class Stocks_info:
             PRINT_DEBUG(f'{BUY_SPLIT_COUNT}차 매수 물타기')
         elif self.trade_strategy.buy_split_strategy == BUY_SPLIT_STRATEGY_UP:
             PRINT_DEBUG(f'{BUY_SPLIT_COUNT}차 매수 불타기')
-
-        if self.trade_strategy.sell_strategy == SELL_STRATEGY_TARGET_PRICE:
-            PRINT_DEBUG(f'정해진 매도 목표가')
-        elif self.trade_strategy.sell_strategy == SELL_STRATEGY_LONG:
-            PRINT_DEBUG(f'2차 매도가 길게(10일선 종가 이탈)')
         
         # 목표가 출력
         for i in range(SELL_SPLIT_COUNT):
@@ -289,9 +283,8 @@ class Stocks_info:
                 target_p = SELL_TARGET_P
                 PRINT_DEBUG(f'{i + 1}차 목표가 {target_p} %')
             else:
-                if self.trade_strategy.sell_strategy == SELL_STRATEGY_TARGET_PRICE: 
-                    target_p = SELL_TARGET_P + (NEXT_SELL_TARGET_MARGIN_P * i)
-                    PRINT_DEBUG(f'{i + 1}차 목표가 {target_p} %')
+                target_p = SELL_TARGET_P + (NEXT_SELL_TARGET_MARGIN_P * i)
+                PRINT_DEBUG(f'{i + 1}차 목표가 {target_p} %')
 
         trend_msg = dict()
         trend_msg[TREND_DOWN] = "하락 추세"
@@ -752,6 +745,9 @@ class Stocks_info:
                     if stock['sell_done'][i] == False:
                         stock['sell_done'][i] = True
                         stock['status'] = f"{i+1}차 매도 완료"
+                        #TODO: 1차 매도 완료 시 매도가 > 10ma 체크하여 2차 매도 길게 처리할지 판단
+                        if i == 1:
+                            self.set_sell_strategy(code, sold_price)
                         break
                 stock['recent_sold_price'] = sold_price
                 self.update_my_stocks()
@@ -850,6 +846,7 @@ class Stocks_info:
                 stock['sell_done'].append(False)
             
             stock['status'] = ""
+            stock['sell_strategy'] = SELL_STRATEGY_TARGET_PRICE
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -883,13 +880,8 @@ class Stocks_info:
                     else:
                         price = stock['sell_target_price']
             else:
-                # 1차 매도 완료 경우
-                if self.trade_strategy.sell_strategy == SELL_STRATEGY_LONG:
-                    # 사실 상 손절/익절에서 2차 매도 처리
-                    price = stock['recent_sold_price'] * 2  # 2배
-                else:
-                    # N차 매도가 : N-1차 매도가 * x (N>=2)
-                    price = stock['recent_sold_price'] * (1 + self.to_percent(NEXT_SELL_TARGET_MARGIN_P))
+                # N차 매도가 : N-1차 매도가 * x (N>=2)
+                price = stock['recent_sold_price'] * (1 + self.to_percent(NEXT_SELL_TARGET_MARGIN_P))
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -2305,6 +2297,9 @@ class Stocks_info:
                             self.set_order_done(code, SELL_CODE)
                             PRINT_INFO(f"[{stock['name']}] 매도 주문, {qty}주 {curr_price}(현재가) >= {sell_target_price}(목표가)")                        
                 else:   # 1차 매도된 상태
+                    if stock['sell_strategy'] == SELL_STRATEGY_LONG:
+                        continue  # 2차 매도 길게 전략은 손절에서 매도 처리
+
                     # ex) 2차 매도가오면 monitoring 하면서 trailing stop
                     if self.trade_strategy.sell_trailing_stop == True:
                         # 트레일링 스탑으로 매도 처리
@@ -2984,9 +2979,8 @@ class Stocks_info:
                         price = stock['avg_buy_price'] * (1 - self.to_percent(LOSS_CUT_P))
             else:   # 1차 매도 된 상태
                 # N차 매도 후 나머지 물량은 익절선을 낮추어 길게 간다
-                if self.trade_strategy.sell_strategy == SELL_STRATEGY_LONG:
-                    # 10일선
-                    price = self.get_ma(code, 10)
+                if stock['sell_strategy'] == SELL_STRATEGY_LONG:                        
+                    price = self.get_ma(code, 10)   # 10일선
                 else:
                     # 익절가 = 평단가과 최근 매도가의 중간
                     price = stock['avg_buy_price'] + (stock['recent_sold_price'] - stock['avg_buy_price']) / 2
@@ -4116,4 +4110,31 @@ class Stocks_info:
         finally:
             if result == False:
                 self.SEND_MSG_ERR(msg)
-            return past_day        
+            return past_day
+
+    ##############################################################
+    # 매도 전략 세팅
+    #   1차 매도 완료 시 매도가 > 10ma 체크하여 2차 매도 길게 처리할지 판단
+    #   SELL_STRATEGY_TARGET_PRICE : 2차 매도는 정해진 2차 목표가
+    #   SELL_STRATEGY_LONG : 2차 매도 수익 길게, "종가 < 10일선" 이탈 시 익절
+    # param :
+    #   code            종목 코드
+    #   sold_price      매도 가격
+    ##############################################################
+    def set_sell_strategy(self, code, sold_price):
+        result = True
+        msg = ""
+        try:
+            # dict 접근을 한번만 하여 성능 향상
+            stock = self.stocks[code]
+            price_10ma = self.get_ma(code, 10)
+            if sold_price > price_10ma:
+                stock['sell_strategy'] = SELL_STRATEGY_LONG
+            else:
+                stock['sell_strategy'] = SELL_STRATEGY_TARGET_PRICE
+        except Exception as ex:
+            result = False
+            msg = "{}".format(traceback.format_exc())
+        finally:
+            if result == False:
+                self.SEND_MSG_ERR(msg)        
