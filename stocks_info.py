@@ -53,6 +53,12 @@ BUY_SPLIT_STRATEGY_DOWN = 0
 # 2차 매수 불타기
 BUY_SPLIT_STRATEGY_UP = 1
 
+# 2차 매도는 정해진 2차 목표가
+SELL_STRATEGY_TARGET_PRICE = 0
+# 2차 매도 수익 길게
+# 1차 매도 당일 "매도가 < 10일선" 경우는 기존 정해진 목표가로 처리 필요
+SELL_STRATEGY_LONG = 1
+
 # 매수량 1주만 매수 여부
 BUY_QTY_1 = False
 
@@ -577,9 +583,9 @@ class Stocks_info:
                 if stock['trend_90ma'] == TREND_UP and stock['market_cap'] > AGREESIVE_BUY_MARKET_CAP:
                     # 공격적 매수가를 위해 envelope 는 기존 전략에 비해 적다
                     # 더 일찍 매수
-                    AGREESIVE_BUY_ENVELOPE = 12
+                    AGREESIVE_BUY_ENVELOPE = 11
                     # 공격적 매수 시 급락 가격은 한달 내 최고 종가에서 x% 빠졌을 때
-                    AGREESIVE_BUY_PLUNGE_PRICE_MARGIN_P = 18
+                    AGREESIVE_BUY_PLUNGE_PRICE_MARGIN_P = 19
 
                     envelope_p = self.to_percent(AGREESIVE_BUY_ENVELOPE)
                     envelope_support_line = stock['yesterday_20ma'] * (1 - envelope_p)
@@ -818,6 +824,9 @@ class Stocks_info:
                         if not stock['sell_done'][i]:
                             stock['sell_done'][i] = True
                             stock['status'] = f"{i+1}차 매도 완료"
+                            # 1차 매도 완료 시 매도가 > 10ma 체크하여 2차 매도 길게 처리할지 판단
+                            if i == 1:
+                                self.set_sell_strategy(code, sold_price)                            
                             break
                     stock['recent_sold_price'] = sold_price
                     self.update_my_stocks()
@@ -917,6 +926,7 @@ class Stocks_info:
             
             stock['status'] = ""
             stock['lowest_price_1'] = 0
+            stock['sell_strategy'] = SELL_STRATEGY_TARGET_PRICE
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -2361,6 +2371,9 @@ class Stocks_info:
                                 self.set_order_done(code, SELL_CODE)
                                 PRINT_INFO(f"[{stock['name']}] 매도 주문, {qty}주 {curr_price}(현재가) >= {sell_target_price}(목표가)")
                     else:   # 1차 매도된 상태
+                        if stock['sell_strategy'] == SELL_STRATEGY_LONG:
+                            continue  # 2차 매도 길게 전략은 손절에서 매도 처리
+                                                
                         # ex) 2차 매도가오면 monitoring 하면서 trailing stop
                         if self.trade_strategy.sell_trailing_stop:
                             # 트레일링 스탑으로 매도 처리
@@ -3040,8 +3053,11 @@ class Stocks_info:
                         price = stock['avg_buy_price'] * (1 - self.to_percent(LOSS_CUT_P))
             else:   # 1차 매도 된 상태
                 # N차 매도 후 나머지 물량은 익절선을 낮추어 길게 간다
-                # 익절가 = 평단가과 최근 매도가의 중간
-                price = stock['avg_buy_price'] + (stock['recent_sold_price'] - stock['avg_buy_price']) / 2
+                if stock['sell_strategy'] == SELL_STRATEGY_LONG:                        
+                    price = self.get_ma(code, 10)   # 10일선
+                else:
+                    # 익절가 = 평단가과 최근 매도가의 중간
+                    price = stock['avg_buy_price'] + (stock['recent_sold_price'] - stock['avg_buy_price']) / 2
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -4344,4 +4360,31 @@ class Stocks_info:
             msg = "{}".format(traceback.format_exc())
         finally:
             if not result:
+                self.SEND_MSG_ERR(msg)
+
+    ##############################################################
+    # 매도 전략 세팅
+    #   1차 매도 완료 시 매도가 > 10ma 체크하여 2차 매도 길게 처리할지 판단
+    #   SELL_STRATEGY_TARGET_PRICE : 2차 매도는 정해진 2차 목표가
+    #   SELL_STRATEGY_LONG : 2차 매도 수익 길게, "종가 < 10일선" 이탈 시 익절
+    # param :
+    #   code            종목 코드
+    #   sold_price      매도 가격
+    ##############################################################
+    def set_sell_strategy(self, code, sold_price):
+        result = True
+        msg = ""
+        try:
+            # dict 접근을 한번만 하여 성능 향상
+            stock = self.stocks[code]
+            price_10ma = self.get_ma(code, 10)
+            if sold_price > price_10ma:
+                stock['sell_strategy'] = SELL_STRATEGY_LONG
+            else:
+                stock['sell_strategy'] = SELL_STRATEGY_TARGET_PRICE
+        except Exception as ex:
+            result = False
+            msg = "{}".format(traceback.format_exc())
+        finally:
+            if result == False:
                 self.SEND_MSG_ERR(msg)

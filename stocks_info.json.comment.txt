@@ -64,7 +64,11 @@
             0
         ],
         "sell_all_done": false,                                 전체 매도 완료 여부
-        "status": "1차 매도 완료",                                상태
-        "lowest_price_1": 0                                     매수 모니터링 시작한 저가
+        "status": "1차 매도 완료",                               상태
+        "lowest_price_1": 0,                                    매수 모니터링 시작한 저가
+        "sell_strategy" : 0,                                    2차 매도 전략, 
+                                                                0 : 지정가
+                                                                1 : 10일선 이탈 시
+
     }
 }
