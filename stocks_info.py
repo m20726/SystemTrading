@@ -1403,14 +1403,14 @@ class Stocks_info:
     ##############################################################
     # 시가총액, 20일선 등 기본 정보 설정
     ##############################################################
-    def update_stock_trade_basic_info(self, code, stock, past_day):
+    def _update_stock_trade_basic_info(self, code, stock, past_day):
         stock['market_cap'] = self.get_market_cap(code)
         stock['yesterday_20ma'] = self.get_ma(code, 20, past_day)
 
     ##############################################################
     # 1차 매수 안된 경우만 업데이트
     ##############################################################
-    def update_stock_trade_buy_info(self, code, stock):
+    def _update_stock_trade_buy_info(self, code, stock):
         if not stock['buy_done'][0]:
             stock['sell_target_p'] = SELL_TARGET_P
             stock['envelope_p'] = self.get_envelope_p(code)
@@ -1420,7 +1420,7 @@ class Stocks_info:
     ##############################################################
     # 추세 전략 적용
     ##############################################################
-    def update_stock_trade_trend_info(self, code, stock, past_day):
+    def _update_stock_trade_trend_info(self, code, stock, past_day):
         if self.trade_strategy.use_trend_60ma:
             stock['trend_60ma'] = self.get_ma_trend(code, past_day)
         if self.trade_strategy.use_trend_90ma:
@@ -1432,7 +1432,7 @@ class Stocks_info:
     ##############################################################
     # 손절가, 어제 종가 설정
     ##############################################################
-    def update_stock_trade_price_info(self, code, stock, past_day):
+    def _update_stock_trade_price_info(self, code, stock, past_day):
         stock['loss_cut_price'] = self.get_loss_cut_price(code)
         stock['yesterday_end_price'] = self.get_end_price(code, past_day)
 
@@ -1440,7 +1440,7 @@ class Stocks_info:
     # 재매수 가능 조건 체크
     #   매도 완료 후 "어제 종가 > 어제 20ma" 여야 재매수 가능
     ##############################################################
-    def update_stock_trade_rebuy_condition(self, stock):
+    def _update_stock_trade_rebuy_condition(self, stock):
         if stock['sell_all_done'] and stock['yesterday_end_price'] > stock['yesterday_20ma']:
             stock['end_price_higher_than_20ma_after_sold'] = True
             stock['sell_all_done'] = False
@@ -1449,7 +1449,7 @@ class Stocks_info:
     # 보유 주식 아닌 경우에 업데이트
     #   평단가, 목표가 설정
     ##############################################################
-    def update_stock_trade_not_my_stock_info(self, code, stock):
+    def _update_stock_trade_not_my_stock_info(self, code, stock):
         if not self.is_my_stock(code):
             stock['avg_buy_price'] = stock['buy_price'][0]  # 평단가 = 1차 매수가
             stock['sell_target_price'] = self.get_sell_target_price(code)   # 목표가
@@ -1473,12 +1473,12 @@ class Stocks_info:
 
                     # 순서 변경 금지
                     # ex) 목표가를 구하기 위해선 평단가가 먼저 있어야한다                    
-                    self.update_stock_trade_basic_info(code, stock, past_day)
-                    self.update_stock_trade_buy_info(code, stock)
-                    self.update_stock_trade_trend_info(code, stock, past_day)
-                    self.update_stock_trade_price_info(code, stock, past_day)
-                    self.update_stock_trade_rebuy_condition(stock)
-                    self.update_stock_trade_not_my_stock_info(code, stock)
+                    self._update_stock_trade_basic_info(code, stock, past_day)
+                    self._update_stock_trade_buy_info(code, stock)
+                    self._update_stock_trade_trend_info(code, stock, past_day)
+                    self._update_stock_trade_price_info(code, stock, past_day)
+                    self._update_stock_trade_rebuy_condition(stock)
+                    self._update_stock_trade_not_my_stock_info(code, stock)
 
                     # 주식 투자 정보 업데이트(상장 주식 수, 저평가, BPS, PER, EPS)
                     stock['stock_invest_info_valid'] = self.update_stock_invest_info(code)
@@ -1489,61 +1489,6 @@ class Stocks_info:
 
             with ThreadPoolExecutor(max_workers=14) as executor:
                 executor.map(process_update_stock_trade_info, stocks_codes)            
-            # past_day = self.get_past_day()
-
-            # # dict 접근을 한번만 하여 성능 향상
-            # stock = self.stocks[code]
-
-            # for code in self.stocks.keys():
-            #     PRINT_DEBUG(f"[{stock['name']}]")
-            #     # 순서 변경 금지
-            #     # ex) 목표가를 구하기 위해선 평단가가 먼저 있어야한다
-            #     # 시가 총액
-            #     stock['market_cap'] = self.get_market_cap(code)
-                
-            #     # yesterday 20일선
-            #     stock['yesterday_20ma'] = self.get_ma(code, 20, past_day)
-
-            #     # 1차 매수 안된 경우만 업데이트
-            #     if not stock['buy_done'][0]:
-            #         stock['sell_target_p'] = SELL_TARGET_P
-            #         stock['envelope_p'] = self.get_envelope_p(code)
-            #         # 매수가 세팅
-            #         self.set_buy_price(code)
-            #         # 매수 수량 세팅
-            #         self.set_buy_qty(code)
-
-            #     # 추세 세팅
-            #     if self.trade_strategy.use_trend_60ma:
-            #         # 60 이평 추세
-            #         stock['trend_60ma'] = self.get_ma_trend(code, past_day)             
-            #     if self.trade_strategy.use_trend_90ma:
-            #         # 90 이평 추세, 90 이평은 연속 최대 8일 이하만 가능
-            #         stock['trend_90ma'] = self.get_ma_trend(code, past_day, 90, 8, "D", TREND_UP_DOWN_DIFF_90MA_P)
-
-            #     # 손절가 세팅
-            #     stock['loss_cut_price'] = self.get_loss_cut_price(code)
-
-            #     # 어제 종가 세팅
-            #     stock['yesterday_end_price'] = self.get_end_price(code, past_day)
-
-            #     # 매도 완료 후 "어제 종가 > 어제 20ma" 여야 재매수 가능
-            #     if stock['sell_all_done']:
-            #         # 어제 종가 > 어제 20ma
-            #         if stock['yesterday_end_price'] > stock['yesterday_20ma']:
-            #             # 재매수 가능
-            #             stock['end_price_higher_than_20ma_after_sold'] = True
-            #             stock['sell_all_done'] = False
-
-            #     # 보유 주식 아닌 경우에 업데이트
-            #     if not self.is_my_stock(code):
-            #         # 평단가 = 1차 매수가
-            #         stock['avg_buy_price'] = stock['buy_price'][0]
-            #         # 목표가
-            #         stock['sell_target_price'] = self.get_sell_target_price(code)
-
-            #     # 주식 투자 정보 업데이트(상장 주식 수, 저평가, BPS, PER, EPS)
-            #     stock['stock_invest_info_valid'] = self.update_stock_invest_info(code)
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -1804,14 +1749,6 @@ class Stocks_info:
                         PRINT_DEBUG(f"[{stock['name']}] 매수 금지, 90일선 추세 체크({self.str_trend[stock['trend_90ma']]})")
                     return False
             
-            # # 1차 매수가 < 90일선 경우 매수 금지, 단 공격적 전략 경우 제외
-            # if self.trade_strategy.invest_risk != INVEST_RISK_HIGH:
-            #     ma_90 = self.get_ma(code, 90)
-            #     if stock['buy_price'][0] < ma_90:
-            #         if print_msg:
-            #             PRINT_DEBUG(f"[{stock['name']}] 매수 금지, 1차 매수가({stock['buy_price'][0]}) < 90일선({ma_90})")
-            #         return False
-
             # 20,60,90 정배열 체크
             # 이평선 간에 x% 이상 차이나야 정배열
             if self.get_multi_ma_status(code, [20,60,90], "D", MA_DIFF_P) != MA_UP_TREND:
@@ -2211,7 +2148,6 @@ class Stocks_info:
             if order_type != ORDER_TYPE_LIMIT_ORDER:
                 price = 0
 
-            
             # 시장가 주문은 조건 안따진다
             if order_type != ORDER_TYPE_MARKET_ORDER:
                 if not stock['allow_monitoring_sell']:
@@ -2630,7 +2566,7 @@ class Stocks_info:
     ##############################################################
     # 평균 체결가 리턴
     ##############################################################
-    def get_avg_trade_done_price(self, order_stock, trade_done_price):
+    def _get_avg_trade_done_price(self, order_stock, trade_done_price):
         # 매도 체결가 오류 처리 : check_trade_done() 에서 체결 완료된 trade_done_avg_price 를 avg_price 로 세팅한다.
         avg_price = trade_done_price if trade_done_price > 0 else int(order_stock['avg_prvs'])
 
@@ -2643,7 +2579,7 @@ class Stocks_info:
     ##############################################################
     # 체결 후 처리 루틴
     ##############################################################
-    def handle_post_trade_updates(self):
+    def _handle_post_trade_updates(self):
         self.show_trade_done_stocks(BUY_CODE)
         self.show_trade_done_stocks(SELL_CODE)
 
@@ -2696,7 +2632,7 @@ class Stocks_info:
 
                 if trade_success:
                     is_trade_done = True
-                    avg_trade_done_price = self.get_avg_trade_done_price(order_stock, trade_done_price)
+                    avg_trade_done_price = self._get_avg_trade_done_price(order_stock, trade_done_price)
 
                     if buy_sell == BUY_CODE:
                         self.set_buy_done(code, avg_trade_done_price)
@@ -2707,7 +2643,7 @@ class Stocks_info:
                  
             # 여러 종목 체결되도 결과는 한 번만 출력
             if is_trade_done:
-                self.handle_post_trade_updates()
+                self._handle_post_trade_updates()
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -2805,15 +2741,15 @@ class Stocks_info:
         result = True
         msg = ""
         try:
+            order_list = self.get_order_list()
+            if len(order_list) == 0:
+                return None
+
             trade_done_stock_count = 0
             if buy_sell == BUY_CODE:
                 data = {'종목명':[], '매수/매도':[], '체결평균가':[], '수량':[], '현재가':[]}
             else:
                 data = {'종목명':[], '매수/매도':[], '체결평균가':[], '평단가':[], '손익':[], '수익률(%)':[], '수량':[], '현재가':[]}
-
-            order_list = self.get_order_list()
-            if len(order_list) == 0:
-                return None
 
             # PRINT_DEBUG(f"========={self.buy_sell_msg[buy_sell]} 체결 조회=========")
             for order_stock in order_list:
@@ -3547,140 +3483,6 @@ class Stocks_info:
                 self.SEND_MSG_ERR(msg)
             self.print_strategy()
 
-    #TODO: ta lib 로 대체
-    # # 1. 종가 데이터 (list)
-    # closes[0] = oldest
-    # closes[-1] = today
-    # closes = [35200, 36250, 37250, 36400, 37000, 36650, 36650, 37450, 37750, 40500, 39750, 40400, 39800, 40600, 39850, 42900, 48850]
-
-    # # 2. 리스트를 pandas Series로 변환
-    # close_series = pd.Series(closes)
-
-    # # 3. RSI 계산 (ta.momentum.RSIIndicator 사용)
-    # rsi_indicator = ta.momentum.RSIIndicator(close=close_series, window=14)
-    # rsi_values = rsi_indicator.rsi()
-
-    ##############################################################
-    # get RSI
-    #   RIS 는 최초 데이터부터 계산되어야 정확하다
-    #   데이터가 적을수록 RSI 값이 정확하지 않다
-    # param :
-    #   code        종목 코드                
-    #   past_day    과거 언제 RSI 구할건지
-    #               ex) 0 : 금일, 1 : 어제
-    #   period      RSI 기간
-    ##############################################################
-    def get_rsi(self, code: str, past_day=0, period=20):
-        result = True
-        msg = ""
-        try:
-            # 종가 100건 구하기, index 0 이 금일
-            end_price_list = self.get_price_list(code, "D", PRICE_TYPE_CLOSE)
-
-            # x일간의 종가 구한다
-            # 마지막 날의 상승/하락분을 위해 마지막날 이전날 데이터까지 구한다
-            # ex) 20 일간의 상승/하락분을 구하려면 21일간의 데이터 필요
-            data_count = len(end_price_list)
-            days_last = past_day + period + 1
-            if days_last > data_count:
-                raise Exception(f"Can't get more than 99 days data, period:{period}, past_day:{past_day}, days_last:{days_last}")
-
-            # 상승/하락분 구하기
-            up_price_list = []      # index 0 이 금일
-            down_price_list = []    # index 0 이 금일
-            for i in range(data_count):  # end_price_list[0] 는 금일 종가, end_price_list[99] 는 제일 예전 종가
-                # 제일 예전 종가는 이전 종가가 없어서 skip
-                if i+1 >= data_count:
-                    break
-                # ex) 오늘 종가 - 어제 종가
-                diff_price = end_price_list[i] - end_price_list[i+1]
-                if diff_price > 0:
-                    up_price_list.append(diff_price)
-                    down_price_list.append(0)
-                elif diff_price < 0:
-                    up_price_list.append(0)
-                    down_price_list.append(abs(diff_price))
-                else:
-                    # diff_price == 0
-                    up_price_list.append(diff_price)
-                    down_price_list.append(diff_price)
-
-            # 상승폭 평균(AU)
-            # oldest day 에서 period 동안의 AU0
-            # ex) AU0 는 up_price_list[98] ~ up_price_list[79] 까지의 평균, AU79는 금일
-            last_period = up_price_list[-1:-period-1:-1]    # 역순으로 마지막 period 개의 요소를 추출
-            au0 = sum(last_period) / len(last_period)
-            au_list = []    # index 0 이 oldest
-            au_list.append(au0)
-
-            # 그 다음 AU = (이전 AU * (period-1) + 현재 이득) / period
-            # AU1 ~ AU79, up20 ~ up98
-            up_price_list_len = len(up_price_list)
-            for i in range(period, up_price_list_len):
-                au_list.append((au_list[-1]*(period-1) + up_price_list[up_price_list_len-i-1]) / period)
-
-            # 하락폭 평균(AD)
-            # oldest day 에서 period 동안의 AD0
-            # ex) AD0 는 down_price_list[98] ~ down_price_list[79] 까지의 평균
-            last_period = down_price_list[-1:-period-1:-1]    # 역순으로 마지막 period 개의 요소를 추출
-            ad0 = sum(last_period) / len(last_period)
-            ad_list = []    # index 0 이 oldest
-            ad_list.append(ad0)
-
-            # 그 다음 AD = (이전 DU * (period-1) + 현재 손실) / period
-            # AD1 ~ AD79, down20 ~ down98
-            down_price_list_len = len(down_price_list)
-            for i in range(period, down_price_list_len):
-                ad_list.append((ad_list[-1]*(period-1) + down_price_list[down_price_list_len-i-1]) / period)
-
-            rsi_list = []       # index 0 이 금일
-            for i in range(len(au_list)):
-                # RSI = AU/(AU+AD)*100
-                rsi_list.insert(0, au_list[i]/(au_list[i]+ad_list[i])*100)
-
-            return int(rsi_list[past_day])
-        except Exception as ex:
-            result = False
-            msg = "{}".format(traceback.format_exc())
-        finally:
-            if not result:
-                self.SEND_MSG_ERR(msg)
-                return 0
-
-    ##############################################################
-    # 종목마다 매수 가능한 RSI 값 리턴
-    #   ex) 시총 1조 이상은 x, 미만은 y
-    # param :
-    #   code        종목 코드                
-    ##############################################################
-    def get_buy_rsi(self, code: str):
-        result = True
-        msg = ""
-        buy_rsi = 0
-        try:
-            # dict 접근을 한번만 하여 성능 향상
-            stock = self.stocks[code]
-
-            RSI_BASE_NUMBER = 490
-            buy_rsi = int(RSI_BASE_NUMBER / stock['envelope_p'])
-            market_cap = max(1, int(stock['market_cap'] / 10000))
-
-            if stock['trend_60ma'] == TREND_UP:
-                # 조단위 시총
-                # 시총에 따라 buy rsi 변경
-                buy_rsi += min(6, market_cap*2)
-            elif stock['trend_60ma'] == TREND_SIDE:
-                buy_rsi += min(4, market_cap)
-            # 최소 buy_rsi
-            buy_rsi = max(37, buy_rsi)
-        except Exception as ex:
-            result = False
-            msg = "{}".format(traceback.format_exc())
-        finally:
-            if not result:
-                self.SEND_MSG_ERR(msg)
-            return buy_rsi
-
     ##############################################################
     # 이평선의 추세 리턴
     #   default 어제 기준, X일 동안 연속 상승이면 상승추세, 하락이면 하락, 그외 보합
@@ -3998,8 +3800,6 @@ class Stocks_info:
                         # 목표가
                         stock['sell_target_price'] = self.get_sell_target_price(code)
                         PRINT_DEBUG(f"[{stock['name']}] new envelope {stock['envelope_p']}")
-
-                    # time.sleep(0.001)   # context switching between threads(main thread 와 buy_sell_task 가 context switching)
 
                 except Exception as e:
                     PRINT_ERR(f"[{stock['name']}] 처리 중 오류: {e}")
