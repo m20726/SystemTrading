@@ -31,7 +31,7 @@ def buy_sell_task(stocks_info: Stocks_info, stop_event: threading.Event):
         result = False
         msg = "{}".format(traceback.format_exc())
     finally:
-        if result == False:
+        if not result:
             stocks_info.SEND_MSG_ERR(msg)
 
 ##############################################################
@@ -72,6 +72,7 @@ def main():
         # stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
 
         # # 주식 정보 업데이트는 장 전후
+        # t_now = datetime.datetime.now()
         # if t_now < T_MARKET_START or t_now > T_MARKET_END_ORDER_CHECK:
         #     stocks_info.update_stocks_trade_info()
         #     stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
@@ -112,7 +113,7 @@ def main():
                         break
                 
                 # thread start 는 한 번만 호출
-                if worker_thread.is_alive() == False:
+                if not worker_thread.is_alive():
                     worker_thread.start()
 
                 # 시장 폭락 시 좀 더 보수적으로 대응
@@ -131,7 +132,7 @@ def main():
                 pre_stocks = stocks_info.check_save_stocks_info(pre_stocks)
                 
                 # 주기적으로 출력
-                if (t_now.minute % PERIODIC_PRINT_TIME_M == 0) and (allow_periodic_print == True):
+                if (t_now.minute % PERIODIC_PRINT_TIME_M == 0) and allow_periodic_print:
                     allow_periodic_print = False
                     stocks_info.show_buyable_stocks()
                     stocks_info.get_stock_balance()
@@ -168,7 +169,7 @@ def main():
         result = False
         msg = "{}".format(traceback.format_exc())
     finally:
-        if result == False:
+        if not result:
             stocks_info.SEND_MSG_ERR(msg)        
         time.sleep(1)
 
