@@ -1329,6 +1329,14 @@ class Stocks_info:
                 # yesterday 20일선
                 stock['yesterday_20ma'] = self.get_ma(code, 20, past_day)
 
+                # 추세 세팅
+                if self.trade_strategy.use_trend_60ma == True:
+                    # 60 이평 추세
+                    stock['trend_60ma'] = self.get_ma_trend(code, past_day)             
+                if self.trade_strategy.use_trend_90ma == True:
+                    # 90 이평 추세, 90 이평은 연속 최대 7일 이하만 가능
+                    stock['trend_90ma'] = self.get_ma_trend(code, past_day, 90, 7, "D", TREND_UP_DOWN_DIFF_90MA_P)
+
                 # 1차 매수 안된 경우만 업데이트
                 if stock['buy_done'][0] == False:
                     stock['sell_target_p'] = SELL_TARGET_P
@@ -1338,13 +1346,6 @@ class Stocks_info:
                     # 매수 수량 세팅
                     self.set_buy_qty(code)
 
-                # 추세 세팅
-                if self.trade_strategy.use_trend_60ma == True:
-                    # 60 이평 추세
-                    stock['trend_60ma'] = self.get_ma_trend(code, past_day)             
-                if self.trade_strategy.use_trend_90ma == True:
-                    # 90 이평 추세, 90 이평은 연속 최대 8일 이하만 가능
-                    stock['trend_90ma'] = self.get_ma_trend(code, past_day, 90, 8, "D", TREND_UP_DOWN_DIFF_90MA_P)
 
                 # 손절가 세팅
                 stock['loss_cut_price'] = self.get_loss_cut_price(code)
@@ -3538,6 +3539,29 @@ class Stocks_info:
             return buy_rsi
 
     ##############################################################
+    # 이평 추세 구할 때 last day 값 리턴
+    #   종가가 부족하여 last day 조정이 필요한 경우가 있다.
+    # param :
+    #   code            종목 코드
+    #   ma              X일선
+    #                   ex) 20일선 : 20, 5일선 : 5
+    #   past_day        X일선 가격 기준
+    #                   ex) 0 : 금일 X일선, 1 : 어제 X일선
+    #   period          D : 일, W : 주, M : 월, Y : 년
+    ##############################################################
+    def _get_ma_trend_last_day(self, code: str, ma=20, past_day=0, period="D"):
+        last_day = past_day
+        end_price_list = self.get_price_list(code, period, PRICE_TYPE_CLOSE)
+        # x일 이평선 구하기 위해 x일간의 종가 구한다
+        days_last = past_day + ma
+
+        # days_last 가 종가 개수보다 적게 조정하여 가능한 최대한의 종가로 계산
+        while days_last > len(end_price_list):
+            days_last = days_last - 1
+            last_day = last_day -1
+        return last_day
+    
+    ##############################################################
     # 이평선의 추세 리턴
     #   default 어제 기준, X일 동안 연속 상승이면 상승추세, 하락이면 하락, 그외 보합
     #   상승 : TREND_UP
@@ -3565,8 +3589,8 @@ class Stocks_info:
             trend_up_count = 0
             trend_down_count = 0
             ma_price = self.get_ma(code, ma, past_day, period)
-            start_day = past_day+1
-            last_day = past_day+consecutive_days
+            start_day = past_day + 1
+            last_day = self._get_ma_trend_last_day(code, ma, consecutive_days + past_day - 1, period)
 
             # 이평선 기울기 구하기 위해 last, recent ma price 구한다
             recent_ma_price = ma_price
@@ -3583,9 +3607,9 @@ class Stocks_info:
                         trend_down_count += 1
                     ma_price = yesterdat_ma_price
             
-            if trend_up_count >= (consecutive_days - 1) and ma_diff_p > ref_ma_diff_p:
+            if trend_up_count >= (last_day - start_day) and ma_diff_p > ref_ma_diff_p:
                 ma_trend = TREND_UP
-            elif trend_down_count >= (consecutive_days - 1) and ma_diff_p > ref_ma_diff_p:
+            elif trend_down_count >= (last_day - start_day) and ma_diff_p > ref_ma_diff_p:
                 ma_trend = TREND_DOWN
             else:
                 ma_trend = TREND_SIDE
