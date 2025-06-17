@@ -69,6 +69,7 @@
         "sell_strategy" : 0,                                    2차 매도 전략, 
                                                                 0 : 지정가
                                                                 1 : 10일선 이탈 시
+        "first_buy_condition_met" : false,                       1차 매수 조건 만족 여부
 
     }
 }

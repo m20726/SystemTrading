@@ -53,6 +53,15 @@ BUY_SPLIT_STRATEGY_DOWN = 0
 # 2차 매수 불타기
 BUY_SPLIT_STRATEGY_UP = 1
 
+# 매수 전략
+# 기본 전략 : 매수가 오면 매수
+BUY_STRATEGY_TARGET_PRICE = 0
+# 1차 매수에 상승 양봉 종가 매수
+BUY_STRATEGY_FIRST_BUY_UP_CANDLE = 1
+
+# 상승 양봉 종가 매수 시 등락률이 x% 미만이어야 한다.
+MAX_FIRST_BUY_UP_CANDLE_PRICE_CHANGE_RATE_P = 5
+
 # 2차 매도는 정해진 2차 목표가
 SELL_STRATEGY_TARGET_PRICE = 0
 # 2차 매도 수익 길게
@@ -185,6 +194,7 @@ class Trade_strategy:
         self.max_per = 0                                        # PER가 이 값 이상이면 매수 금지
         self.buyable_market_cap = 10000                         # 시총 X 미만 매수 금지(억)
         self.buy_split_strategy = BUY_SPLIT_STRATEGY_DOWN       # 2차 분할 매수 전략(물타기, 불타기)
+        self.buy_strategy = BUY_STRATEGY_TARGET_PRICE           # 매수 전략
         self.buy_trailing_stop = False                          # 매수 시 트레일링 스탑으로 할지
         self.sell_trailing_stop = False                         # 매도 시 트레일링 스탑으로 할지
         self.trend_60ma = TREND_UP                              # 추세선이 이거 이상이여야 매수
@@ -571,20 +581,20 @@ class Stocks_info:
             stock = self.stocks[code]
 
             # 1차 매수가 이미 됐으면 리턴
-            if stock['buy_done'][0]:
+            if self.first_buy_done(stock):
                 return False
             
             # 공격적 매수 시 시총 기준
-            AGREESIVE_BUY_MARKET_CAP = 9000    # 단위:억
+            AGREESIVE_BUY_MARKET_CAP = 10000    # 단위:억
 
             if self.trade_strategy.use_trend_90ma:
                 # 90일선 상승 추세 and 시총 체크
                 if stock['trend_90ma'] == TREND_UP and stock['market_cap'] > AGREESIVE_BUY_MARKET_CAP:
                     # 공격적 매수가를 위해 envelope 는 기존 전략에 비해 적다
                     # 더 일찍 매수
-                    AGREESIVE_BUY_ENVELOPE = 11
+                    AGREESIVE_BUY_ENVELOPE = 10
                     # 공격적 매수 시 급락 가격은 한달 내 최고 종가에서 x% 빠졌을 때
-                    AGREESIVE_BUY_PLUNGE_PRICE_MARGIN_P = 19
+                    AGREESIVE_BUY_PLUNGE_PRICE_MARGIN_P = 17
 
                     envelope_p = self.to_percent(AGREESIVE_BUY_ENVELOPE)
                     envelope_support_line = stock['yesterday_20ma'] * (1 - envelope_p)
@@ -607,6 +617,7 @@ class Stocks_info:
                         PRINT_INFO(f"[{stock['name']}] 공격적 매수가 세팅, {aggresive_buy_price}(매수가) > {price_90ma}(90일선)")
                         stock['buy_price'][0] = aggresive_buy_price
                         set_aggressive_price = True
+                        stock['status'] = "공격적 매수"
                     else:
                         set_aggressive_price = False
             else:
@@ -641,7 +652,7 @@ class Stocks_info:
             stock = self.stocks[code]
 
             # 1차 매수 안된 경우 envelope 기반으로 매수가 세팅
-            if not stock['buy_done'][0]:
+            if not self.first_buy_done(stock):
                 if not self.set_aggressive_first_buy_price(code):
                     # 공격적인 매수 전략 사용 아닌 경우 기존 방식
                     envelope_p = self.to_percent(stock['envelope_p'])
@@ -926,6 +937,7 @@ class Stocks_info:
             stock['status'] = ""
             stock['lowest_price_1'] = 0
             stock['sell_strategy'] = SELL_STRATEGY_TARGET_PRICE
+            stock['first_buy_condition_met'] = False
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -946,7 +958,7 @@ class Stocks_info:
             # dict 접근을 한번만 하여 성능 향상
             stock = self.stocks[code]
 
-            if not stock['sell_done'][0]:
+            if not self.first_sell_done(stock):
                 # 1차 매도 안된 경우
                 sell_target_p = self.to_percent(stock['sell_target_p'])
                 if self.trade_strategy.buy_split_strategy == BUY_SPLIT_STRATEGY_DOWN:   # 물타기
@@ -954,7 +966,7 @@ class Stocks_info:
                 else:   # 불타기
                     # 1차 매수 시 목표가 유지
                     # 2,3차 매수 했다고 목표가 업데이트하지 않는다.
-                    if not stock['sell_target_price'] == 0 or stock['buy_done'][0]:
+                    if not stock['sell_target_price'] == 0 or self.first_buy_done(stock):
                         price = stock['avg_buy_price'] * (1 + sell_target_p)
                     else:
                         price = stock['sell_target_price']
@@ -1411,7 +1423,7 @@ class Stocks_info:
     # 1차 매수 안된 경우만 업데이트
     ##############################################################
     def _update_stock_trade_buy_info(self, code, stock):
-        if not stock['buy_done'][0]:
+        if not self.first_buy_done(stock):
             stock['sell_target_p'] = SELL_TARGET_P
             stock['envelope_p'] = self.get_envelope_p(code)
             self.set_buy_price(code)
@@ -1423,10 +1435,10 @@ class Stocks_info:
     def _update_stock_trade_trend_info(self, code, stock, past_day):
         if self.trade_strategy.use_trend_60ma:
             stock['trend_60ma'] = self.get_ma_trend(code, past_day)
-        if self.trade_strategy.use_trend_90ma:
-            # 90 이평 추세, 90 이평은 연속 최대 8일 이하만 가능
+        if self.trade_strategy.use_trend_90ma:            
+            # 90 이평 추세, 90 이평은 연속 최대 7일 이하만 가능
             stock['trend_90ma'] = self.get_ma_trend(
-                code, past_day, 90, 8, "D", TREND_UP_DOWN_DIFF_90MA_P
+                code, past_day, 90, 7, "D", TREND_UP_DOWN_DIFF_90MA_P
             )
 
     ##############################################################
@@ -1474,8 +1486,8 @@ class Stocks_info:
                     # 순서 변경 금지
                     # ex) 목표가를 구하기 위해선 평단가가 먼저 있어야한다                    
                     self._update_stock_trade_basic_info(code, stock, past_day)
-                    self._update_stock_trade_buy_info(code, stock)
                     self._update_stock_trade_trend_info(code, stock, past_day)
+                    self._update_stock_trade_buy_info(code, stock)
                     self._update_stock_trade_price_info(code, stock, past_day)
                     self._update_stock_trade_rebuy_condition(stock)
                     self._update_stock_trade_not_my_stock_info(code, stock)
@@ -1656,7 +1668,7 @@ class Stocks_info:
                 return False
             
             # 1차 매도된 경우 추가 매수 금지
-            if stock['sell_done'][0]:
+            if self.first_sell_done(stock):
                 if print_msg:
                     PRINT_DEBUG(f"[{stock['name']}] 매수 금지, 1차 매도된 경우 추가 매수 금지")                
                 return False
@@ -2293,7 +2305,7 @@ class Stocks_info:
                         PRINT_ERR(f"[{stock['name']}] sell_target_price {sell_target_price}원")
                         continue
 
-                    if not stock['sell_done'][0]:
+                    if not self.first_sell_done(stock):
                         # 1차 매도
                         self._handle_first_sell(code, stock, curr_price, sell_target_price)
                     else:
@@ -2976,7 +2988,7 @@ class Stocks_info:
             # dict 접근을 한번만 하여 성능 향상
             stock = self.stocks[code]
 
-            if not stock['sell_done'][0]:   # 1차 매도 안된 상태
+            if not self.first_sell_done(stock): # 1차 매도 안된 상태
                 if self.trade_strategy.buy_split_strategy == BUY_SPLIT_STRATEGY_DOWN:   # 물타기
                     # 역순 참조
                     # 1차 매수 경우 1차 매수가 기준
@@ -2997,8 +3009,9 @@ class Stocks_info:
                         price = stock['avg_buy_price'] * (1 - self.to_percent(LOSS_CUT_P))
             else:   # 1차 매도 된 상태
                 # N차 매도 후 나머지 물량은 익절선을 낮추어 길게 간다
-                if stock['sell_strategy'] == SELL_STRATEGY_LONG:                        
-                    price = self.get_ma(code, 10)   # 10일선
+                if stock['sell_strategy'] == SELL_STRATEGY_LONG:
+                    # max(10일선, 평단가과 최근 매도가의 중간)
+                    price = max(self.get_ma(code, 10), (stock['avg_buy_price'] + (stock['recent_sold_price'] - stock['avg_buy_price']) / 2))   # 10일선
                 else:
                     # 익절가 = 평단가과 최근 매도가의 중간
                     price = stock['avg_buy_price'] + (stock['recent_sold_price'] - stock['avg_buy_price']) / 2
@@ -3084,7 +3097,7 @@ class Stocks_info:
         NO_BUY_DAYS = 9
 
         # 1차 매도 된 경우 또는 모든 차수 분할 매수 완료 경우는 시간 지났다고 손절 금지, 
-        if not stock['sell_done'][0] or stock['buy_done'][BUY_SPLIT_COUNT - 1]:
+        if not self.first_sell_done(stock) or stock['buy_done'][BUY_SPLIT_COUNT - 1]:
             return False
 
         days_diff = (today - recent_buy_date).days
@@ -3118,7 +3131,7 @@ class Stocks_info:
     #   code            종목 코드    
     ##############################################################
     def check_need_to_buy(self, stock):
-        if stock['buy_done'][0] is True:
+        if self.first_buy_done(stock):
             for i in range(1, BUY_SPLIT_COUNT):
                 if not stock['buy_done'][i]:
                     return True
@@ -3441,6 +3454,9 @@ class Stocks_info:
             self.trade_strategy.use_trend_60ma = True           # 60일선 추세 사용 여부
             self.trade_strategy.use_trend_90ma = True           # 90일선 추세 사용 여부
 
+            # 상승 양봉 종가 매수
+            self.trade_strategy.buy_strategy = BUY_STRATEGY_FIRST_BUY_UP_CANDLE
+
             # 기회 적다 -> 조건을 완화하여 매수 기회 늘림
             invest_risk_high_under_value = -100
             invest_risk_high_gap_max_sell_target_price_p = -100
@@ -3484,6 +3500,29 @@ class Stocks_info:
             self.print_strategy()
 
     ##############################################################
+    # 이평 추세 구할 때 last day 값 리턴
+    #   종가가 부족하여 last day 조정이 필요한 경우가 있다.
+    # param :
+    #   code            종목 코드
+    #   ma              X일선
+    #                   ex) 20일선 : 20, 5일선 : 5
+    #   past_day        X일선 가격 기준
+    #                   ex) 0 : 금일 X일선, 1 : 어제 X일선
+    #   period          D : 일, W : 주, M : 월, Y : 년
+    ##############################################################
+    def _get_ma_trend_last_day(self, code: str, ma=20, past_day=0, period="D"):
+        last_day = past_day
+        end_price_list = self.get_price_list(code, period, PRICE_TYPE_CLOSE)
+        # x일 이평선 구하기 위해 x일간의 종가 구한다
+        days_last = past_day + ma
+
+        # days_last 가 종가 개수보다 적게 조정하여 가능한 최대한의 종가로 계산
+        while days_last > len(end_price_list):
+            days_last = days_last - 1
+            last_day = last_day -1
+        return last_day
+
+    ##############################################################
     # 이평선의 추세 리턴
     #   default 어제 기준, X일 동안 연속 상승이면 상승추세, 하락이면 하락, 그외 보합
     #   상승 : TREND_UP
@@ -3512,11 +3551,11 @@ class Stocks_info:
             trend_down_count = 0
             ma_price = self.get_ma(code, ma, past_day, period)
             start_day = past_day+1
-            last_day = past_day+consecutive_days
+            last_day = self._get_ma_trend_last_day(code, ma, consecutive_days + past_day - 1, period)
 
             # 이평선 기울기 구하기 위해 last, recent ma price 구한다
             recent_ma_price = ma_price
-            last_ma_price = self.get_ma(code, ma, consecutive_days + past_day - 1, period)
+            last_ma_price = self.get_ma(code, ma, last_day, period)
             # diff 는 절대값으로 비교
             ma_diff_p = abs(((recent_ma_price - last_ma_price) / last_ma_price) * 100)
             
@@ -3529,12 +3568,12 @@ class Stocks_info:
                         trend_down_count += 1
                     ma_price = yesterdat_ma_price
             
-            if trend_up_count >= (consecutive_days - 1) and ma_diff_p > ref_ma_diff_p:
+            if trend_up_count >= (last_day - start_day) and ma_diff_p > ref_ma_diff_p:
                 ma_trend = TREND_UP
-            elif trend_down_count >= (consecutive_days - 1) and ma_diff_p > ref_ma_diff_p:
+            elif trend_down_count >= (last_day - start_day) and ma_diff_p > ref_ma_diff_p:
                 ma_trend = TREND_DOWN
             else:
-                ma_trend = TREND_SIDE
+                ma_trend = TREND_SIDE            
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -3602,7 +3641,7 @@ class Stocks_info:
         price = stock['first_sell_target_price']
         try:
             # 1차 매도 안됐다 -> sell_target_price 가 1차 목표가이다.
-            if not stock['sell_done'][0]:
+            if not self.first_sell_done(stock):
                 price = stock['sell_target_price']
         except Exception as ex:
             result = False
@@ -3783,7 +3822,7 @@ class Stocks_info:
                     stock = self.stocks[code]
 
                     # 1차 매수 안된 경우만 업데이트
-                    if not stock['buy_done'][0]:
+                    if not self.first_buy_done(stock):
                         # envelope 증가 등으로 보수적으로 접근
                         # ex) 지수가 4% 폭락 시 4/2+1 = 3 을 envelope 증가
                         stock['envelope_p'] = self.get_envelope_p(code, True, market_profit_p)
@@ -4072,29 +4111,76 @@ class Stocks_info:
 
                 buy_target_price = self.get_buy_target_price(code)
 
-                if not stock['allow_monitoring_buy']:
-                    # 목표가 왔다 -> 매수 감시 시작
-                    if curr_price <= buy_target_price:
-                        if self._check_buy_price(curr_price, lowest_price, buy_margin):
-                            # 1차 매수 시 하한가 매수 금지 위해 전일 대비율(현재 등락율)이 MIN_PRICE_CHANGE_RATE_P % 이상에서 매수
-                            if stock['buy_done'][0] == False and float(price_data['prdy_ctrt']) >= MIN_PRICE_CHANGE_RATE_P:
-                                PRINT_INFO(f"[{stock['name']}] 매수 감시 시작, {curr_price}(현재가) {buy_target_price}(매수 목표가)")
+                # 매수 목표가 터치하고 아직 매수 안된 경우 처리
+                # 1차 매수 상승 양봉 매수 전략 and 매수가 터치 상태 and 1차 매수 안된 상태
+                if self.trade_strategy.buy_strategy == BUY_STRATEGY_FIRST_BUY_UP_CANDLE and stock['first_buy_condition_met'] and not self.first_buy_done(stock):
+                    stock['allow_monitoring_buy'] = True
+                    stock['status'] = "매수 모니터링"
+                    self._handle_first_buy_up_candle(code, stock, curr_price, price_data)
+                else:
+                    if not stock['allow_monitoring_buy']:
+                        # 목표가 왔다 -> 매수 감시 시작
+                        if curr_price <= buy_target_price:
+                            # 1차 매수 시 상승 양봉 종가 매수 전략 경우
+                            if self.trade_strategy.buy_strategy == BUY_STRATEGY_FIRST_BUY_UP_CANDLE and not self.first_buy_done(stock):
+                                stock['first_buy_condition_met'] = True
                                 stock['allow_monitoring_buy'] = True
                                 stock['status'] = "매수 모니터링"
-                                # 매수 모니터링 시작한 저가
-                                stock['lowest_price_1'] = lowest_price
-                else:
-                    # buy 모니터링 중
-                    # "저가 < 매수 모니터링 시작한 저가 and 현재가 >= 저가 + BUY_MARGIN_P% and 현재가 < 저가 + (BUY_MARGIN_P+1)%" 에서 매수
-                    # 즉, 두 번 째 최저가 + BUY_MARGIN_P 에서 매수                        
-                    # "15:15" 까지 매수 안됐고 "현재가 <= 매수가"면 매수
-                    if (lowest_price < stock['lowest_price_1']) \
-                        and self._check_buy_price(curr_price, lowest_price,buy_margin) \
-                        or (t_now >= T_BUY_AFTER and curr_price <= buy_target_price):
-                        if not stock['buy_order_done']:
-                            buy_target_qty = self.get_buy_target_qty(code)
-                            if self.buy(code, curr_price, buy_target_qty, ORDER_TYPE_IMMEDIATE_ORDER):
-                                self.set_order_done(code, BUY_CODE)
+                            else:
+                                if self._check_buy_price(curr_price, lowest_price, buy_margin):
+                                    # 1차 매수 시 하한가 매수 금지 위해 전일 대비율(현재 등락율)이 MIN_PRICE_CHANGE_RATE_P % 이상에서 매수
+                                    if not self.first_buy_done(stock) and float(price_data['prdy_ctrt']) >= MIN_PRICE_CHANGE_RATE_P:
+                                        PRINT_INFO(f"[{stock['name']}] 매수 감시 시작, {curr_price}(현재가) {buy_target_price}(매수 목표가)")
+                                        stock['allow_monitoring_buy'] = True
+                                        stock['status'] = "매수 모니터링"
+                                        # 매수 모니터링 시작한 저가
+                                        stock['lowest_price_1'] = lowest_price
+                    else:
+                        # buy 모니터링 중
+                        if self.trade_strategy.buy_strategy == BUY_STRATEGY_FIRST_BUY_UP_CANDLE and not self.first_buy_done(stock):
+                            self._handle_first_buy_up_candle(code, stock, curr_price, price_data)
+                        else:
+                            # "저가 < 매수 모니터링 시작한 저가 and 현재가 >= 저가 + BUY_MARGIN_P% and 현재가 < 저가 + (BUY_MARGIN_P+1)%" 에서 매수
+                            # 즉, 두 번 째 최저가 + BUY_MARGIN_P 에서 매수                        
+                            # "15:15" 까지 매수 안됐고 "현재가 <= 매수가"면 매수
+                            if (lowest_price < stock['lowest_price_1']) \
+                                and self._check_buy_price(curr_price, lowest_price,buy_margin) \
+                                or (t_now >= T_BUY_AFTER and curr_price <= buy_target_price):
+                                if not stock['buy_order_done']:
+                                    buy_target_qty = self.get_buy_target_qty(code)
+                                    if self.buy(code, curr_price, buy_target_qty, ORDER_TYPE_IMMEDIATE_ORDER):
+                                        self.set_order_done(code, BUY_CODE)
+        except Exception as ex:
+            result = False
+            msg = "{}".format(traceback.format_exc())
+        finally:
+            if not result:
+                self.SEND_MSG_ERR(msg)
+
+    ##############################################################
+    # 1차 매수 시 상승 양봉 종가 매수
+    #   매수가 터치하고 종가에 상승 양봉 매수
+    #   당일 매수안되면 다음날에 계속 체크
+    ##############################################################
+    def _handle_first_buy_up_candle(self, code, stock, curr_price, price_data):
+        result = True
+        msg = ""
+        try:
+            t_now = datetime.datetime.now()
+            
+            # 종가 매수는 15:15~ 처리
+            if t_now >= T_CLOSE_PRICE_TRADE:
+                # 상승 양봉 등락률이 X% 미만에서 매수
+                if 0 < float(price_data['prdy_ctrt']) < MAX_FIRST_BUY_UP_CANDLE_PRICE_CHANGE_RATE_P:
+                    if not stock['buy_order_done']:
+                        buy_target_qty = self.get_buy_target_qty(code)
+                        if self.buy(code, curr_price, buy_target_qty, ORDER_TYPE_IMMEDIATE_ORDER):
+                            self.set_order_done(code, BUY_CODE)
+                elif float(price_data['prdy_ctrt']) >= MAX_FIRST_BUY_UP_CANDLE_PRICE_CHANGE_RATE_P:
+                    # 상승 양봉 등락률이 X% 이상이면 매매 금지
+                    stock['first_buy_condition_met'] = False
+                    stock['allow_monitoring_buy'] = False
+                    stock['status'] = ""
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -4129,14 +4215,16 @@ class Stocks_info:
 
                 buy_target_price = self.get_buy_target_price(code)
 
-                if not stock['buy_done'][0]:
+                #TODO: # 1차 매수 상승 양봉 매수 전략
+
+                if not self.first_buy_done(stock):
                     # 1차 매수 안된 경우 매수가 이하에서 매수
                     if not stock['allow_monitoring_buy']:
                         # 목표가 왔다 -> 매수 감시 시작
                         if curr_price <= buy_target_price:
                             if self._check_buy_price(curr_price, lowest_price, buy_margin):
                                 # 1차 매수 시 하한가 매수 금지 위해 전일 대비율(현재 등락율)이 MIN_PRICE_CHANGE_RATE_P % 이상에서 매수
-                                if stock['buy_done'][0] == False and float(price_data['prdy_ctrt']) >= MIN_PRICE_CHANGE_RATE_P:
+                                if not self.first_buy_done(stock) and float(price_data['prdy_ctrt']) >= MIN_PRICE_CHANGE_RATE_P:
                                     PRINT_INFO(f"[{stock['name']}] 매수 감시 시작, {curr_price}(현재가) <= {buy_target_price}(매수 목표가)")
                                     stock['allow_monitoring_buy'] = True
                                     stock['status'] = "매수 모니터링"
@@ -4200,3 +4288,25 @@ class Stocks_info:
         finally:
             if result == False:
                 self.SEND_MSG_ERR(msg)
+
+    ##############################################################
+    # 1차 매수 완료 여부   
+    # param :
+    #   stock            종목    
+    # rturn : 1차 매수 완료 시 True, 아니면 False
+    ##############################################################
+    def first_buy_done(self, stock):
+        if stock['buy_done'][0]:
+            return True
+        return False
+    
+    ##############################################################
+    # 1차 매도 완료 여부   
+    # param :
+    #   stock            종목    
+    # rturn : 1차 매도 완료 시 True, 아니면 False
+    ##############################################################
+    def first_sell_done(self, stock):
+        if stock['sell_done'][0]:
+            return True
+        return False

@@ -52,7 +52,7 @@ def main():
 
         # # stocks_info.json 에 추가/변경
         # for code in stocks_info.stocks.keys():
-        #     stocks_info.stocks[code]['sell_strategy'] = 0
+        #     stocks_info.stocks[code]['first_buy_condition_met'] = False
         # stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
         
         # # stocks_info.json 에 key 제거
@@ -63,14 +63,9 @@ def main():
         #     del stocks_info.stocks[code]['sell_done'][2]
         # stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
 
-        # # 주식 정보 업데이트는 장 전후
-        # t_now = datetime.datetime.now()
-        # if t_now < T_MARKET_START or t_now > T_MARKET_END_ORDER_CHECK:
-        #     stocks_info.update_stocks_trade_info()
-        #     stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
-        # else:
-        #     stocks_info.update_stocks_trade_info()
-        #     stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
+        # # 주식 정보 업데이트
+        # stocks_info.update_stocks_trade_info()
+        # stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
 
         stocks_info.update_my_stocks()              # 보유 주식 업데이트
         stocks_info.show_stocks(False)
