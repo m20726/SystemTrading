@@ -676,6 +676,7 @@ class Stocks_info:
                 # 실제 bought_price 를 기반으로 업데이트
                 if done_nth > 0 and bought_price > 0:
                     # PRINT_INFO(f"[{stock['name']}] {done_nth}차 매수 {bought_price}원 완료, 매수가 업데이트")
+                    # 실제 매수가 업데이트
                     stock['buy_price'][done_nth-1] = bought_price
                     for i in range(done_nth, BUY_SPLIT_COUNT):
                         stock['buy_price'][i] = int(stock['buy_price'][i-1] * buy_margin)
@@ -2311,9 +2312,10 @@ class Stocks_info:
                         # 2차 매도
                         self._handle_second_sell(code, stock, curr_price, sell_target_price)
 
-            # 장중 손절
-            if self.trade_strategy.loss_cut_time == LOSS_CUT_MARKET_OPEN:
-                self.handle_loss_cut()
+            if self.trade_strategy.buy_strategy != BUY_STRATEGY_BUY_UP_CANDLE:
+                # 장중 손절
+                if self.trade_strategy.loss_cut_time == LOSS_CUT_MARKET_OPEN:
+                    self.handle_loss_cut()
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -3163,8 +3165,9 @@ class Stocks_info:
                 # 액면 분할 후 거래 해제날 buyable gap 이 BUYABLE_GAP_MAX 보다 낮은 현상으로 매수되는 것 방지
                 if (gap_p >= BUYABLE_GAP_MIN and gap_p <= BUYABLE_GAP_MAX) or need_buy:
                     temp_stock = copy.deepcopy({code: stock})
+                    # 매수가GAP 작은 순으로 정렬위해 임시로 추가
+                    temp_stock[code]['buy_target_price_gap'] = gap_p                    
                     temp_buyable_stocks[code] = temp_stock[code]
-                    temp_buyable_stocks[code]['buy_target_price_gap'] = gap_p
                 else:
                     PRINT_DEBUG(f"[{stock['name']}] 매수 금지, buyable gap({gap_p})")
 
@@ -3196,11 +3199,6 @@ class Stocks_info:
         msg = ""
         try:
             temp_stocks = copy.deepcopy(self.buyable_stocks)
-
-            # 매수가GAP 작은 순으로 정렬위해 임시로 추가
-            for code in temp_stocks.keys():
-                gap_p = self.get_buy_target_price_gap(code)
-                temp_stocks[code]['buy_target_price_gap'] = gap_p
 
             # 매수가GAP 작은 순으로 정렬
             sorted_data = dict(sorted(temp_stocks.items(), key=lambda x: x[1]['buy_target_price_gap'], reverse=False))
@@ -4160,14 +4158,14 @@ class Stocks_info:
                         # 1차 매수 경우 상승 양봉 등락률이 X% 미만에서 매수
                         if 0 < float(price_data['prdy_ctrt']) < MAX_FIRST_BUY_UP_CANDLE_PRICE_CHANGE_RATE_P:
                             self.order_buy(code, curr_price, qty, ORDER_TYPE_IMMEDIATE_ORDER)
+                        elif float(price_data['prdy_ctrt']) >= MAX_FIRST_BUY_UP_CANDLE_PRICE_CHANGE_RATE_P:
+                            # 상승 양봉 등락률이 X% 이상이면 매매 금지
+                            stock['allow_monitoring_buy'] = False
+                            stock['status'] = ""                            
                     else:
                         # 2차 매수 이상 부터는 등락율이 0% 초과면 매수
                         if 0 < float(price_data['prdy_ctrt']):
                             self.order_buy(code, curr_price, qty, ORDER_TYPE_IMMEDIATE_ORDER)
-                elif float(price_data['prdy_ctrt']) >= MAX_FIRST_BUY_UP_CANDLE_PRICE_CHANGE_RATE_P:
-                    # 상승 양봉 등락률이 X% 이상이면 매매 금지
-                    stock['allow_monitoring_buy'] = False
-                    stock['status'] = ""
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
