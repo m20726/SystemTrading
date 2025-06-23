@@ -573,6 +573,7 @@ class Stocks_info:
                 # 실제 bought_price 를 기반으로 업데이트
                 if done_nth > 0 and bought_price > 0:
                     # PRINT_INFO(f"[{stock['name']}] {done_nth}차 매수 {bought_price}원 완료, 매수가 업데이트")
+                    # 실제 매수가 업데이트
                     stock['buy_price'][done_nth-1] = bought_price
                     for i in range(done_nth, BUY_SPLIT_COUNT):
                         stock['buy_price'][i] = int(stock['buy_price'][i-1] * buy_margin)
@@ -2253,7 +2254,7 @@ class Stocks_info:
                         PRINT_ERR(f"[{stock['name']}] curr_price {curr_price}원")
                         continue
 
-                    sell_target_price = self.my_stocks[code]['sell_target_price']
+                    sell_target_price = self.get_sell_target_price(code)
                     if sell_target_price == 0:
                         PRINT_ERR(f"[{stock['name']}] sell_target_price {sell_target_price}원")
                         continue
@@ -2975,7 +2976,7 @@ class Stocks_info:
         try:
             today = date.today()
             # 주말, 공휴일 포함
-            NO_BUY_DAYS = 15
+            NO_BUY_DAYS = 20
 
             for code in self.my_stocks.keys():
                 # 매수,매도 등 처리하지 않는 종목, stocks_info.json 에 없는 종목은 제외
@@ -3132,11 +3133,6 @@ class Stocks_info:
         msg = ""
         try:
             temp_stocks = copy.deepcopy(self.buyable_stocks)
-
-            # 매수가GAP 작은 순으로 정렬위해 임시로 추가
-            for code in temp_stocks.keys():
-                gap_p = self.get_buy_target_price_gap(code)
-                temp_stocks[code]['buy_target_price_gap'] = gap_p
 
             # 매수가GAP 작은 순으로 정렬
             sorted_data = dict(sorted(temp_stocks.items(), key=lambda x: x[1]['buy_target_price_gap'], reverse=False))
