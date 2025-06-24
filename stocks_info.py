@@ -102,7 +102,7 @@ BUYABLE_GAP_MAX = 15
 BUYABLE_GAP_MIN = -20  # 액면 분할 후 거래 해제날 buyable gap 이 BUYABLE_GAP_MAX 보다 낮은 현상으로 매수되는 것 방지 위함
 
 # 상위 몇개 종목까지 매수 가능 종목으로 유지
-BUYABLE_COUNT = 10
+BUYABLE_COUNT = 12
 
 # 1차 매수 시 하한가 매수 금지 위해 전일 대비율(현재 등락율)이 MIN_PRICE_CHANGE_RATE_P % 이상에서 매수
 MIN_PRICE_CHANGE_RATE_P = -20
@@ -308,7 +308,7 @@ class Stocks_info:
             else:
                 if self.trade_strategy.sell_strategy == SELL_STRATEGY_TARGET_PRICE:
                     target_p = SELL_TARGET_P + (NEXT_SELL_TARGET_MARGIN_P * i)
-                    PRINT_DEBUG(f'{i + 1}차 목표가 {target_p} %')
+                    PRINT_DEBUG(f'{i + 1}차 목표가 {target_p} %')    
 
         trend_msg = dict()
         trend_msg[TREND_DOWN] = "하락 추세"
@@ -320,6 +320,11 @@ class Stocks_info:
 
         if self.trade_strategy.use_trend_90ma:
             PRINT_DEBUG(f'90일선 {trend_msg[self.trade_strategy.trend_90ma]} 이상 매수')
+
+        if self.trade_strategy.loss_cut_time == LOSS_CUT_MARKET_CLOSE:
+            PRINT_DEBUG(f'종가 손절')
+        elif self.trade_strategy.loss_cut_time == LOSS_CUT_MARKET_OPEN:
+            PRINT_DEBUG(f'장중 손절')
 
         if BUY_QTY_1:
             PRINT_DEBUG('1주만 매수')
@@ -615,12 +620,12 @@ class Stocks_info:
 
                     # 공격적 매수가가 90일선 보다 높으면 공격적 매수 가능
                     # ex) 매수가 > 90일선+5%
-                    ref_price = price_90ma * 1.05
+                    ref_price = int(price_90ma * 1.05)
                     if aggresive_buy_price > ref_price:
-                        PRINT_INFO(f"[{stock['name']}] 공격적 매수가 세팅, {aggresive_buy_price}(매수가) > {ref_price}(90일선+x%)")
+                        PRINT_INFO(f"[{stock['name']}] 공격적 매수가 세팅, {aggresive_buy_price}(매수가) > {ref_price}(90일선+5%)")
                         stock['buy_price'][0] = aggresive_buy_price
                         set_aggressive_price = True
-                        stock['status'] = "공격적 매수 대기"
+                        stock['status'] = "공격적 매수 전략"
                     else:
                         set_aggressive_price = False
             else:
@@ -631,6 +636,8 @@ class Stocks_info:
         finally:
             if not result:
                 self.SEND_MSG_ERR(msg)
+            if not set_aggressive_price and stock['status'] == "공격적 매수 전략":
+                stock['status'] = ""
             return set_aggressive_price
 
     ##############################################################
@@ -4375,3 +4382,91 @@ class Stocks_info:
             if not result:
                 self.SEND_MSG_ERR(msg)
             return order_done
+
+    ##############################################################
+    # 종목별 외국인 추정가집계 수급 리턴
+    # param :
+    #   code            종목 코드
+    ##############################################################
+    def get_foreign_flow(self, code):
+        result = True
+        msg = ""
+        foreign_flow = 0
+        try:
+            flow_data = self.get_foreign_institution_flow(code)
+            foreign_flow = int(flow_data[0]['frgn_fake_ntby_qty'])
+        except Exception as ex:
+            result = False
+            msg = "{}".format(traceback.format_exc())
+        finally:
+            if not result:
+                self.SEND_MSG_ERR(msg)
+            return int(foreign_flow)
+
+    ##############################################################
+    # 종목별 기관 추정가집계 수급 리턴
+    # param :
+    #   code            종목 코드
+    ##############################################################
+    def get_institutino_flow(self, code):
+        result = True
+        msg = ""
+        institution_flow = 0
+        try:
+            flow_data = self.get_foreign_institution_flow(code)
+            institution_flow = int(flow_data[0]['orgn_fake_ntby_qty'])
+        except Exception as ex:
+            result = False
+            msg = "{}".format(traceback.format_exc())
+        finally:
+            if not result:
+                self.SEND_MSG_ERR(msg)
+            return int(institution_flow)        
+
+    ##############################################################
+    # 종목별 외인기관 추정가집계 수급 가져오기
+    #   Return : 성공 시 요청한 시세, 실패 시 0 리턴
+    #   Parameter :
+    #       code            종목 코드
+    #       type            요청 시세(현재가, 시가, 고가, ...)
+    ##############################################################
+    def get_foreign_institution_flow(self, code:str):
+        result = True
+        msg = ""
+        flow_data = dict()
+        try:
+            PATH = "uapi/domestic-stock/v1/quotations/investor-trend-estimate"
+            URL = f"{self.config['URL_BASE']}/{PATH}"          
+            headers = {"Content-Type": "application/json",
+                    "authorization": f"Bearer {self.access_token}",
+                    "appKey": self.config['APP_KEY'],
+                    "appSecret": self.config['APP_SECRET'],
+                    "tr_id": "HHPTJ04160200",
+                    "custtype": "P"}
+            params = {
+                "MKSC_SHRN_ISCD": code,
+            }
+            res = self.requests_get(URL, headers, params)
+            if self.is_request_ok(res):
+                flow_data = res.json()['output2']
+            else:
+                raise Exception(f"[get_foreign_institution_flow failed]{str(res.json())}")
+        except Exception as ex:
+            result = False
+            msg = "{}".format(traceback.format_exc())
+        finally:
+            if not result:
+                # request 실패 시 retry
+                # ex) {'rt_cd': '1', 'msg_cd': 'EGW00201', 'msg1': '초당 거래건수를 초과하였습니다.'}
+                if self.request_retry_count < MAX_REQUEST_RETRY_COUNT:
+                    time.sleep(1)
+                    self.request_retry_count = self.request_retry_count + 1
+                    PRINT_ERR(f"get_foreign_institution_flow failed retry count({self.request_retry_count})")
+                    self.get_foreign_institution_flow(code)
+                else:
+                    self.request_retry_count = 0
+                    msg = self.stocks[code]['name'] + " " + msg
+                    self.SEND_MSG_ERR(msg)
+            else:
+                self.request_retry_count = 0
+            return flow_data
