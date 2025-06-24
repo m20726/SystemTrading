@@ -588,7 +588,13 @@ class Stocks_info:
 
             # 1차 매수가 이미 됐으면 리턴
             if self.first_buy_done(stock):
-                return False
+                set_aggressive_price = False
+                return set_aggressive_price
+            
+            # 상승 양봉 종가 매수 대기 상태는 세팅 불필요
+            if self.wait_buy_up_candle(code):
+                set_aggressive_price = True
+                return set_aggressive_price
             
             # 공격적 매수 시 시총 기준
             AGREESIVE_BUY_MARKET_CAP = 10000    # 단위:억
@@ -948,6 +954,7 @@ class Stocks_info:
             stock['status'] = ""
             stock['lowest_price_1'] = 0
             stock['sell_strategy'] = SELL_STRATEGY_TARGET_PRICE
+            stock['wait_buy_up_candle_date'] = None
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -1078,8 +1085,8 @@ class Stocks_info:
     
     ##############################################################
     # 특정 타입의(현재가, 시가, 고가) 주식 가격 리턴
-    #   Return : 성공 시 요청한 시세, 실패 시 0 리턴
-    #   Parameter :
+    # Return : 성공 시 요청한 시세, 실패 시 0 리턴
+    # Parameter :
     #       code            종목 코드
     #       type            요청 시세(현재가, 시가, 고가, ...)
     ##############################################################
@@ -1138,8 +1145,8 @@ class Stocks_info:
     #       hts_avls : 시가총액
     #       acml_tr_pbmn : 누적 거래 대금
     #       acml_vol : 누적 거래량
-    #   Return : 성공 시 주식 시세 data, 실패 시 0 리턴
-    #   Parameter :
+    # Return : 성공 시 주식 시세 data, 실패 시 0 리턴
+    # Parameter :
     #       code            종목 코드
     ##############################################################
     def get_price_data(self, code:str):
@@ -1521,7 +1528,7 @@ class Stocks_info:
     ##############################################################
     # 보유 주식 정보 업데이트
     #   보유 주식은 stockholdings > 0
-    #   Return : 성공 시 True , 실패 시 False    
+    # Return : 성공 시 True , 실패 시 False    
     ##############################################################
     def update_my_stocks(self):
         result = True
@@ -1693,9 +1700,9 @@ class Stocks_info:
             if self.is_buyable_stock(code):
                 return True
 
-            # 상승 양봉 종가 매수 경우 stock['allow_monitoring_buy'] == true 면 매수
-            if self.trade_strategy.buy_strategy == BUY_STRATEGY_BUY_UP_CANDLE and stock['allow_monitoring_buy']:
-                return True                
+            # 상승 양봉 종가 매수 대기 중이면 매수 가능
+            if self.wait_buy_up_candle(code):
+                return True
 
             # 주식 투자 정보가 valid 하지 않으면 매수 금지
             if not stock['stock_invest_info_valid']:
@@ -2076,7 +2083,7 @@ class Stocks_info:
     #       price           매수 가격
     #       qty             매수 수량
     #       order_type      매수 타입(지정가, 최유리지정가,...)
-    #   Return : 성공 시 True , 실패 시 False
+    # Return : 성공 시 True , 실패 시 False
     ##############################################################
     def buy(self, code: str, price: str, qty: str, order_type:str = ORDER_TYPE_LIMIT_ORDER):
         result = True
@@ -2149,7 +2156,7 @@ class Stocks_info:
     #       price           매도 가격
     #       qty             매도 수량
     #       order_type      매도 타입(지정가, 최유리지정가,...)
-    #   Return : 성공 시 True , 실패 시 False
+    # Return : 성공 시 True , 실패 시 False
     ##############################################################
     def sell(self, code: str, price: str, qty: str, order_type:str = ORDER_TYPE_LIMIT_ORDER):
         result = True
@@ -2379,7 +2386,7 @@ class Stocks_info:
 
     ##############################################################
     # 주문 번호 리턴
-    #   Return : 성공 시 True 주문 번호, 실패 시 False  ""
+    # Return : 성공 시 True 주문 번호, 실패 시 False  ""
     #            취소 주문은 True, ""
     #   param :
     #       code            종목 코드
@@ -2424,7 +2431,7 @@ class Stocks_info:
     # 주식 주문 전량 취소
     #   종목코드 매수/매도 조건에 맞는 주문 취소
     #   단, 모의 투자 미지원
-    #   Return : 성공 시 True, 실패 시 False
+    # Return : 성공 시 True, 실패 시 False
     #   param :
     #       code            종목 코드
     #       buy_sell        "01" : 매도, "02" : 매수
@@ -3172,8 +3179,8 @@ class Stocks_info:
                     continue
 
                 gap_p = self.get_buy_target_price_gap(code)
-                # 상승 양봉 종가 매수 경우 stock['allow_monitoring_buy'] == True 면 gap_p = 0 처리하여 매수 가능하도록
-                if self.trade_strategy.buy_strategy == BUY_STRATEGY_BUY_UP_CANDLE and stock['allow_monitoring_buy']:
+                # 상승 양봉 종가 매수 대기 상태는 gap_p = 0 처리하여 매수 가능하도록
+                if self.wait_buy_up_candle(code):
                     gap_p = 0
 
                 # 1차 매수 후 n차 매수 안된 종목은 무조건 매수 가능 종목으로 편입
@@ -3307,6 +3314,9 @@ class Stocks_info:
                 if stock['sell_all_done']:
                     stock['avg_buy_price'] = 0
                 stock['lowest_price_1'] = 0
+
+                # 상승 양봉 종가 매수 대기 상태에서 매수 없이 X일 지난 경우 매수 대기하지 않고 초기화
+                self.check_clear_wait_buy_up_candle(code)
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -3770,8 +3780,8 @@ class Stocks_info:
 
     ##############################################################
     # 국내 주식 업종 기간별 시세
-    #   Return : 성공 시 요청한 시세, 실패 시 0 리턴
-    #   Parameter :
+    # Return : 성공 시 요청한 시세, 실패 시 0 리턴
+    # Parameter :
     #       code            업종 코드 ex) KOSPI는 0001
     #       type            요청 시세(업종 지수 전일 대비율, 전일 지수, 업종 지수 최고가 ...)
     #       period          D : 일, W : 주, M : 월, Y : 년
@@ -4125,12 +4135,15 @@ class Stocks_info:
 
                 if not stock['allow_monitoring_buy']:
                     # 목표가 왔다 -> 매수 감시 시작
+                    # TODO: 순간적으로 터치하고 상승하면 체크가 안된다 lowest_price <= buy_target_price 로 대체?
                     if curr_price <= buy_target_price:
                         # 상승 양봉 종가 매수 전략 경우
                         if self.trade_strategy.buy_strategy == BUY_STRATEGY_BUY_UP_CANDLE:
                             stock['allow_monitoring_buy'] = True
                             stock['status'] = "상승 양봉 종가 매수 대기"
-                            PRINT_INFO(f"[{stock['name']}] 매수 감시 시작, {curr_price}(현재가) {buy_target_price}(매수 목표가)")
+                            # 상승 양봉 종가 매수 대기 시작 날짜
+                            stock['wait_buy_up_candle_date'] = date.today().strftime('%Y-%m-%d')
+                            PRINT_INFO(f"[{stock['name']}] 상승 양봉 종가 매수 대기 시작, {curr_price}(현재가) {buy_target_price}(매수 목표가)")
                         else:
                             if self._check_buy_price(curr_price, lowest_price, buy_margin):
                                 # 1차 매수 시 하한가 매수 금지 위해 전일 대비율(현재 등락율)이 MIN_PRICE_CHANGE_RATE_P % 이상에서 매수
@@ -4338,7 +4351,7 @@ class Stocks_info:
     #       price           매수 가격
     #       qty             매수 수량
     #       order_type      매수 타입(지정가, 최유리지정가,...)
-    #   Return : 성공 시 True , 실패 시 False
+    # Return : 성공 시 True , 실패 시 False
     ##############################################################
     def order_buy(self, code: str, price: str, qty: str, order_type:str = ORDER_TYPE_LIMIT_ORDER):
         result = True
@@ -4364,7 +4377,7 @@ class Stocks_info:
     #       price           매도 가격
     #       qty             매도 수량
     #       order_type      매도 타입(지정가, 최유리지정가,...)
-    #   Return : 성공 시 True , 실패 시 False
+    # Return : 성공 시 True , 실패 시 False
     ##############################################################
     def order_sell(self, code: str, price: str, qty: str, order_type:str = ORDER_TYPE_LIMIT_ORDER):
         result = True
@@ -4425,8 +4438,8 @@ class Stocks_info:
 
     ##############################################################
     # 종목별 외인기관 추정가집계 수급 가져오기
-    #   Return : 성공 시 요청한 시세, 실패 시 0 리턴
-    #   Parameter :
+    # Return : 성공 시 요청한 시세, 실패 시 0 리턴
+    # Parameter :
     #       code            종목 코드
     #       type            요청 시세(현재가, 시가, 고가, ...)
     ##############################################################
@@ -4470,3 +4483,44 @@ class Stocks_info:
             else:
                 self.request_retry_count = 0
             return flow_data
+
+    ##############################################################
+    # 상승 양봉 종가 매수 대기 중인가
+    # Return : 대기 중이면 True, 아니면 False
+    # Parameter :
+    #       code            종목 코드
+    #       type            요청 시세(현재가, 시가, 고가, ...)
+    ##############################################################
+    def wait_buy_up_candle(self, code):
+        if self.trade_strategy.buy_strategy == BUY_STRATEGY_BUY_UP_CANDLE and self.stocks[code]['allow_monitoring_buy']:
+            return True
+        return False
+
+    ##############################################################
+    # 상승 양봉 종가 매수 대기 상태에서 매수 없이 X일 지난 경우 매수 대기하지 않고 초기화
+    ##############################################################
+    def check_clear_wait_buy_up_candle(self, code):
+        result = True
+        msg = ""
+        try:
+            # dict 접근을 한번만 하여 성능 향상
+            stock = self.stocks[code]
+
+            # 상승 양봉 종가 매수 대기 상태에서 매수 없이 X일 지난 경우 매수 대기하지 않고 초기화
+            if self.wait_buy_up_candle(code) and not self.first_buy_done(stock):
+                WAIT_BUY_UP_CANDLE_DAYS = 7
+                wait_buy_up_candle_date = date.fromisoformat(stock['wait_buy_up_candle_date'])
+                if wait_buy_up_candle_date == None:
+                    return
+                today = date.today()
+                days_diff = (today - wait_buy_up_candle_date).days
+                if days_diff > WAIT_BUY_UP_CANDLE_DAYS:
+                    stock['allow_monitoring_buy'] = False
+                    stock['status'] = ""
+                    PRINT_INFO(f'{wait_buy_up_candle_date} 상승 양봉 종가 매수 대기 후 {today} 까지 {days_diff}일 동안 매수 없어 매수 대기않고 초기화')
+        except Exception as ex:
+            result = False
+            msg = "{}".format(traceback.format_exc())
+        finally:
+            if not result:
+                self.SEND_MSG_ERR(msg)

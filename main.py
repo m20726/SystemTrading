@@ -52,7 +52,7 @@ def main():
 
         # # stocks_info.json 에 추가/변경
         # for code in stocks_info.stocks.keys():
-        #     stocks_info.stocks[code]['first_buy_condition_met'] = False
+        #     stocks_info.stocks[code]['wait_buy_up_candle_date'] = None
         # stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
         
         # # stocks_info.json 에 key 제거

@@ -69,5 +69,6 @@
         "sell_strategy" : 0,                                    2차 매도 전략, 
                                                                 0 : 지정가
                                                                 1 : 10일선 이탈 시
+        "wait_buy_up_candle_date", null,                        상승 양봉 종가 매수 대기 시작 날짜
     }
 }
