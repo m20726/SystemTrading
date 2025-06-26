@@ -1052,7 +1052,7 @@ class Stocks_info:
     # 종가 리턴
     # param :
     #   code            종목 코드
-    #   past_day        가져올 날짜 기준
+    #   past_day        가져올 일자 기준
     #                   ex) 0 : 금일 종가, 1 : 어제 종가
     ##############################################################
     def get_end_price(self, code: str, past_day=0):
@@ -1145,6 +1145,9 @@ class Stocks_info:
     #       hts_avls : 시가총액
     #       acml_tr_pbmn : 누적 거래 대금
     #       acml_vol : 누적 거래량
+    #       prdy_ctrt : 전일 대비율(등락율)
+    #       w52_hgpr : 52주 최고가 -> 신고가 여부 판단에 사용 가능
+    #       w52_hgpr_date : 52주 최고가 일자
     # Return : 성공 시 주식 시세 data, 실패 시 0 리턴
     # Parameter :
     #       code            종목 코드
@@ -1814,10 +1817,10 @@ class Stocks_info:
         msg = ""
         end_price_list = []
         try:
-            # 조회 종료 날짜(오늘) 구하기
+            # 조회 종료 일자(오늘) 구하기
             end_day_ = datetime.datetime.today()
             end_day = end_day_.strftime('%Y%m%d')
-            # 150일 전 날짜 구하기, 단 100건 까지만 구해진다
+            # 150일 전 일자 구하기, 단 100건 까지만 구해진다
             start_day_ = (end_day_ - datetime.timedelta(days=150))
             start_day = start_day_.strftime('%Y%m%d')
 
@@ -3233,7 +3236,7 @@ class Stocks_info:
                 data['60일선추세'] = []
             if self.trade_strategy.use_trend_90ma:
                 data['90일선추세'] = []
-            
+            data['등락율(%)'] = []
             data['상태'] = []
 
             for code in sorted_data.keys():
@@ -3253,6 +3256,11 @@ class Stocks_info:
                 if self.trade_strategy.use_trend_90ma:
                     data['90일선추세'].append(self.str_trend[sorted_data[code]['trend_90ma']])
                 
+                price_data = self.get_price_data(code)
+                
+                # 소수 2째자리까지 출력하고 나머지 버림
+                # ex) 1.237 -> 1.23
+                data['등락율(%)'].append((int(float(price_data['prdy_ctrt']) * 100) / 100))
                 data['상태'].append(self.stocks[code]['status'])
 
             # PrettyTable 객체 생성 및 데이터 추가
@@ -4141,7 +4149,7 @@ class Stocks_info:
                         if self.trade_strategy.buy_strategy == BUY_STRATEGY_BUY_UP_CANDLE:
                             stock['allow_monitoring_buy'] = True
                             stock['status'] = "상승 양봉 종가 매수 대기"
-                            # 상승 양봉 종가 매수 대기 시작 날짜
+                            # 상승 양봉 종가 매수 대기 시작 일자
                             stock['wait_buy_up_candle_date'] = date.today().strftime('%Y-%m-%d')
                             PRINT_INFO(f"[{stock['name']}] 상승 양봉 종가 매수 대기 시작, {curr_price}(현재가) {buy_target_price}(매수 목표가)")
                         else:
