@@ -4135,8 +4135,8 @@ class Stocks_info:
 
                 if not stock['allow_monitoring_buy']:
                     # 목표가 왔다 -> 매수 감시 시작
-                    # TODO: 순간적으로 터치하고 상승하면 체크가 안된다 lowest_price <= buy_target_price 로 대체?
-                    if curr_price <= buy_target_price:
+                    # 순간적으로 터치하고 상승하면 체크가 안된다 lowest_price <= buy_target_price 로 대체
+                    if lowest_price <= buy_target_price:
                         # 상승 양봉 종가 매수 전략 경우
                         if self.trade_strategy.buy_strategy == BUY_STRATEGY_BUY_UP_CANDLE:
                             stock['allow_monitoring_buy'] = True
@@ -4162,7 +4162,7 @@ class Stocks_info:
                         # 즉, 두 번 째 최저가 + BUY_MARGIN_P 에서 매수                        
                         # "15:15" 까지 매수 안됐고 "현재가 <= 매수가"면 매수
                         if (lowest_price < stock['lowest_price_1']) \
-                            and self._check_buy_price(curr_price, lowest_price,buy_margin) \
+                            and self._check_buy_price(curr_price, lowest_price, buy_margin) \
                             or (t_now >= T_BUY_AFTER and curr_price <= buy_target_price):
                             qty = self.get_buy_target_qty(code)
                             self.order_buy(code, curr_price, qty, ORDER_TYPE_IMMEDIATE_ORDER)
@@ -4242,7 +4242,8 @@ class Stocks_info:
                     # 1차 매수 안된 경우 매수가 이하에서 매수
                     if not stock['allow_monitoring_buy']:
                         # 목표가 왔다 -> 매수 감시 시작
-                        if curr_price <= buy_target_price:
+                        # 순간적으로 터치하고 상승하면 체크가 안된다 lowest_price <= buy_target_price 로 대체
+                        if lowest_price <= buy_target_price:
                             if self._check_buy_price(curr_price, lowest_price, buy_margin):
                                 # 1차 매수 시 하한가 매수 금지 위해 전일 대비율(현재 등락율)이 MIN_PRICE_CHANGE_RATE_P % 이상에서 매수
                                 if not self.first_buy_done(stock) and float(price_data['prdy_ctrt']) >= MIN_PRICE_CHANGE_RATE_P:
@@ -4257,7 +4258,7 @@ class Stocks_info:
                         # 즉, 두 번 째 최저가 + BUY_MARGIN_P 에서 매수                        
                         # "15:15" 까지 매수 안됐고 "현재가 <= 매수가"면 매수
                         if (lowest_price < stock['lowest_price_1']) \
-                            and self._check_buy_price(curr_price, lowest_price,buy_margin) \
+                            and self._check_buy_price(curr_price, lowest_price, buy_margin) \
                             or (t_now >= T_BUY_AFTER and curr_price <= buy_target_price):
                             qty = self.get_buy_target_qty(code)
                             self.order_buy(code, curr_price, qty, ORDER_TYPE_IMMEDIATE_ORDER)
