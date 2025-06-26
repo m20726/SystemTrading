@@ -285,6 +285,11 @@ class Stocks_info:
         if self.trade_strategy.use_trend_90ma == True:
             PRINT_DEBUG(f'90일선 {trend_msg[self.trade_strategy.trend_90ma]} 이상 매수')
 
+        if self.trade_strategy.loss_cut_time == LOSS_CUT_MARKET_CLOSE:
+            PRINT_DEBUG(f'종가 손절')
+        elif self.trade_strategy.loss_cut_time == LOSS_CUT_MARKET_OPEN:
+            PRINT_DEBUG(f'장중 손절')
+
         if BUY_QTY_1 == True:
             PRINT_DEBUG('1주만 매수')
         PRINT_DEBUG('===============================')
@@ -2122,7 +2127,7 @@ class Stocks_info:
     ##############################################################
     # 매수 체크 가격
     ##############################################################
-    def check_buy_price(self, curr_price, lowest_price, buy_margin):
+    def _check_buy_price(self, curr_price, lowest_price, buy_margin):
         return (curr_price >= (lowest_price * buy_margin)) and (curr_price < (lowest_price * (buy_margin + self.to_percent(1))))
 
     ##############################################################
@@ -2168,7 +2173,8 @@ class Stocks_info:
                         if self.trade_strategy.buy_split_strategy == BUY_SPLIT_STRATEGY_DOWN:   # 물타기
                             if stock['allow_monitoring_buy'] == False:
                                 # 목표가 왔다 -> 매수 감시 시작
-                                if curr_price <= buy_target_price:
+                                # 순간적으로 터치하고 상승하면 체크가 안된다 lowest_price <= buy_target_price 로 대체
+                                if lowest_price <= buy_target_price:
                                     # 1차 매수 시 하한가 매수 금지 위해 전일 대비율(현재 등락율)이 MIN_PRICE_CHANGE_RATE_P % 이상에서 매수
                                     if stock['buy_done'][0] == False and float(price_data['prdy_ctrt']) >= MIN_PRICE_CHANGE_RATE_P:
                                         PRINT_INFO(f"[{stock['name']}] 매수 감시 시작, {curr_price}(현재가) {buy_target_price}(매수 목표가)")
@@ -2178,7 +2184,7 @@ class Stocks_info:
                                 # buy 모니터링 중
                                 # "현재가 >= 저가 + BUY_MARGIN_P% and 현재가 < 저가 + (BUY_MARGIN_P+1)%" 에서 매수
                                 # "15:15" 까지 매수 안됐고 "현재가 <= 매수가"면 매수
-                                if self.check_buy_price(curr_price, lowest_price,buy_margin) \
+                                if self._check_buy_price(curr_price, lowest_price, buy_margin) \
                                     or (t_now >= T_BUY_AFTER and curr_price <= buy_target_price):
                                     if stock['buy_order_done'] == False:
                                         buy_target_qty = self.get_buy_target_qty(code)
@@ -2199,7 +2205,7 @@ class Stocks_info:
                                     # buy 모니터링 중
                                     # "현재가 >= 저가 + BUY_MARGIN_P% and 현재가 < 저가 + (BUY_MARGIN_P+1)%" 에서 매수
                                     # "15:15" 까지 매수 안됐고 "현재가 <= 매수가"면 매수
-                                    if self.check_buy_price(curr_price, lowest_price,buy_margin) \
+                                    if self._check_buy_price(curr_price, lowest_price, buy_margin) \
                                         or (t_now >= T_BUY_AFTER and curr_price <= buy_target_price):
                                         if stock['buy_order_done'] == False:
                                             buy_target_qty = self.get_buy_target_qty(code)
@@ -4114,3 +4120,91 @@ class Stocks_info:
         finally:
             if result == False:
                 self.SEND_MSG_ERR(msg)
+
+    ##############################################################
+    # 종목별 외국인 추정가집계 수급 리턴
+    # param :
+    #   code            종목 코드
+    ##############################################################
+    def get_foreign_flow(self, code):
+        result = True
+        msg = ""
+        foreign_flow = 0
+        try:
+            flow_data = self.get_foreign_institution_flow(code)
+            foreign_flow = int(flow_data[0]['frgn_fake_ntby_qty'])
+        except Exception as ex:
+            result = False
+            msg = "{}".format(traceback.format_exc())
+        finally:
+            if not result:
+                self.SEND_MSG_ERR(msg)
+            return int(foreign_flow)
+
+    ##############################################################
+    # 종목별 기관 추정가집계 수급 리턴
+    # param :
+    #   code            종목 코드
+    ##############################################################
+    def get_institutino_flow(self, code):
+        result = True
+        msg = ""
+        institution_flow = 0
+        try:
+            flow_data = self.get_foreign_institution_flow(code)
+            institution_flow = int(flow_data[0]['orgn_fake_ntby_qty'])
+        except Exception as ex:
+            result = False
+            msg = "{}".format(traceback.format_exc())
+        finally:
+            if not result:
+                self.SEND_MSG_ERR(msg)
+            return int(institution_flow)        
+
+    ##############################################################
+    # 종목별 외인기관 추정가집계 수급 가져오기
+    #   Return : 성공 시 요청한 시세, 실패 시 0 리턴
+    #   Parameter :
+    #       code            종목 코드
+    #       type            요청 시세(현재가, 시가, 고가, ...)
+    ##############################################################
+    def get_foreign_institution_flow(self, code:str):
+        result = True
+        msg = ""
+        flow_data = dict()
+        try:
+            PATH = "uapi/domestic-stock/v1/quotations/investor-trend-estimate"
+            URL = f"{self.config['URL_BASE']}/{PATH}"          
+            headers = {"Content-Type": "application/json",
+                    "authorization": f"Bearer {self.access_token}",
+                    "appKey": self.config['APP_KEY'],
+                    "appSecret": self.config['APP_SECRET'],
+                    "tr_id": "HHPTJ04160200",
+                    "custtype": "P"}
+            params = {
+                "MKSC_SHRN_ISCD": code,
+            }
+            res = self.requests_get(URL, headers, params)
+            if self.is_request_ok(res):
+                flow_data = res.json()['output2']
+            else:
+                raise Exception(f"[get_foreign_institution_flow failed]{str(res.json())}")
+        except Exception as ex:
+            result = False
+            msg = "{}".format(traceback.format_exc())
+        finally:
+            if not result:
+                # request 실패 시 retry
+                # ex) {'rt_cd': '1', 'msg_cd': 'EGW00201', 'msg1': '초당 거래건수를 초과하였습니다.'}
+                if self.request_retry_count < MAX_REQUEST_RETRY_COUNT:
+                    time.sleep(1)
+                    self.request_retry_count = self.request_retry_count + 1
+                    PRINT_ERR(f"get_foreign_institution_flow failed retry count({self.request_retry_count})")
+                    self.get_foreign_institution_flow(code)
+                else:
+                    self.request_retry_count = 0
+                    msg = self.stocks[code]['name'] + " " + msg
+                    self.SEND_MSG_ERR(msg)
+            else:
+                self.request_retry_count = 0
+            return flow_data
