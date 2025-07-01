@@ -175,6 +175,14 @@ BEFORE_MARKET = 0     # 장 전
 MARKET_ING = 1        # 장 중
 AFTER_MARKET = 2      # 장 후
 
+NO_BUY_TODAY = "금일 매수 금지"
+
+# 외국인 기관 수급
+FLOW_DATA_FOREIGN_DOWN_INSTITUTION_DOWN = 0     # 외국인 매도, 기관 매도
+FLOW_DATA_FOREIGN_DOWN_INSTITUTION_UP = 1       # 외국인 매도, 기관 매수
+FLOW_DATA_FOREIGN_UP_INSTITUTION_DOWN = 2       # 외국인 매수, 기관 매도
+FLOW_DATA_FOREIGN_UP_INSTITUTION_UP = 3         # 외국인 매수, 기관 매수
+
 ##############################################################
 
 class Trade_strategy:
@@ -661,9 +669,9 @@ class Stocks_info:
         msg = ""
         try:
             if self.trade_strategy.buy_split_strategy == BUY_SPLIT_STRATEGY_DOWN:   # 물타기
-                buy_margin = 0.9
+                buy_margin = 0.9    # TODO: -10%
             else:   # 불타기
-                buy_margin = 1.02
+                buy_margin = 1.02   # TODO: +2%
 
             # dict 접근을 한번만 하여 성능 향상
             stock = self.stocks[code]
@@ -755,6 +763,8 @@ class Stocks_info:
         result = True
         msg = ""
         try:
+            PRINT_INFO(f"[{stock['name']}] {bought_price}원")
+
             # 종목별로 lock 걸어서 공유 자원 보호
             with self.stock_locks[code]:
                 # dict 접근을 한번만 하여 성능 향상
@@ -777,6 +787,7 @@ class Stocks_info:
                     if not stock['buy_done'][i]:
                         if stock['stockholdings'] >= tot_buy_qty:
                             stock['buy_done'][i] = True
+                            PRINT_DEBUG(f"[{stock['name']}] ['status'] = {i+1}차 매수 완료")
                             stock['status'] = f"{i+1}차 매수 완료"
                             # 매수 완료 후 실제 매수가로 N차 매수 업데이트
                             self.set_buy_price(code, i + 1, bought_price)
@@ -831,11 +842,13 @@ class Stocks_info:
         result = True
         msg = ""
         try:
+            # dict 접근을 한번만 하여 성능 향상
+            stock = self.stocks[code]
+            
+            PRINT_INFO(f"[{stock['name']}] {sold_price}원")
+
             # 종목별로 lock 걸어서 공유 자원 보호
             with self.stock_locks[code]:
-                # dict 접근을 한번만 하여 성능 향상
-                stock = self.stocks[code]
-
                 # PRINT_INFO(f"[{stock['name']}] 매도가 {sold_price}원")
                 if sold_price <= 0:
                     self.SEND_MSG_ERR(f"[{stock['name']}] 매도가 오류 {sold_price}원")
@@ -1668,9 +1681,10 @@ class Stocks_info:
     # 매수 여부 판단
     # param :
     #   code            종목 코드
+    #   from_buy        buy 함수에서 호출 여부, buy 하기 직전 체크하는거냐
     #   print_msg       print log 여부
     ##############################################################
-    def is_ok_to_buy(self, code, print_msg=False):
+    def is_ok_to_buy(self, code, from_buy=False, print_msg=False):
         result = True
         msg = ""
         try:
@@ -1694,8 +1708,18 @@ class Stocks_info:
             if self.first_sell_done(stock):
                 if print_msg:
                     PRINT_DEBUG(f"[{stock['name']}] 매수 금지, 1차 매도된 경우 추가 매수 금지")                
-                return False
-            ####
+                return False            
+            ##################################
+
+            if from_buy:    # 매수 직전 체크
+                if stock['status'] == NO_BUY_TODAY:
+                    PRINT_DEBUG(f"[{stock['name']}] 매수 금지, {NO_BUY_TODAY}")
+                    return False
+                
+                # 외국인, 기관 모두 매도면 매수 금지
+                if self.get_foreign_institution_flow_state(code) == FLOW_DATA_FOREIGN_DOWN_INSTITUTION_DOWN:
+                    PRINT_DEBUG(f"[{stock['name']}] 매수 금지, 외국인 매도, 기관 매도")
+                    return False
             
             # 이미 보유 종목은 매수
             # ex) 2차, 3차 매수
@@ -2095,7 +2119,7 @@ class Stocks_info:
         result = True
         msg = ""
         try:
-            if not self.is_ok_to_buy(code):
+            if not self.is_ok_to_buy(code, True):
                 return False
             
             # 종가 매매 처리
@@ -3171,7 +3195,7 @@ class Stocks_info:
             self.buyable_stocks.clear()
 
             for code in self.stocks.keys():
-                if not self.is_ok_to_buy(code, True):
+                if not self.is_ok_to_buy(code, False, True):
                     continue
                 
                 # dict 접근을 한번만 하여 성능 향상
@@ -3217,6 +3241,12 @@ class Stocks_info:
                 buyable_count = min(BUYABLE_COUNT, len(self.buyable_stocks))
                 sorted_list = sorted(self.buyable_stocks.items(), key=lambda x: x[1]['buy_target_price_gap'], reverse=False)
                 self.buyable_stocks = dict(sorted_list[:buyable_count])
+
+                # last차 매수까지 완료 안된 보유 주식은 매수 가능 종목에 추가
+                with self.my_stocks_lock:
+                    if code in self.my_stocks.keys():
+                        if not self.stocks[code]['buy_done'][BUY_SPLIT_COUNT-1]:
+                            self.buyable_stocks[code] = self.stocks[code]
                 
         except Exception as ex:
             result = False
@@ -3242,6 +3272,8 @@ class Stocks_info:
             if self.trade_strategy.use_trend_90ma:
                 data['90일선추세'] = []
             data['등락율(%)'] = []
+            data['외국인수급'] = []
+            data['기관수급'] = []
             data['상태'] = []
 
             for code in sorted_data.keys():
@@ -3266,6 +3298,17 @@ class Stocks_info:
                 # 소수 2째자리까지 출력하고 나머지 버림
                 # ex) 1.237 -> 1.23
                 data['등락율(%)'].append((int(float(price_data['prdy_ctrt']) * 100) / 100))
+
+                flow_data = self.get_foreign_institution_flow(code)
+                if len(flow_data) > 0:
+                    foreign_flow = int(flow_data[0]['frgn_fake_ntby_qty'])
+                    institution_flow = int(flow_data[0]['orgn_fake_ntby_qty'])
+                else:
+                    foreign_flow = 0
+                    institution_flow = 0
+                data['외국인수급'].append(foreign_flow)
+                data['기관수급'].append(institution_flow)
+                
                 data['상태'].append(self.stocks[code]['status'])
 
             # PrettyTable 객체 생성 및 데이터 추가
@@ -3331,7 +3374,7 @@ class Stocks_info:
                 # 상승 양봉 종가 매수 대기 상태에서 매수 없이 X일 지난 경우 매수 대기하지 않고 초기화
                 self.check_clear_wait_buy_up_candle(code)
 
-                if stock['status'] == "금일 매수 금지":
+                if stock['status'] == NO_BUY_TODAY:
                     stock['status'] = ""
         except Exception as ex:
             result = False
@@ -4148,10 +4191,13 @@ class Stocks_info:
                 if lowest_price == 0:
                     return
 
+                # _handle_buy_up_candle_close_price 에서 매수 금지로 allow_monitoring_buy = False 처리 했는데 다시 매수하는 현상 수정
+                if stock['status'] == NO_BUY_TODAY:
+                    return
+                
                 buy_target_price = self.get_buy_target_price(code)
 
-                # _handle_buy_up_candle_close_price 에서 매수 금지로 allow_monitoring_buy = False 처리 후 다시 오는 현상 수정
-                if not stock['allow_monitoring_buy'] and stock['status'] != "금일 매수 금지":
+                if not stock['allow_monitoring_buy']:
                     # 목표가 왔다 -> 매수 감시 시작
                     # 순간적으로 터치하고 상승하면 체크가 안된다 lowest_price <= buy_target_price 로 대체
                     if lowest_price <= buy_target_price:
@@ -4195,6 +4241,7 @@ class Stocks_info:
     # 상승 양봉 종가 매수
     #   매수가 터치하고 종가에 상승 양봉 매수
     #   당일 매수안되면 다음날에 계속 체크
+    #   단, 외국인 기관 모두 매수 경우 양봉 아니라도 매수
     ##############################################################
     def _handle_buy_up_candle_close_price(self, code, stock, curr_price, price_data):
         result = True
@@ -4203,8 +4250,7 @@ class Stocks_info:
             t_now = datetime.datetime.now()
             
             # 종가 매수는 15:15~ 처리
-            if t_now >= T_CLOSE_PRICE_TRADE:
-                # TODO: 기관 수급 경우 음봉 매수?
+            if t_now >= T_CLOSE_PRICE_TRADE:                
                 #   기회 많은 경우 안전하게 하려면 1차 매수 1주?
                 if self.is_up_candle(price_data):
                     qty = self.get_buy_target_qty(code)
@@ -4215,12 +4261,17 @@ class Stocks_info:
                         elif float(price_data['prdy_ctrt']) >= MAX_FIRST_BUY_UP_CANDLE_PRICE_CHANGE_RATE_P:
                             # 상승 양봉 등락률이 X% 이상이면 매매 금지
                             stock['allow_monitoring_buy'] = False
-                            stock['status'] = "금일 매수 금지"
+                            stock['status'] = NO_BUY_TODAY
                             PRINT_INFO(f"[{stock['name']}] 매수 금지, {float(price_data['prdy_ctrt'])}%(등락률) >= {MAX_FIRST_BUY_UP_CANDLE_PRICE_CHANGE_RATE_P}%")                  
                     else:
                         # 2차 매수 이상 부터는 등락율이 0% 초과면 매수
                         if 0 < float(price_data['prdy_ctrt']):
-                            self.order_buy(code, curr_price, qty, ORDER_TYPE_IMMEDIATE_ORDER)
+                            self.order_buy(code, curr_price, qty, ORDER_TYPE_IMMEDIATE_ORDER)                
+                else:
+                    # 외국인 기관 모두 매수 경우 매수
+                    if self.get_foreign_institution_flow_state(code) == FLOW_DATA_FOREIGN_UP_INSTITUTION_UP:
+                        PRINT_DEBUG(f"[{stock['name']}] 양봉아니라도 외국인 매수, 기관 매수 경우 매수")
+                        self.order_buy(code, curr_price, qty, ORDER_TYPE_IMMEDIATE_ORDER)
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -4426,7 +4477,8 @@ class Stocks_info:
         foreign_flow = 0
         try:
             flow_data = self.get_foreign_institution_flow(code)
-            foreign_flow = int(flow_data[0]['frgn_fake_ntby_qty'])
+            if len(flow_data) > 0:
+                foreign_flow = int(flow_data[0]['frgn_fake_ntby_qty'])
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -4446,7 +4498,8 @@ class Stocks_info:
         institution_flow = 0
         try:
             flow_data = self.get_foreign_institution_flow(code)
-            institution_flow = int(flow_data[0]['orgn_fake_ntby_qty'])
+            if len(flow_data) > 0:
+                institution_flow = int(flow_data[0]['orgn_fake_ntby_qty'])
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -4456,7 +4509,7 @@ class Stocks_info:
             return int(institution_flow)        
 
     ##############################################################
-    # 종목별 외인기관 추정가집계 수급 가져오기
+    # 종목별 외국인기관 추정가집계 수급 가져오기
     # Return : 성공 시 요청한 시세, 실패 시 0 리턴
     # Parameter :
     #       code            종목 코드
@@ -4543,3 +4596,37 @@ class Stocks_info:
         finally:
             if not result:
                 self.SEND_MSG_ERR(msg)
+
+    ##############################################################
+    # 외국인 기관 수급 상태 리턴
+    #   FLOW_DATA_FOREIGN_DOWN_INSTITUTION_DOWN = 0     # 외국인 매도, 기관 매도
+    #   FLOW_DATA_FOREIGN_DOWN_INSTITUTION_UP = 1       # 외국인 매도, 기관 매수
+    #   FLOW_DATA_FOREIGN_UP_INSTITUTION_DOWN = 2       # 외국인 매수, 기관 매도
+    #   FLOW_DATA_FOREIGN_UP_INSTITUTION_UP = 3         # 외국인 매수, 기관 매수
+    ##############################################################
+    def get_foreign_institution_flow_state(self, code):
+        result = True
+        msg = ""
+        state = FLOW_DATA_FOREIGN_DOWN_INSTITUTION_DOWN
+        try:
+            flow_data = self.get_foreign_institution_flow(code)
+            if len(flow_data) > 0:
+                foreign_flow = int(flow_data[0]['frgn_fake_ntby_qty'])
+                institution_flow = int(flow_data[0]['orgn_fake_ntby_qty'])
+                if foreign_flow <= 0 and institution_flow <= 0:
+                    state = FLOW_DATA_FOREIGN_DOWN_INSTITUTION_DOWN
+                elif foreign_flow <= 0 and institution_flow > 0:
+                    state = FLOW_DATA_FOREIGN_DOWN_INSTITUTION_UP
+                elif foreign_flow > 0 and institution_flow <= 0:
+                    state = FLOW_DATA_FOREIGN_UP_INSTITUTION_DOWN
+                elif foreign_flow > 0 and institution_flow > 0:
+                    state = FLOW_DATA_FOREIGN_UP_INSTITUTION_UP
+            
+                PRINT_DEBUG(f"[{self.stocks[code]['name']}] 외국인 수급 {foreign_flow}, 기관 수급 {institution_flow}")
+        except Exception as ex:
+            result = False
+            msg = "{}".format(traceback.format_exc())
+        finally:
+            if not result:
+                self.SEND_MSG_ERR(msg)
+            return state
