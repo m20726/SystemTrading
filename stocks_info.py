@@ -204,7 +204,16 @@ class Trade_strategy:
         self.use_trend_60ma = False                             # 60이평선 추세선 사용 여부
         self.use_trend_90ma = False                             # 90이평선 추세선 사용 여부
         self.loss_cut_time = LOSS_CUT_MARKET_CLOSE              # 손절은 언제 할지
-        
+
+# 저장되지 않는 종목 관련 상태
+#   ex) 외국인, 기관 둘 다 매수인지 체크를 한 번만해야하는데 매번 한다. 
+#   이를 막기위해 체크했는지 여부를 판단하기위해 해당 종목에 체크 여부 status 를 본다
+#   이 값은 json 에 저장될 필요가 없다(저장하려면 초기화 등 기타 부수적인 작업 필요)
+class Stocks_status:
+    def __init__(self):
+        self.buy_up_candle_close_price_flow_state_checked = False                         # 상승 양봉 종가 매수에서 외국인, 기관 수급 체크 여부
+
+
 class Stocks_info:
     def __init__(self) -> None:
         self.stocks = dict()                            # 모든 종목의 정보
@@ -255,6 +264,10 @@ class Stocks_info:
 
         self.str_trend = {TREND_DOWN: "하락", TREND_SIDE: "보합", TREND_UP: "상승"}
 
+        # self.stocks_status[code]. 하면 속성 자동완성 표시하도록
+        self.stocks_status: dict[str, Stocks_status] = {}
+        self.stocks_status = {}
+
     ##############################################################
     # 초기화 시 처리 할 내용
     ##############################################################
@@ -275,6 +288,9 @@ class Stocks_info:
             self.market_profit_p = self.get_market_profit_p()
             self.available_buy_new_stock_count = self.get_available_buy_new_stock_count()
             self.old_available_buy_new_stock_count = self.available_buy_new_stock_count
+
+            for code in self.stocks.keys():
+                self.stocks_status[code] = Stocks_status()
             
         except Exception as ex:
             result = False
@@ -669,9 +685,9 @@ class Stocks_info:
         msg = ""
         try:
             if self.trade_strategy.buy_split_strategy == BUY_SPLIT_STRATEGY_DOWN:   # 물타기
-                buy_margin = 0.9    # TODO: -10%
+                buy_margin = 1 + self.to_percent(-10)   # -10%
             else:   # 불타기
-                buy_margin = 1.02   # TODO: +2%
+                buy_margin = 1 + self.to_percent(2)     # 2%
 
             # dict 접근을 한번만 하여 성능 향상
             stock = self.stocks[code]
@@ -763,13 +779,13 @@ class Stocks_info:
         result = True
         msg = ""
         try:
+            # dict 접근을 한번만 하여 성능 향상
+            stock = self.stocks[code]
+            
             PRINT_INFO(f"[{stock['name']}] {bought_price}원")
 
             # 종목별로 lock 걸어서 공유 자원 보호
             with self.stock_locks[code]:
-                # dict 접근을 한번만 하여 성능 향상
-                stock = self.stocks[code]
-
                 # PRINT_INFO(f"[{stock['name']}] 매수가 {bought_price}원")
                 if bought_price <= 0:
                     self.SEND_MSG_ERR(f"[{stock['name']}] 매수가 오류 {bought_price}원")
@@ -3244,9 +3260,10 @@ class Stocks_info:
 
                 # last차 매수까지 완료 안된 보유 주식은 매수 가능 종목에 추가
                 with self.my_stocks_lock:
-                    if code in self.my_stocks.keys():
+                    for code in self.my_stocks.keys():
                         if not self.stocks[code]['buy_done'][BUY_SPLIT_COUNT-1]:
                             self.buyable_stocks[code] = self.stocks[code]
+                            self.buyable_stocks[code]['buy_target_price_gap'] = self.get_buy_target_price_gap(code)
                 
         except Exception as ex:
             result = False
@@ -3266,7 +3283,8 @@ class Stocks_info:
 
             # 매수가GAP 작은 순으로 정렬
             sorted_data = dict(sorted(temp_stocks.items(), key=lambda x: x[1]['buy_target_price_gap'], reverse=False))
-            data = {'종목명':[], '매수가gap(%)':[], '매수가':[], '현재가':[], '저평가':[], '목표가gap(%)':[], 'Envelope':[]}
+            data = {'종목명':[], '매수가gap(%)':[], '매수가':[], '현재가':[], 'Envelope':[]}
+            # data = {'종목명':[], '매수가gap(%)':[], '매수가':[], '현재가':[], '저평가':[], '목표가gap(%)':[], 'Envelope':[]}
             if self.trade_strategy.use_trend_60ma:
                 data['60일선추세'] = []
             if self.trade_strategy.use_trend_90ma:
@@ -3283,8 +3301,8 @@ class Stocks_info:
                 data['매수가gap(%)'].append(sorted_data[code]['buy_target_price_gap'])
                 data['매수가'].append(buy_target_price)
                 data['현재가'].append(curr_price)
-                data['저평가'].append(sorted_data[code]['undervalue'])
-                data['목표가gap(%)'].append(sorted_data[code]['gap_max_sell_target_price_p'])
+                # data['저평가'].append(sorted_data[code]['undervalue'])
+                # data['목표가gap(%)'].append(sorted_data[code]['gap_max_sell_target_price_p'])
                 data['Envelope'].append(sorted_data[code]['envelope_p'])
  
                 if self.trade_strategy.use_trend_60ma:
@@ -3419,7 +3437,7 @@ class Stocks_info:
     #   ex) 한 달 내 최고 종가 - x%
     # param :
     #   code        종목 코드
-    #   margin_p   급락 margine percent
+    #   margin_p    급락 margine percent
     ##############################################################
     def get_plunge_price(self, code, margin_p=0):
         result = True
@@ -3434,9 +3452,9 @@ class Stocks_info:
                 # TODO: 기회 너무 적으면 margin_p 줄인다
                 # 최고 종가에서 최소 X% 폭락 가격
                 if self.stocks[code]['market_cap'] >= 100000:   # 시총 10조 이상이면
-                    margin_p = self.to_percent(23)
+                    margin_p = self.to_percent(22)
                 else:
-                    margin_p = self.to_percent(25)
+                    margin_p = self.to_percent(23)
           
             price = highest_end_price * (1 - margin_p)
             # PRINT_DEBUG(f"[{self.stocks[code]['name']}] 최고 종가 : {highest_end_price}원, 폭락 가격 : {price}원")
@@ -4173,11 +4191,11 @@ class Stocks_info:
         result = True
         msg = ""
         try:
+            # dict 접근을 한번만 하여 성능 향상
+            stock = self.stocks[code]
+
             # 종목별로 lock 걸어서 공유 자원 보호
             with self.stock_locks[code]:
-                # dict 접근을 한번만 하여 성능 향상
-                stock = self.stocks[code]
-
                 t_now = datetime.datetime.now()
                 
                 price_data = self.get_price_data(code)
@@ -4269,9 +4287,12 @@ class Stocks_info:
                             self.order_buy(code, curr_price, qty, ORDER_TYPE_IMMEDIATE_ORDER)                
                 else:
                     # 외국인 기관 모두 매수 경우 매수
-                    if self.get_foreign_institution_flow_state(code) == FLOW_DATA_FOREIGN_UP_INSTITUTION_UP:
-                        PRINT_DEBUG(f"[{stock['name']}] 양봉아니라도 외국인 매수, 기관 매수 경우 매수")
-                        self.order_buy(code, curr_price, qty, ORDER_TYPE_IMMEDIATE_ORDER)
+                    if not self.stocks_status[code].buy_up_candle_close_price_flow_state_checked:
+                        # get_foreign_institution_flow_state 계속 호출 방지
+                        self.stocks_status[code].buy_up_candle_close_price_flow_state_checked = True                        
+                        if self.get_foreign_institution_flow_state(code) == FLOW_DATA_FOREIGN_UP_INSTITUTION_UP:
+                            PRINT_DEBUG(f"[{stock['name']}] 양봉아니라도 외국인 매수, 기관 매수 경우 매수")
+                            self.order_buy(code, curr_price, qty, ORDER_TYPE_IMMEDIATE_ORDER)
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -4286,11 +4307,11 @@ class Stocks_info:
         result = True
         msg = ""
         try:
+            # dict 접근을 한번만 하여 성능 향상
+            stock = self.stocks[code]
+            
             # 종목별로 lock 걸어서 공유 자원 보호
             with self.stock_locks[code]:
-                # dict 접근을 한번만 하여 성능 향상
-                stock = self.stocks[code]
-
                 t_now = datetime.datetime.now()
 
                 price_data = self.get_price_data(code)
@@ -4304,6 +4325,10 @@ class Stocks_info:
                 if lowest_price == 0:
                     return
 
+                # _handle_buy_up_candle_close_price 에서 매수 금지로 allow_monitoring_buy = False 처리 했는데 다시 매수하는 현상 수정
+                if stock['status'] == NO_BUY_TODAY:
+                    return
+                
                 buy_target_price = self.get_buy_target_price(code)
 
                 # TODO: 상승 양봉 종가 매수
@@ -4362,9 +4387,10 @@ class Stocks_info:
         result = True
         msg = ""
         try:
+            # dict 접근을 한번만 하여 성능 향상
+            stock = self.stocks[code]
+            
             if self.trade_strategy.sell_strategy == SELL_STRATEGY_LONG:
-                # dict 접근을 한번만 하여 성능 향상
-                stock = self.stocks[code]
                 price_10ma = self.get_ma(code, 10)
                 if sold_price > price_10ma:
                     stock['sell_strategy'] = SELL_STRATEGY_LONG
@@ -4622,7 +4648,7 @@ class Stocks_info:
                 elif foreign_flow > 0 and institution_flow > 0:
                     state = FLOW_DATA_FOREIGN_UP_INSTITUTION_UP
             
-                PRINT_DEBUG(f"[{self.stocks[code]['name']}] 외국인 수급 {foreign_flow}, 기관 수급 {institution_flow}")
+                # PRINT_DEBUG(f"[{self.stocks[code]['name']}] 외국인 수급 {foreign_flow}, 기관 수급 {institution_flow}")
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
