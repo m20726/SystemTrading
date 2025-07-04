@@ -149,6 +149,12 @@ DEFAULT_ENVELOPE_P = 20             # 1차 매수 시 envelope value
 PRICE_TYPE_CLOSE = "stck_clpr"      # 종가
 PRICE_TYPE_LOWEST = "stck_lwpr"     # 최저가
 
+# 외국인 기관 수급
+FLOW_DATA_FOREIGN_DOWN_INSTITUTION_DOWN = 0     # 외국인 매도, 기관 매도
+FLOW_DATA_FOREIGN_DOWN_INSTITUTION_UP = 1       # 외국인 매도, 기관 매수
+FLOW_DATA_FOREIGN_UP_INSTITUTION_DOWN = 2       # 외국인 매수, 기관 매도
+FLOW_DATA_FOREIGN_UP_INSTITUTION_UP = 3         # 외국인 매수, 기관 매수
+
 ##############################################################
 
 class Trade_strategy:
@@ -643,11 +649,11 @@ class Stocks_info:
         result = True
         msg = ""
         try:
+            # dict 접근을 한번만 하여 성능 향상
+            stock = self.stocks[code]
+            
             # 종목별로 lock 걸어서 공유 자원 보호
             with self.stock_locks[code]:
-                # dict 접근을 한번만 하여 성능 향상
-                stock = self.stocks[code]
-
                 # PRINT_INFO(f"[{stock['name']}] 매수가 {bought_price}원")
                 if bought_price <= 0:
                     self.SEND_MSG_ERR(f"[{stock['name']}] 매수가 오류 {bought_price}원")
@@ -719,11 +725,11 @@ class Stocks_info:
         result = True
         msg = ""
         try:
+            # dict 접근을 한번만 하여 성능 향상
+            stock = self.stocks[code]
+            
             # 종목별로 lock 걸어서 공유 자원 보호
             with self.stock_locks[code]:            
-                # dict 접근을 한번만 하여 성능 향상
-                stock = self.stocks[code]
-
                 # PRINT_INFO(f"[{stock['name']}] 매도가 {sold_price}원")
                 if sold_price <= 0:
                     self.SEND_MSG_ERR(f"[{stock['name']}] 매도가 오류 {sold_price}원")
@@ -3132,6 +3138,13 @@ class Stocks_info:
                 buyable_count = min(BUYABLE_COUNT, len(self.buyable_stocks))
                 sorted_list = sorted(self.buyable_stocks.items(), key=lambda x: x[1]['buy_target_price_gap'], reverse=False)
                 self.buyable_stocks = dict(sorted_list[:buyable_count])
+
+                # last차 매수까지 완료 안된 보유 주식은 매수 가능 종목에 추가
+                with self.my_stocks_lock:
+                    for code in self.my_stocks.keys():
+                        if not self.stocks[code]['buy_done'][BUY_SPLIT_COUNT-1]:
+                            self.buyable_stocks[code] = self.stocks[code]
+                            self.buyable_stocks[code]['buy_target_price_gap'] = self.get_buy_target_price_gap(code)
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -3427,126 +3440,6 @@ class Stocks_info:
             if result == False:
                 self.SEND_MSG_ERR(msg)
             self.print_strategy()
-
-    #TODO: ta lib 로 대체
-    ##############################################################
-    # get RSI
-    # param :
-    #   code        종목 코드                
-    #   past_day    과거 언제 RSI 구할건지
-    #               ex) 0 : 금일, 1 : 어제
-    #   period      RSI 기간
-    ##############################################################
-    def get_rsi(self, code: str, past_day=0, period=20):
-        result = True
-        msg = ""
-        try:
-            # 종가 100건 구하기, index 0 이 금일
-            end_price_list = self.get_price_list(code, "D", PRICE_TYPE_CLOSE)
-
-            # x일간의 종가 구한다
-            # 마지막 날의 상승/하락분을 위해 마지막날 이전날 데이터까지 구한다
-            # ex) 20 일간의 상승/하락분을 구하려면 21일간의 데이터 필요
-            data_count = len(end_price_list)
-            days_last = past_day + period + 1
-            if days_last > data_count:
-                raise Exception(f"Can't get more than 99 days data, period:{period}, past_day:{past_day}, days_last:{days_last}")
-
-            # 상승/하락분 구하기
-            up_price_list = []      # index 0 이 금일
-            down_price_list = []    # index 0 이 금일
-            for i in range(data_count):  # end_price_list[0] 는 금일 종가, end_price_list[99] 는 제일 예전 종가
-                # 제일 예전 종가는 이전 종가가 없어서 skip
-                if i+1 >= data_count:
-                    break
-                # ex) 오늘 종가 - 어제 종가
-                diff_price = end_price_list[i] - end_price_list[i+1]
-                if diff_price > 0:
-                    up_price_list.append(diff_price)
-                    down_price_list.append(0)
-                elif diff_price < 0:
-                    up_price_list.append(0)
-                    down_price_list.append(abs(diff_price))
-                else:
-                    # diff_price == 0
-                    up_price_list.append(diff_price)
-                    down_price_list.append(diff_price)
-
-            # 상승폭 평균(AU)
-            # oldest day 에서 period 동안의 AU0
-            # ex) AU0 는 up_price_list[98] ~ up_price_list[79] 까지의 평균, AU79는 금일
-            last_period = up_price_list[-1:-period-1:-1]    # 역순으로 마지막 period 개의 요소를 추출
-            au0 = sum(last_period) / len(last_period)
-            au_list = []    # index 0 이 oldest
-            au_list.append(au0)
-
-            # 그 다음 AU = (이전 AU * (period-1) + 현재 이득) / period
-            # AU1 ~ AU79, up20 ~ up98
-            up_price_list_len = len(up_price_list)
-            for i in range(period, up_price_list_len):
-                au_list.append((au_list[-1]*(period-1) + up_price_list[up_price_list_len-i-1]) / period)
-
-            # 하락폭 평균(AD)
-            # oldest day 에서 period 동안의 AD0
-            # ex) AD0 는 down_price_list[98] ~ down_price_list[79] 까지의 평균
-            last_period = down_price_list[-1:-period-1:-1]    # 역순으로 마지막 period 개의 요소를 추출
-            ad0 = sum(last_period) / len(last_period)
-            ad_list = []    # index 0 이 oldest
-            ad_list.append(ad0)
-
-            # 그 다음 AD = (이전 DU * (period-1) + 현재 손실) / period
-            # AD1 ~ AD79, down20 ~ down98
-            down_price_list_len = len(down_price_list)
-            for i in range(period, down_price_list_len):
-                ad_list.append((ad_list[-1]*(period-1) + down_price_list[down_price_list_len-i-1]) / period)
-
-            rsi_list = []       # index 0 이 금일
-            for i in range(len(au_list)):
-                # RSI = AU/(AU+AD)*100
-                rsi_list.insert(0, au_list[i]/(au_list[i]+ad_list[i])*100)
-
-            return int(rsi_list[past_day])
-        except Exception as ex:
-            result = False
-            msg = "{}".format(traceback.format_exc())
-        finally:
-            if result == False:
-                self.SEND_MSG_ERR(msg)
-                return 0
-
-    ##############################################################
-    # 종목마다 매수 가능한 RSI 값 리턴
-    #   ex) 시총 1조 이상은 x, 미만은 y
-    # param :
-    #   code        종목 코드                
-    ##############################################################
-    def get_buy_rsi(self, code: str):
-        result = True
-        msg = ""
-        buy_rsi = 0
-        try:
-            # dict 접근을 한번만 하여 성능 향상
-            stock = self.stocks[code]
-
-            RSI_BASE_NUMBER = 490
-            buy_rsi = int(RSI_BASE_NUMBER / stock['envelope_p'])
-            market_cap = max(1, int(stock['market_cap'] / 10000))
-
-            if stock['trend_60ma'] == TREND_UP:
-                # 조단위 시총
-                # 시총에 따라 buy rsi 변경
-                buy_rsi += min(6, market_cap*2)
-            elif stock['trend_60ma'] == TREND_SIDE:
-                buy_rsi += min(4, market_cap)
-            # 최소 buy_rsi
-            buy_rsi = max(37, buy_rsi)
-        except Exception as ex:
-            result = False
-            msg = "{}".format(traceback.format_exc())
-        finally:
-            if result == False:
-                self.SEND_MSG_ERR(msg)
-            return buy_rsi
 
     ##############################################################
     # 이평 추세 구할 때 last day 값 리턴
@@ -4217,3 +4110,37 @@ class Stocks_info:
             else:
                 self.request_retry_count = 0
             return flow_data
+
+    ##############################################################
+    # 외국인 기관 수급 상태 리턴
+    #   FLOW_DATA_FOREIGN_DOWN_INSTITUTION_DOWN = 0     # 외국인 매도, 기관 매도
+    #   FLOW_DATA_FOREIGN_DOWN_INSTITUTION_UP = 1       # 외국인 매도, 기관 매수
+    #   FLOW_DATA_FOREIGN_UP_INSTITUTION_DOWN = 2       # 외국인 매수, 기관 매도
+    #   FLOW_DATA_FOREIGN_UP_INSTITUTION_UP = 3         # 외국인 매수, 기관 매수
+    ##############################################################
+    def get_foreign_institution_flow_state(self, code):
+        result = True
+        msg = ""
+        state = FLOW_DATA_FOREIGN_DOWN_INSTITUTION_DOWN
+        try:
+            flow_data = self.get_foreign_institution_flow(code)
+            if len(flow_data) > 0:
+                foreign_flow = int(flow_data[0]['frgn_fake_ntby_qty'])
+                institution_flow = int(flow_data[0]['orgn_fake_ntby_qty'])
+                if foreign_flow <= 0 and institution_flow <= 0:
+                    state = FLOW_DATA_FOREIGN_DOWN_INSTITUTION_DOWN
+                elif foreign_flow <= 0 and institution_flow > 0:
+                    state = FLOW_DATA_FOREIGN_DOWN_INSTITUTION_UP
+                elif foreign_flow > 0 and institution_flow <= 0:
+                    state = FLOW_DATA_FOREIGN_UP_INSTITUTION_DOWN
+                elif foreign_flow > 0 and institution_flow > 0:
+                    state = FLOW_DATA_FOREIGN_UP_INSTITUTION_UP
+            
+                PRINT_DEBUG(f"[{self.stocks[code]['name']}] 외국인 수급 {foreign_flow}, 기관 수급 {institution_flow}")
+        except Exception as ex:
+            result = False
+            msg = "{}".format(traceback.format_exc())
+        finally:
+            if not result:
+                self.SEND_MSG_ERR(msg)
+            return state        
