@@ -3145,6 +3145,12 @@ class Stocks_info:
                         if not self.stocks[code]['buy_done'][BUY_SPLIT_COUNT-1]:
                             self.buyable_stocks[code] = self.stocks[code]
                             self.buyable_stocks[code]['buy_target_price_gap'] = self.get_buy_target_price_gap(code)
+
+                #  매수,매도 등 처리하지 않는 종목은 매수 가능 종목에서 제거
+                for code in self.not_handle_stock_list:
+                    if code in self.buyable_stocks.keys():
+                        del self.buyable_stocks[code]
+
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
