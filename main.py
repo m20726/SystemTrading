@@ -68,7 +68,7 @@ def main():
         # stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
 
         stocks_info.update_my_stocks()              # 보유 주식 업데이트
-        stocks_info.show_stocks(False)
+        # stocks_info.show_stocks(False)
         stocks_info.get_stock_balance()
 
         # 장 종료 후는 매수 가능 종목 불필요
@@ -133,7 +133,7 @@ def main():
         # Loop 종료
         stocks_info.check_ordered_stocks_trade_done()   # Loop 종료 후 체결 처리
         stocks_info.update_my_stocks()
-        stocks_info.show_stocks(True)
+        # stocks_info.show_stocks(True)
         stocks_info.show_trade_done_stocks(BUY_CODE)
         stocks_info.show_trade_done_stocks(SELL_CODE)
         stocks_info.get_stock_balance(True)

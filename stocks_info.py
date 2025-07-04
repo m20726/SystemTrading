@@ -16,7 +16,7 @@ from define import *
 from concurrent.futures import ThreadPoolExecutor
 from collections import defaultdict
 
-# 2025.03.05 기준 원금 460만원
+# 2025.07.04 기준 원금 660만원
 
 # TODO: 한투MTS 에서 주문 취소 경우 처리
 # self.stocks[code]['buy_order_done'] = False
@@ -102,7 +102,7 @@ BUYABLE_GAP_MAX = 15
 BUYABLE_GAP_MIN = -20  # 액면 분할 후 거래 해제날 buyable gap 이 BUYABLE_GAP_MAX 보다 낮은 현상으로 매수되는 것 방지 위함
 
 # 상위 몇개 종목까지 매수 가능 종목으로 유지
-BUYABLE_COUNT = 12
+BUYABLE_COUNT = 15
 
 # 1차 매수 시 하한가 매수 금지 위해 전일 대비율(현재 등락율)이 MIN_PRICE_CHANGE_RATE_P % 이상에서 매수
 MIN_PRICE_CHANGE_RATE_P = -20
@@ -3265,6 +3265,11 @@ class Stocks_info:
                             self.buyable_stocks[code] = self.stocks[code]
                             self.buyable_stocks[code]['buy_target_price_gap'] = self.get_buy_target_price_gap(code)
                 
+                #  매수,매도 등 처리하지 않는 종목은 매수 가능 종목에서 제거
+                for code in self.not_handle_stock_list:
+                    if code in self.buyable_stocks.keys():
+                        del self.buyable_stocks[code]
+
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
