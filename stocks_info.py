@@ -102,7 +102,7 @@ BUYABLE_GAP_MAX = 15
 BUYABLE_GAP_MIN = -20  # 액면 분할 후 거래 해제날 buyable gap 이 BUYABLE_GAP_MAX 보다 낮은 현상으로 매수되는 것 방지 위함
 
 # 상위 몇개 종목까지 매수 가능 종목으로 유지
-BUYABLE_COUNT = 15
+BUYABLE_COUNT = 14
 
 # 1차 매수 시 하한가 매수 금지 위해 전일 대비율(현재 등락율)이 MIN_PRICE_CHANGE_RATE_P % 이상에서 매수
 MIN_PRICE_CHANGE_RATE_P = -20
@@ -174,8 +174,6 @@ PRICE_TYPE_LOWEST = "stck_lwpr"     # 저가
 BEFORE_MARKET = 0     # 장 전
 MARKET_ING = 1        # 장 중
 AFTER_MARKET = 2      # 장 후
-
-NO_BUY_TODAY = "금일 매수 금지"
 
 # 외국인 기관 수급
 FLOW_DATA_FOREIGN_DOWN_INSTITUTION_DOWN = 0     # 외국인 매도, 기관 매도
@@ -673,6 +671,7 @@ class Stocks_info:
                 self.SEND_MSG_ERR(msg)
             if not set_aggressive_price and stock['status'] == "공격적 매수 전략":
                 self.set_stocks(code, {'status': ''})
+                PRINT_INFO(f"[{stock['name']}] clear status")
             return set_aggressive_price
 
     ##############################################################
@@ -695,6 +694,11 @@ class Stocks_info:
 
             # dict 접근을 한번만 하여 성능 향상
             stock = self.stocks[code]
+
+            # 상승 양봉 종가 매수 대기 중일 땐 buy price 업데이트하지 않는다
+            # 상승 양봉 종가에 매수한다
+            if self.wait_buy_up_candle(code):
+                return            
 
             # 1차 매수 안된 경우 envelope 기반으로 매수가 세팅
             if not self.first_buy_done(stock):
@@ -970,6 +974,7 @@ class Stocks_info:
                 'lowest_price_1': 0,
                 'sell_strategy': SELL_STRATEGY_TARGET_PRICE,
                 'wait_buy_up_candle_date': None,
+                'no_buy_today': False
             })
             # 매도 완료 후 매도 체결 조회 할 수 있기 때문에 초기화하지 않는다
             # stock['avg_buy_price'] = 0
@@ -992,6 +997,7 @@ class Stocks_info:
 
     ##############################################################
     # 목표가 = 평단가 * (1 + 목표%)
+    #   stock['sell_target_p'] or stock['avg_buy_price'] 변경시 업데이트 필요
     # param :
     #   code            종목 코드
     ##############################################################
@@ -1049,7 +1055,7 @@ class Stocks_info:
     def get_lowest_pirce(self, code, days=1):
         result = True
         msg = ""
-        lowest_lowest_price = 0
+        lowest_lowest_price = 0        
         try:
             if days == 1:
                 lowest_lowest_price = self.get_price(code, PRICE_TYPE_LOWEST)
@@ -1509,7 +1515,8 @@ class Stocks_info:
     ##############################################################
     def _update_stock_trade_not_my_stock_info(self, code, stock):
         if not self.is_my_stock(code):
-            self.set_stocks(code, {'avg_buy_price': stock['buy_price'][0], 'sell_target_price': self.get_sell_target_price(code)})
+            # sell_target_price 는 avg_buy_price 설정 후 자동으로 업데이트
+            self.set_stocks(code, {'avg_buy_price': stock['buy_price'][0]})
 
     ##############################################################
     # 매수/매도 위한 주식 정보 업데이트
@@ -1550,7 +1557,7 @@ class Stocks_info:
                     PRINT_ERR(f"[{stock['name']}] 처리 중 오류: {e}")
             #################### end of process_update_stock_trade_info() ####################
 
-            with ThreadPoolExecutor(max_workers=14) as executor:
+            with ThreadPoolExecutor(max_workers=BUYABLE_COUNT) as executor:
                 executor.map(process_update_stock_trade_info, stocks_codes)            
         except Exception as ex:
             result = False
@@ -1606,13 +1613,14 @@ class Stocks_info:
                             self.set_stocks(code, {
                                 'stockholdings': int(my_stock['hldg_qty']), # 평단가
                                 'avg_buy_price': int(float(my_stock['pchs_avg_pric'])),  # 계좌내 실제 평단가
-                                'sell_target_price': self.get_sell_target_price(code),   # 목표가
+                                # 'sell_target_price': self.get_sell_target_price(code),   # 목표가, sell_target_price 는 avg_buy_price 설정 후 자동으로 업데이트
                                 'first_sell_target_price': self.get_first_sell_target_price(code),  # 1차 목표가 유지
                             })
 
                             temp_stock = copy.deepcopy({code: stock})
                             with self.my_stocks_lock:
                                 self.my_stocks[code] = temp_stock[code]
+                            time.sleep(0.001)   # context switching between threads
                         else:
                             # 보유는 하지만 stocks_info.json 에 없는 종목 제외 ex) 공모주
                             pass
@@ -1642,6 +1650,7 @@ class Stocks_info:
                 with self.my_stocks_lock:
                     del self.my_stocks[code]
                     PRINT_INFO(f"실제 보유 종목이 아닌 [{self.stocks[code]['name']}] 를 self.my_stocks 에서 제거")
+                time.sleep(0.001)   # context switching between threads
 
     ##############################################################
     # 매수 가능 신규 종목(미보유) 수 리턴
@@ -1676,10 +1685,8 @@ class Stocks_info:
             with self.my_stocks_lock:
                 if code in self.my_stocks.keys():
                     ret = True
-                    # PRINT_INFO(f"{self.stocks[code]['name']} 보유")
                 else:
                     ret = False
-                    # PRINT_INFO(f"{self.stocks[code]['name']} 미보유")
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -1745,8 +1752,8 @@ class Stocks_info:
             ##################################
 
             if from_buy:    # 매수 직전 체크
-                if stock['status'] == NO_BUY_TODAY:
-                    PRINT_DEBUG(f"[{stock['name']}] 매수 금지, {NO_BUY_TODAY}")
+                if stock['no_buy_today']:
+                    PRINT_DEBUG(f"[{stock['name']}] 매수 금지, 금일 매수 금지")
                     return False
                 
                 # 외국인, 기관 모두 매도면 매수 금지
@@ -2350,11 +2357,12 @@ class Stocks_info:
                             self._handle_buy_split_strategy_down(code, buy_margin)
                         else:   # 불타기
                             self._handle_buy_split_strategy_up(code, buy_margin)
+                    time.sleep(0.001)   # context switching between threads
 
                 except Exception as e:
                     PRINT_ERR(f"[{self.stocks[code]['name']}] 처리 중 오류: {e}")
 
-            with ThreadPoolExecutor(max_workers=14) as executor:
+            with ThreadPoolExecutor(max_workers=BUYABLE_COUNT) as executor:
                 executor.map(process_buy_stock, buyable_codes)
         except Exception as ex:
             result = False
@@ -2399,6 +2407,7 @@ class Stocks_info:
                     else:
                         # 2차 매도
                         self._handle_second_sell(code, stock, curr_price, sell_target_price)
+                time.sleep(0.001)   # context switching between threads
 
             if self.trade_strategy.buy_strategy != BUY_STRATEGY_BUY_UP_CANDLE:
                 # 장중 손절
@@ -2733,6 +2742,7 @@ class Stocks_info:
                             self.stocks[code]['end_price_higher_than_20ma_after_sold'] = False
                         else:
                             self.set_sell_done(code, avg_trade_done_price)
+                    time.sleep(0.001)   # context switching between threads
                  
             # 여러 종목 체결되도 결과는 한 번만 출력
             if is_trade_done:
@@ -3285,7 +3295,7 @@ class Stocks_info:
                 for code in self.not_handle_stock_list:
                     if code in self.buyable_stocks.keys():
                         del self.buyable_stocks[code]
-
+            
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -3408,19 +3418,18 @@ class Stocks_info:
                     'loss_cut_order': False,
                     'buy_order_done': False,
                     'sell_order_done': False,
-                    'lowest_price_1': 0
+                    'lowest_price_1': 0,
+                    'no_buy_today': False
                 })
 
                 if stock['sell_all_done']:
                     self.set_stocks(code, {'avg_buy_price': 0})
 
-                # 상승 양봉 종가 매수 대기 상태에서 매수 없이 X일 지난 경우 매수 대기하지 않고 초기화
-                self.check_clear_wait_buy_up_candle(code)
+                # # 상승 양봉 종가 매수 대기 상태에서 매수 없이 X일 지난 경우 매수 대기하지 않고 초기화 -> 계속 하락하는 경우는 대기해야하지 않나?
+                # self.check_clear_wait_buy_up_candle(code)
 
                 #TODO: 유지해야하는 status 제외하고 '' 처리
-                # clear_status()
-                if stock['status'] == NO_BUY_TODAY or stock['status'] == "매도 모니터링":
-                    self.set_stocks(code, {'status': ''})
+                self.set_status_after_market(code)
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -3959,16 +3968,15 @@ class Stocks_info:
                     # 보유 주식 아닌 경우에 업데이트
                     if not self.is_my_stock(code):
                         # 평단가 = 1차 매수가
+                        # sell_target_price 는 avg_buy_price 설정 후 자동으로 업데이트
                         self.set_stocks(code, {'avg_buy_price': stock['buy_price'][0]})
-                        # 목표가
-                        self.set_stocks(code, {'sell_target_price': self.get_sell_target_price(code)})
                         PRINT_DEBUG(f"[{stock['name']}] new envelope {stock['envelope_p']}")
 
                 except Exception as e:
                     PRINT_ERR(f"[{stock['name']}] 처리 중 오류: {e}")
             #################### end of process_update_stock_trade_info_market_crash() ####################
 
-            with ThreadPoolExecutor(max_workers=14) as executor:
+            with ThreadPoolExecutor(max_workers=BUYABLE_COUNT) as executor:
                 executor.map(process_update_stock_trade_info_market_crash, stocks_codes)
             
             # 매수 주문 후 시장 폭락으로 buy_qty 변경되었는데 변경 전 buy_qty 로 매수 완료 경우 매수 완료 처리 안되는 문제 발생
@@ -4232,7 +4240,7 @@ class Stocks_info:
                 return
 
             # _handle_buy_up_candle_close_price 에서 매수 금지로 allow_monitoring_buy = False 처리 했는데 다시 매수하는 현상 수정
-            if stock['status'] == NO_BUY_TODAY:
+            if stock['no_buy_today']:
                 return
             
             buy_target_price = self.get_buy_target_price(code)
@@ -4243,13 +4251,16 @@ class Stocks_info:
                 if lowest_price <= buy_target_price:
                     # 상승 양봉 종가 매수 전략 경우
                     if self.trade_strategy.buy_strategy == BUY_STRATEGY_BUY_UP_CANDLE:
-                        self.set_stocks(code, {
-                            'allow_monitoring_buy': True,
-                            'status': "상승 양봉 종가 매수 대기", 
-                            'wait_buy_up_candle_date': date.today().strftime('%Y-%m-%d')
-                        })
-                        # 상승 양봉 종가 매수 대기 시작 일자
-                        PRINT_INFO(f"[{stock['name']}] 상승 양봉 종가 매수 대기 시작, {curr_price}(현재가) {buy_target_price}(매수 목표가)")
+                        # 1차 매수 안된 경우 금일 저가가 x일 내에 최저가인 경우에 매수 대기한다
+                        # 1차 매수 된 경우는 바로 매수 대기
+                        if (not self.first_buy_done(stock) and (lowest_price < self.get_lowest_pirce(code, 7))) or (self.first_buy_done(stock)):
+                            self.set_stocks(code, {
+                                'allow_monitoring_buy': True,
+                                'status': "상승 양봉 종가 매수 대기", 
+                                'wait_buy_up_candle_date': date.today().strftime('%Y-%m-%d')
+                            })
+                            # 상승 양봉 종가 매수 대기 시작 일자
+                            PRINT_INFO(f"[{stock['name']}] 상승 양봉 종가 매수 대기 시작, {curr_price}(현재가) {buy_target_price}(매수 목표가)")
                     else:
                         if self._check_buy_price(curr_price, lowest_price, buy_margin):
                             # 1차 매수 시 하한가 매수 금지 위해 전일 대비율(현재 등락율)이 MIN_PRICE_CHANGE_RATE_P % 이상에서 매수
@@ -4294,8 +4305,8 @@ class Stocks_info:
             
             # 종가 매수는 15:15~ 처리
             if t_now >= T_CLOSE_PRICE_TRADE:
-                PRINT_DEBUG(f"[{stock['name']}]")
-                #   기회 많은 경우 안전하게 하려면 1차 매수 1주?
+                # PRINT_DEBUG(f"[{stock['name']}]")
+                # 기회 많은 경우 안전하게 하려면 1차 매수 1주?
                 if self.is_up_candle(price_data):
                     qty = self.get_buy_target_qty(code)
                     if not self.first_buy_done(stock):
@@ -4304,14 +4315,14 @@ class Stocks_info:
                             # 상승 양봉 종가 매수 조건 맞는 당일 매수 안되고 나중에 매수 될 때 높은 매수가에 매수되지 않기 위해
                             self.set_stocks(code, {
                                 'allow_monitoring_buy': False, 
-                                'status': NO_BUY_TODAY
+                                'no_buy_today': True
                             })
                             PRINT_INFO(f"[{stock['name']}] 매수 금지, {curr_price}(현재가) >= 1차 매수가 * {(1 + self.to_percent(MAX_FIRST_BUY_UP_CANDLE_PRICE_CHANGE_RATE_P))}%")                  
                         elif float(price_data['prdy_ctrt']) >= MAX_FIRST_BUY_UP_CANDLE_PRICE_CHANGE_RATE_P:
                             # 상승 양봉 등락률이 X% 이상이면 매매 금지
                             self.set_stocks(code, {
                                 'allow_monitoring_buy': False, 
-                                'status': NO_BUY_TODAY
+                                'no_buy_today': True
                             })
                             PRINT_INFO(f"[{stock['name']}] 매수 금지, {float(price_data['prdy_ctrt'])}%(등락률) >= {MAX_FIRST_BUY_UP_CANDLE_PRICE_CHANGE_RATE_P}%")                  
                         elif 0 < float(price_data['prdy_ctrt']) < MAX_FIRST_BUY_UP_CANDLE_PRICE_CHANGE_RATE_P:
@@ -4360,7 +4371,7 @@ class Stocks_info:
                 return
 
             # _handle_buy_up_candle_close_price 에서 매수 금지로 allow_monitoring_buy = False 처리 했는데 다시 매수하는 현상 수정
-            if stock['status'] == NO_BUY_TODAY:
+            if stock['no_buy_today']:
                 return
             
             buy_target_price = self.get_buy_target_price(code)
@@ -4627,7 +4638,9 @@ class Stocks_info:
     #       type            요청 시세(현재가, 시가, 고가, ...)
     ##############################################################
     def wait_buy_up_candle(self, code):
-        if self.trade_strategy.buy_strategy == BUY_STRATEGY_BUY_UP_CANDLE and self.stocks[code]['allow_monitoring_buy']:
+        if (self.trade_strategy.buy_strategy == BUY_STRATEGY_BUY_UP_CANDLE \
+            and self.stocks[code]['status'] == "상승 양봉 종가 매수 대기" \
+            and self.stocks[code]['allow_monitoring_buy']):
             return True
         return False
 
@@ -4649,7 +4662,7 @@ class Stocks_info:
                     return
                 today = date.today()
                 days_diff = (today - wait_buy_up_candle_date).days
-                if days_diff > WAIT_BUY_UP_CANDLE_DAYS:
+                if days_diff >= WAIT_BUY_UP_CANDLE_DAYS:
                     self.set_stocks(code, {
                         'allow_monitoring_buy': False, 
                         'status': "", 
@@ -4714,9 +4727,9 @@ class Stocks_info:
     #   updates         업데이트할 종목 정보, dict 형태로 전달
     #       - 일반 키: 값 (예: 'status': '매수 모니터링')
     #       - 리스트 항목은 튜플로 ('리스트키', 인덱스): 값 (예: ('buy_price', 0): 10000) 
-    #       ex) self.set_stocks("282330", {'status': 'test')  
+    #       ex) self.set_stocks("282330", {'status': '공격적 매수 전략')  
     #       ex) self.set_stocks("282330", {('buy_price', 0): 99940})  
-    #       ex) self.set_stocks("282330", {'status': 'test', ('buy_price', 0): 99940})  
+    #       ex) self.set_stocks("282330", {'status': '공격적 매수 전략', ('buy_price', 0): 99940})  
     ##############################################################
     def set_stocks(self, code, updates):
         result = True
@@ -4730,6 +4743,36 @@ class Stocks_info:
                         self.stocks[code][list_key][index] = v
                     else:
                         self.stocks[code][k] = v
+                        # sell_target_p, avg_buy_price 변경 시 sell_target_price 업데이트 필요
+                        if k == 'sell_target_p' or k == 'avg_buy_price':
+                            self.stocks[code]['sell_target_price'] = self.get_sell_target_price(code)
+        except Exception as ex:
+            result = False
+            msg = "{}".format(traceback.format_exc())
+        finally:
+            if not result:
+                self.SEND_MSG_ERR(msg)
+
+    ##############################################################
+    # 장 종료 후 status 세팅
+    #   장 종료 후에도 status 유지할 필요 있는건 유지, 아니면 clear
+    # param :
+    #   code        종목 코드
+    ##############################################################
+    def set_status_after_market(self, code):
+        result = True
+        msg = ""
+        try:
+            stock = self.stocks[code]
+            
+            if (
+                stock['status'] == '매도 모니터링' or
+                stock['status'] == '공격적 매수 전략'
+            ):
+                self.set_stocks(code, {'status': ''})
+
+            if stock['status'] == '매수 모니터링' and stock['allow_monitoring_buy'] == False:
+                self.set_stocks(code, {'status': ''})
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
