@@ -4278,7 +4278,7 @@ class Stocks_info:
                     if self.trade_strategy.buy_strategy == BUY_STRATEGY_BUY_UP_CANDLE:
                         # 1차 매수 안된 경우 금일 저가가 x일 내에 최저가인 경우에 매수 대기한다
                         # 1차 매수 된 경우는 바로 매수 대기
-                        if (not self.first_buy_done(stock) and (lowest_price < self.get_lowest_pirce(code, 7))) or (self.first_buy_done(stock)):
+                        if (not self.first_buy_done(stock) and (lowest_price <= self.get_lowest_pirce(code, 7))) or (self.first_buy_done(stock)):
                             self.set_stocks(code, {
                                 'allow_monitoring_buy': True,
                                 'status': "상승 양봉 종가 매수 대기", 
