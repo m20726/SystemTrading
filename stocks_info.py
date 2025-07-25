@@ -1742,7 +1742,7 @@ class Stocks_info:
                 return
 
             # last차 매수까지 완료 시 금지
-            if stock['buy_done'][BUY_SPLIT_COUNT-1]:
+            if self.is_all_buy_done(code):
                 if print_msg:
                     PRINT_DEBUG(f"[{stock['name']}] 매수 금지, last차 매수까지 완료")                
                 ret = False
@@ -3131,8 +3131,8 @@ class Stocks_info:
                     # max(10일선, 평단가과 최근 매도가의 중간)
                     price = max(self.get_ma(code, 10), (stock['avg_buy_price'] + (stock['recent_sold_price'] - stock['avg_buy_price']) / 2))   # 10일선
                 else:
-                    # 익절가 = 평단가과 최근 매도가의 중간
-                    price = stock['avg_buy_price'] + (stock['recent_sold_price'] - stock['avg_buy_price']) / 2
+                    # 익절가
+                    price = stock['avg_buy_price'] + (stock['recent_sold_price'] - stock['avg_buy_price']) / 10
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -3162,7 +3162,7 @@ class Stocks_info:
             else:
                 # loop 중간에 self.my_stocks 변경되어도 loop 순회 안전하도록 list()처리
                 for code in list(self.my_stocks.keys()):
-                    # 한 종목이라도 손절 주문 시 ret = True
+                    # 한 종목이라도 손절 주문 시 return True
                     has_loss_cut_order = has_loss_cut_order or self.process_loss_cut(code)
         except Exception as ex:
             result = False
@@ -3287,8 +3287,8 @@ class Stocks_info:
                 # last차 매수까지 완료 안된 보유 주식은 매수 가능 종목에 추가
                 # loop 중간에 self.my_stocks 변경되어도 loop 순회 안전하도록 list()처리
                 for code in list(self.my_stocks.keys()):
-                    if not self.stocks[code]['buy_done'][BUY_SPLIT_COUNT-1]:
-                        self.buyable_stocks[code] = self.stocks[code]
+                    if not self.is_all_buy_done(code):
+                        self.buyable_stocks[code] = copy.deepcopy(self.stocks[code])    # 참조말고 완전한 복사
                         self.buyable_stocks[code]['buy_target_price_gap'] = self.get_buy_target_price_gap(code)
 
                 #  매수,매도 등 처리하지 않는 종목은 매수 가능 종목에서 제거
