@@ -570,7 +570,7 @@ class Stocks_info:
                 buy_margin = 1.02
 
             # 1차 매수 안된 경우 envelope 기반으로 매수가 세팅
-            if stock['buy_done'][0] == False:
+            if not self.first_buy_done(code):
                 envelope_p = self.to_percent(stock['envelope_p'])
                 envelope_support_line = stock['yesterday_20ma'] * (1 - envelope_p)
 
@@ -748,9 +748,9 @@ class Stocks_info:
                     if stock['sell_done'][i] == False:
                         stock['sell_done'][i] = True
                         stock['status'] = f"{i+1}차 매도 완료"
-                        # 1차 매도 완료 시 매도가 > 10ma 체크하여 2차 매도 길게 처리할지 판단
-                        if i == 0:
-                            self.set_sell_strategy(code, sold_price)
+                        # # 1차 매도 완료 시 매도가 > 10ma 체크하여 2차 매도 길게 처리할지 판단
+                        # if i == 0:
+                        #     self.set_sell_strategy(code, sold_price)
                         break
                 stock['recent_sold_price'] = sold_price
                 self.update_my_stocks()
@@ -869,7 +869,7 @@ class Stocks_info:
             # dict 접근을 한번만 하여 성능 향상
             stock = self.stocks[code]
 
-            if stock['sell_done'][0] == False:
+            if not self.first_sell_done(code):
                 # 1차 매도 안된 경우
                 sell_target_p = self.to_percent(stock['sell_target_p'])
                 if self.trade_strategy.buy_split_strategy == BUY_SPLIT_STRATEGY_DOWN:   # 물타기 
@@ -877,7 +877,7 @@ class Stocks_info:
                 else:   # 불타기
                     # 1차 매수 시 목표가 유지
                     # 2,3차 매수 했다고 목표가 업데이트하지 않는다.
-                    if stock['sell_target_price'] == 0 or stock['buy_done'][0] == False:
+                    if stock['sell_target_price'] == 0 or not self.first_buy_done(code):
                         price = stock['avg_buy_price'] * (1 + sell_target_p)
                     else:
                         price = stock['sell_target_price']
@@ -1356,7 +1356,7 @@ class Stocks_info:
                     stock['trend_90ma'] = self.get_ma_trend(code, past_day, 90, 7, "D", TREND_UP_DOWN_DIFF_90MA_P)
 
                 # 1차 매수 안된 경우만 업데이트
-                if stock['buy_done'][0] == False:
+                if not self.first_buy_done(code):
                     stock['sell_target_p'] = SELL_TARGET_P
                     stock['envelope_p'] = self.get_envelope_p(code)
                     # 매수가 세팅
@@ -1450,10 +1450,10 @@ class Stocks_info:
                                 # 1차 목표가 유지
                                 stock['first_sell_target_price'] = self.get_first_sell_target_price(code)
 
-                            # self.my_stocks 업데이트
                             temp_stock = copy.deepcopy({code: stock})
                             with self.my_stocks_lock:
                                 self.my_stocks[code] = temp_stock[code]
+                            time.sleep(0.001)   # context switching between threads
                         else:
                             # 보유는 하지만 stocks_info.json 에 없는 종목 제외 ex) 공모주
                             pass
@@ -1570,7 +1570,7 @@ class Stocks_info:
                 return False
             
             # 1차 매도된 경우 추가 매수 금지
-            if stock['sell_done'][0] == True:
+            if self.first_sell_done(code):
                 if print_msg:
                     PRINT_DEBUG(f"[{stock['name']}] 매수 금지, 1차 매도된 경우 추가 매수 금지")                
                 return False
@@ -2168,7 +2168,7 @@ class Stocks_info:
             t_now = datetime.datetime.now()
             buy_margin = 1 + self.to_percent(BUY_MARGIN_P)
 
-            for code in self.buyable_stocks.keys():
+            for code in list(self.buyable_stocks.keys()):
                 # 매수,매도 등 처리하지 않는 종목, stocks_info.json 에 없는 종목은 제외
                 if code in self.not_handle_stock_list or code not in self.stocks.keys():
                     continue
@@ -2203,7 +2203,7 @@ class Stocks_info:
                             # 순간적으로 터치하고 상승하면 체크가 안된다 lowest_price <= buy_target_price 로 대체
                             if lowest_price <= buy_target_price:
                                 # 1차 매수 시 하한가 매수 금지 위해 전일 대비율(현재 등락율)이 MIN_PRICE_CHANGE_RATE_P % 이상에서 매수
-                                if stock['buy_done'][0] == False and float(price_data['prdy_ctrt']) >= MIN_PRICE_CHANGE_RATE_P:
+                                if not self.first_buy_done(code) and float(price_data['prdy_ctrt']) >= MIN_PRICE_CHANGE_RATE_P:
                                     PRINT_INFO(f"[{stock['name']}] 매수 감시 시작, {curr_price}(현재가) {buy_target_price}(매수 목표가)")
                                     stock['allow_monitoring_buy'] = True
                                     stock['status'] = "매수 모니터링"
@@ -2218,13 +2218,13 @@ class Stocks_info:
                                     if self.buy(code, curr_price, buy_target_qty, ORDER_TYPE_IMMEDIATE_ORDER) == True:
                                         self.set_order_done(code, BUY_CODE)
                     else:   # 불타기
-                        if stock['buy_done'][0] == False:
+                        if not self.first_buy_done(code):
                             # 1차 매수 안된 경우 매수가 이하에서 매수
                             if stock['allow_monitoring_buy'] == False:
                                 # 목표가 왔다 -> 매수 감시 시작
                                 if curr_price <= buy_target_price:
                                     # 1차 매수 시 하한가 매수 금지 위해 전일 대비율(현재 등락율)이 MIN_PRICE_CHANGE_RATE_P % 이상에서 매수
-                                    if stock['buy_done'][0] == False and float(price_data['prdy_ctrt']) >= MIN_PRICE_CHANGE_RATE_P:
+                                    if not self.first_buy_done(code) and float(price_data['prdy_ctrt']) >= MIN_PRICE_CHANGE_RATE_P:
                                         PRINT_INFO(f"[{stock['name']}] 매수 감시 시작, {curr_price}(현재가) <= {buy_target_price}(매수 목표가)")
                                         stock['allow_monitoring_buy'] = True
                                         stock['status'] = "매수 모니터링"
@@ -2251,6 +2251,7 @@ class Stocks_info:
                                             buy_target_qty = self.get_buy_target_qty(code)
                                             if self.buy(code, curr_price, buy_target_qty, ORDER_TYPE_IMMEDIATE_ORDER) == True:
                                                 self.set_order_done(code, BUY_CODE)
+                time.sleep(0.001)   # context switching between threads
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -2293,7 +2294,7 @@ class Stocks_info:
                         PRINT_ERR(f"[{stock['name']}] sell_target_price {sell_target_price}원")
                         continue
 
-                    if stock['sell_done'][0] == False:  # 1차 매도 안된 상태
+                    if not self.first_sell_done(code):  # 1차 매도 안된 상태
                         # 목표가 매도 처리
                         # 장중 익절,손절 처리 때문에 목표가 이상인 경우 매도 처리
                         if curr_price >= sell_target_price:
@@ -2328,7 +2329,6 @@ class Stocks_info:
                                         PRINT_INFO(f"[{stock['name']}] 매도 주문, {qty}주 {curr_price}(현재가) <= {take_profit_price}(익절가)")
                         else:
                             # "현재가 >= 목표가" 경우 매도
-                            # 익절은 handle_loss_cut 에서 처리
                             # 장중 익절,손절 처리 때문에 목표가 이상인 경우 매도 처리
                             if curr_price >= sell_target_price:
                                 # 1차 매도 후 다음날 매도 가능하게
@@ -2340,6 +2340,10 @@ class Stocks_info:
                                     self.set_order_done(code, SELL_CODE)
                                     PRINT_INFO(f"[{stock['name']}] 매도 주문, {qty}주 {curr_price}(현재가) >= {sell_target_price}(목표가)")
 
+                        # 1차 매도 된 것은 장중 익절
+                        self.handle_loss_cut(code)
+
+                time.sleep(0.001)   # context switching between threads
             # 장중 손절
             if self.trade_strategy.loss_cut_time == LOSS_CUT_MARKET_OPEN:
                 self.handle_loss_cut()
@@ -2585,6 +2589,7 @@ class Stocks_info:
                                 stock['end_price_higher_than_20ma_after_sold'] = False
                             else:
                                 self.set_sell_done(code, avg_trade_done_price)
+                        time.sleep(0.001)   # context switching between threads
                 else:
                     # 보유는 하지만 stocks_info.json 에 없는 종목 제외 ex) 공모주
                     pass                       
@@ -2962,16 +2967,15 @@ class Stocks_info:
             # dict 접근을 한번만 하여 성능 향상
             stock = self.stocks[code]
 
-            if not stock['sell_done'][0]:   # 1차 매도 안된 상태
-
+            if not self.first_sell_done(code):   # 1차 매도 안된 상태
                 if self.trade_strategy.buy_split_strategy == BUY_SPLIT_STRATEGY_DOWN:   # 물타기
-                    # 역순 참조
-                    # 1차 매수 경우 1차 매수가 기준
-                    # 2차 매수 경우 2차 매수가 기준
-                    for i in range(BUY_SPLIT_COUNT - 1, -1, -1):  # 역순 참조
-                        if stock['buy_done'][i] == True:
-                            price = stock['buy_price'][i] * (1 - self.to_percent(LOSS_CUT_P))
-                            break
+                    # 마지막 차수까지 분할 매수 완료 경우에 손절
+                    if self.is_all_buy_done(code):
+                        last_buy_index = BUY_SPLIT_COUNT-1
+                        price = stock['buy_price'][last_buy_index] * (1 - self.to_percent(LOSS_CUT_P))
+                    else:
+                        # 마지막 차수까지 매수 완료 안된 경우는 손절 금지
+                        price = 0
                 else:   # 불타기
                     if BUY_SPLIT_COUNT > 1:
                         # 2차 매수까지 완료 됐으면 -2% 이탈 시 손절
@@ -2999,77 +3003,25 @@ class Stocks_info:
             return self.get_stock_asking_price(int(price))
         
     ##############################################################
-    # 손절 처리
+    # 손절/익절 처리
     #   1. 현재가 < 손절가 면 손절 처리
     #   2. 오늘 > 최근 매수일 + x day, 즉 x 일 동안 매수 없고
     #       손실 상태에서 1차 매도가 안됐고 last차 매수까지 안된 경우 손절
     # Return :
     #   손절 주문 시 True, 손절 주문 없을 시 False
     ##############################################################
-    def handle_loss_cut(self):
+    def handle_loss_cut(self, code=None):
         result = True
         msg = ""
         ret = False
         try:
-            today = date.today()
-            # 주말, 공휴일 포함
-            NO_BUY_DAYS = 20
-
-            # loop 중간에 self.my_stocks 변경되어도 loop 순회 안전하도록 list()처리
-            for code in list(self.my_stocks.keys()):
-                # 매수,매도 등 처리하지 않는 종목, stocks_info.json 에 없는 종목은 제외
-                if code in self.not_handle_stock_list or code not in self.stocks.keys():
-                    continue
-                     
-                # dict 접근을 한번만 하여 성능 향상
-                stock = self.stocks[code]
-
-                do_loss_cut = False
-
-                # thread 처리로 set_buy_done()에서 set 되기 전 오는 경우 skip
-                if stock['recent_buy_date'] == None:
-                    continue
-
-                recent_buy_date = date.fromisoformat(stock['recent_buy_date'])
-                if recent_buy_date == None:
-                    continue
-
-                # 1차 매도 된 경우는 시간지났다고 손절 금지
-                if stock['sell_done'][0] == False:
-                    days_diff = (today - recent_buy_date).days
-                    # x일간 지지부진하면 손절
-                    if days_diff > NO_BUY_DAYS:
-                        if stock['sell_done'][0] == False and stock['buy_done'][BUY_SPLIT_COUNT-1] == False:
-                            # 손절 주문 안된 경우만 체크
-                            if stock['loss_cut_order'] == False:
-                                do_loss_cut = True
-                                PRINT_INFO(f'{recent_buy_date} 매수 후 {today} 까지 {days_diff}일 동안 매수 없어 손절')
-
-                curr_price = self.get_curr_price(code)
-                loss_cut_price = self.get_loss_cut_price(code)
-                # PRINT_DEBUG(f"[{stock['name']}] {curr_price}(현재가) {loss_cut_price}(손절가) {stock['loss_cut_order']}(loss_cut_order)")
-                if do_loss_cut or (curr_price > 0 and curr_price < loss_cut_price):
-                    if loss_cut_price > stock['avg_buy_price']:                    
-                        sell_type = '익절'
-                    else:
-                        sell_type = '손절'
-
-                    stock['allow_monitoring_sell'] = True
-                    stock['status'] = "매도 모니터링"
-                    stockholdings = stock['stockholdings']
-                    # 주문 안된 경우만 주문
-                    if stock['loss_cut_order'] == False:
-                        # 손절은 시장가로 주문
-                        if (self.already_ordered(code, SELL_CODE) == False) and (self.sell(code, curr_price, stockholdings, ORDER_TYPE_MARKET_ORDER) == True):
-                            self.set_order_done(code, SELL_CODE)
-                            PRINT_INFO(f"[{stock['name']}] {sell_type} 주문 성공, 현재가({curr_price}) < {sell_type}가({loss_cut_price})")
-                            stock['loss_cut_order'] = True
-                            stock['status'] = f"{sell_type} 주문"
-                        else:
-                            self.SEND_MSG_ERR(f"[{stock['name']}] {sell_type} 주문 실패")
-
-                if stock['loss_cut_order'] == True:
-                    ret = True
+            if code != None:
+                ret = self.process_loss_cut(code)
+            else:
+                # loop 중간에 self.my_stocks 변경되어도 loop 순회 안전하도록 list()처리
+                for code in list(self.my_stocks.keys()):
+                    # 한 종목이라도 손절 주문 시 return True
+                    ret = ret or self.process_loss_cut(code)
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
@@ -3128,7 +3080,7 @@ class Stocks_info:
                         # 현재가 - 매수가 gap < X%
                         # 1차 매수 후 n차 매수 안된 종목은 무조건 매수 가능 종목으로 편입
                         need_buy = False
-                        if stock['buy_done'][0] == True:
+                        if self.first_buy_done(code):
                             for i in range(1, BUY_SPLIT_COUNT):
                                 if stock['buy_done'][i] == False:
                                     need_buy = True
@@ -3605,7 +3557,7 @@ class Stocks_info:
         price = stock['first_sell_target_price']
         try:
             # 1차 매도 안됐다 -> sell_target_price 가 1차 목표가이다.
-            if stock['sell_done'][0] == False:
+            if not self.first_sell_done(code):
                 price = stock['sell_target_price']
         except Exception as ex:
             result = False
@@ -3785,7 +3737,7 @@ class Stocks_info:
                 stock = self.stocks[code]
 
                 # 1차 매수 안된 경우만 업데이트
-                if stock['buy_done'][0] == False:
+                if not self.first_buy_done(code):
                     # envelope 증가 등으로 보수적으로 접근
                     # ex) 지수가 4% 폭락 시 4/2+1 = 3 을 envelope 증가
                     stock['envelope_p'] = self.get_envelope_p(code, True, market_profit_p)
@@ -4164,3 +4116,113 @@ class Stocks_info:
             if not result:
                 self.SEND_MSG_ERR(msg)
             return state        
+
+    ##############################################################
+    # 분할 매수 마지막 차수까지 모두 매수 완료했는지 체크
+    # return : 매수 완료 True, 아니면 False
+    # param :
+    #   code            종목 코드    
+    ##############################################################
+    def is_all_buy_done(self, code):
+        return all(self.stocks[code]['buy_done'])
+
+
+    ##############################################################
+    # 손절 처리
+    # param :
+    #   code            종목 코드
+    ##############################################################
+    def process_loss_cut(self, code):
+        result = True
+        msg = ""
+        ret = False
+        try:
+            today = date.today()
+            # 주말, 공휴일 포함
+            NO_BUY_DAYS = 20
+
+            # 매수,매도 등 처리하지 않는 종목, stocks_info.json 에 없는 종목은 제외
+            if code in self.not_handle_stock_list or code not in self.stocks.keys():
+                return
+
+            # dict 접근을 한번만 하여 성능 향상
+            stock = self.stocks[code]
+
+            do_loss_cut = False
+
+            # thread 처리로 set_buy_done()에서 set 되기 전 오는 경우 skip
+            if stock['recent_buy_date'] == None:
+                return
+
+            recent_buy_date = date.fromisoformat(stock['recent_buy_date'])
+            if recent_buy_date == None:
+                return
+
+            # 1차 매도 된 경우는 시간지났다고 손절 금지
+            if not self.first_sell_done(code):
+                days_diff = (today - recent_buy_date).days
+                # x일간 지지부진하면 손절
+                if days_diff > NO_BUY_DAYS:
+                    if not self.first_sell_done(code) and stock['buy_done'][BUY_SPLIT_COUNT-1] == False:
+                        # 손절 주문 안된 경우만 체크
+                        if stock['loss_cut_order'] == False:
+                            do_loss_cut = True
+                            PRINT_INFO(f'{recent_buy_date} 매수 후 {today} 까지 {days_diff}일 동안 매수 없어 손절')
+
+            curr_price = self.get_curr_price(code)
+            loss_cut_price = self.get_loss_cut_price(code)
+            # PRINT_DEBUG(f"[{stock['name']}] {curr_price}(현재가) {loss_cut_price}(손절가) {stock['loss_cut_order']}(loss_cut_order)")
+            # 손절은 모든 차수 매수 경우에 진행
+            # 익절은 1차 매도 완료 경우 진행
+            if do_loss_cut or ((self.is_all_buy_done(code) or self.first_sell_done(code)) and curr_price < loss_cut_price and curr_price > 0 ):
+                if loss_cut_price > stock['avg_buy_price']:
+                    sell_type = '익절'
+                else:
+                    sell_type = '손절'
+
+                stock['allow_monitoring_sell'] = True
+                stock['status'] = "매도 모니터링"
+                stockholdings = stock['stockholdings']
+                # 주문 안된 경우만 주문
+                if stock['loss_cut_order'] == False:
+                    # 손절은 시장가로 주문
+                    if (self.already_ordered(code, SELL_CODE) == False) and (self.sell(code, curr_price, stockholdings, ORDER_TYPE_MARKET_ORDER) == True):
+                        self.set_order_done(code, SELL_CODE)
+                        PRINT_INFO(f"[{stock['name']}] {sell_type} 주문 성공, 현재가({curr_price}) < {sell_type}가({loss_cut_price})")
+                        stock['loss_cut_order'] = True
+                        stock['status'] = f"{sell_type} 주문"
+                    else:
+                        self.SEND_MSG_ERR(f"[{stock['name']}] {sell_type} 주문 실패")
+
+            if stock['loss_cut_order'] == True:
+                ret = True
+
+        except Exception as ex:
+            result = False
+            msg = "{}".format(traceback.format_exc())
+        finally:
+            if not result:
+                self.SEND_MSG_ERR(msg)
+            return ret
+
+    ##############################################################
+    # 1차 매수 완료 여부   
+    # param :
+    #   stock            종목    
+    # rturn : 1차 매수 완료 시 True, 아니면 False
+    ##############################################################
+    def first_buy_done(self, stock):
+        if stock['buy_done'][0]:
+            return True
+        return False
+    
+    ##############################################################
+    # 1차 매도 완료 여부   
+    # param :
+    #   stock            종목    
+    # rturn : 1차 매도 완료 시 True, 아니면 False
+    ##############################################################
+    def first_sell_done(self, stock):
+        if stock['sell_done'][0]:
+            return True
+        return False        
