@@ -193,14 +193,16 @@ class Trade_strategy:
         self.max_per = 0                                        # PER가 이 값 이상이면 매수 금지
         self.buyable_market_cap = 10000                         # 시총 X 미만 매수 금지(억)
         self.buy_split_strategy = BUY_SPLIT_STRATEGY_DOWN       # 2차 분할 매수 전략(물타기, 불타기)
-        self.buy_strategy = BUY_STRATEGY_TARGET_PRICE           # 매수 전략
+        self.buy_strategy = BUY_STRATEGY_BUY_UP_CANDLE          # 매수 전략
+        
+        # 수익길게 10일선 이탈은 전체적으로 기회 적다 -> 정해진 목표가로 분할 매도가 전체적 수익엔 더 좋다
         self.sell_strategy = SELL_STRATEGY_TARGET_PRICE         # 매도 전략
-        self.buy_trailing_stop = False                          # 매수 시 트레일링 스탑으로 할지
+        
         self.sell_trailing_stop = False                         # 매도 시 트레일링 스탑으로 할지
         self.trend_60ma = TREND_UP                              # 추세선이 이거 이상이여야 매수
         self.trend_90ma = TREND_UP                              # 추세선이 이거 이상이여야 매수
-        self.use_trend_60ma = False                             # 60이평선 추세선 사용 여부
-        self.use_trend_90ma = False                             # 90이평선 추세선 사용 여부
+        self.use_trend_60ma = True                              # 60이평선 추세선 사용 여부
+        self.use_trend_90ma = True                              # 90이평선 추세선 사용 여부
         self.loss_cut_time = LOSS_CUT_MARKET_CLOSE              # 손절은 언제 할지
 
 # 저장되지 않는 종목 관련 상태
@@ -329,7 +331,7 @@ class Stocks_info:
             PRINT_DEBUG(f'2차 매도는 트레일링 스탑')
 
         # 목표가 출력
-        for i in range(BUY_SPLIT_COUNT):
+        for i in range(SELL_SPLIT_COUNT):
             if i == 0:
                 target_p = SELL_TARGET_P
                 PRINT_DEBUG(f'{i + 1}차 목표가 {target_p} %')
@@ -1606,10 +1608,15 @@ class Stocks_info:
                 for my_stock in my_stocks:
                     if int(my_stock['hldg_qty']) > 0:
                         code = my_stock['pdno']
-                        PRINT_DEBUG(f"{self.stocks[code]['name']} 보유 수량 : {my_stock['hldg_qty']}")
                         if code in self.stocks.keys():
                             # dict 접근을 한번만 하여 성능 향상
                             stock = self.stocks[code]
+
+                            # 매수,매도 등 처리하지 않는 종목, stocks_info.json 에 없는 종목은 제외
+                            if self.is_skip_stock(code):
+                                continue
+
+                            # PRINT_DEBUG(f"{stock['name']} 보유 수량 : {my_stock['hldg_qty']}")
 
                             self.set_stocks(code, {
                                 'stockholdings': int(my_stock['hldg_qty']), # 평단가
@@ -2613,6 +2620,8 @@ class Stocks_info:
     def check_trade_done(self, code, buy_sell: str):
         result = True
         msg = ""
+        avg_price = 0
+        ret = False
         try:
             if code not in self.stocks.keys():
                 # 보유는 하지만 stocks_info.json 에 없는 종목 제외 ex) 공모주
@@ -2623,74 +2632,77 @@ class Stocks_info:
 
             order_list = self.get_order_list()
             for order_stock in order_list:
-                if order_stock['pdno'] == code:
-                    # 이미 체결 완료 처리한 주문은 재처리 금지
-                    if buy_sell == BUY_CODE:
-                        if order_stock['odno'] in self.buy_done_order_list:
-                            return False, 0
-                    elif buy_sell == SELL_CODE:
-                        if order_stock['odno'] in self.sell_done_order_list:
-                            return False, 0
-                    else:
-                        if order_stock['odno'] in self.buy_done_order_list or order_stock['odno'] in self.sell_done_order_list:
-                            return False, 0
-
-                    if order_stock['sll_buy_dvsn_cd'] == buy_sell:
-                        # 주문 수량
-                        order_qty = int(order_stock['ord_qty'])
-                        # 총 체결 수량
-                        tot_trade_qty = int(order_stock['tot_ccld_qty'])
-                        
-                        # 전량 매도 됐는데 일부만 매도된걸로 처리되는 버그 처리
-                        # 잔고 조회해서 보유잔고 없으면 전량 매도 처리   
-                        self.update_my_stocks()
-
-                        if order_qty == tot_trade_qty:
-                            # 전량 체결 완료
-                            if order_stock['sll_buy_dvsn_cd'] == SELL_CODE:
-                                self.sell_done_order_list.append(order_stock['odno'])
-                                # 매도 체결 완료 시, 손익, 수익률 표시
-                                gain_loss_money = (int(order_stock['avg_prvs']) - stock['avg_buy_price']) * int(order_stock['tot_ccld_qty'])
-                                if stock['avg_buy_price'] > 0:
-                                    gain_loss_p = round(float((int(order_stock['avg_prvs']) - stock['avg_buy_price']) / stock['avg_buy_price']) * 100, 2)     # 소스 3째 자리에서 반올림                  
-                                    self.SEND_MSG_INFO(f"[{stock['name']}] {order_stock['avg_prvs']}원 {tot_trade_qty}/{order_qty}주 {self.buy_sell_msg[buy_sell]} 전량 체결 완료, 손익:{gain_loss_money} {gain_loss_p}%", True)
-                            else:
-                                # 체결 완료 체크한 주문은 다시 체크하지 않는다
-                                # while loop 에서 반복적으로 체크하는거 방지
-                                self.buy_done_order_list.append(order_stock['odno'])                                
-                                nth_buy = 0
-                                for i in range(BUY_SPLIT_COUNT):
-                                    if not stock['buy_done'][i]:
-                                        nth_buy = i + 1
-                                        break
-                                self.SEND_MSG_INFO(f"[{stock['name']}] {order_stock['avg_prvs']}원 {tot_trade_qty}/{order_qty}주 {nth_buy}차 {self.buy_sell_msg[buy_sell]} 전량 체결 완료", True)
-
-                            return True, int(order_stock['avg_prvs'])
-                        elif tot_trade_qty == 0:
-                            # 미체결
-                            return False, 0
-                        elif order_qty > tot_trade_qty:
-                            # 일부 체결
-                            if stock['stockholdings'] < tot_trade_qty:
-                                for i in range(BUY_SPLIT_COUNT):
-                                    if not stock['buy_done'][i]:
-                                        # 일부만 매수된 경우, 다음날 매수 위해 매수량 업데이트
-                                        stock['buy_qty'][i] -= tot_trade_qty
-                                        break
-
-                                raise Exception(f"[{stock['name']}] {order_stock['avg_prvs']}원 {tot_trade_qty}/{order_qty}주 {self.buy_sell_msg[buy_sell]} 체결")
-                else:
+                if order_stock['pdno'] != code:
                     # 해당 종목 아님
-                    pass
+                    continue
 
-            return False, 0
+                # 이미 체결 완료 처리한 주문은 재처리 금지
+                order_num = order_stock['odno']
+                if buy_sell == BUY_CODE and order_num in self.buy_done_order_list:
+                    break
+                elif buy_sell == SELL_CODE and order_num in self.sell_done_order_list:
+                    break
+                elif order_num in self.buy_done_order_list or order_num in self.sell_done_order_list:
+                    break
+
+                if order_stock['sll_buy_dvsn_cd'] != buy_sell:
+                    continue
+                
+                # 주문 수량
+                order_qty = int(order_stock['ord_qty'])
+                # 총 체결 수량
+                tot_trade_qty = int(order_stock['tot_ccld_qty'])
+                
+                # 전량 매도 됐는데 일부만 매도된걸로 처리되는 버그 처리
+                # 잔고 조회해서 보유잔고 없으면 전량 매도 처리   
+                self.update_my_stocks()
+
+                if order_qty == tot_trade_qty:
+                    # 전량 체결 완료
+                    if order_stock['sll_buy_dvsn_cd'] == SELL_CODE:
+                        self.sell_done_order_list.append(order_stock['odno'])
+                        # 매도 체결 완료 시, 손익, 수익률 표시
+                        gain_loss_money = (int(order_stock['avg_prvs']) - stock['avg_buy_price']) * int(order_stock['tot_ccld_qty'])
+                        if stock['avg_buy_price'] > 0:
+                            gain_loss_p = round(float((int(order_stock['avg_prvs']) - stock['avg_buy_price']) / stock['avg_buy_price']) * 100, 2)     # 소스 3째 자리에서 반올림                  
+                            self.SEND_MSG_INFO(f"[{stock['name']}] {order_stock['avg_prvs']}원 {tot_trade_qty}/{order_qty}주 {self.buy_sell_msg[buy_sell]} 전량 체결 완료, 손익:{gain_loss_money} {gain_loss_p}%", True)
+                    else:
+                        # 체결 완료 체크한 주문은 다시 체크하지 않는다
+                        # while loop 에서 반복적으로 체크하는거 방지
+                        self.buy_done_order_list.append(order_stock['odno'])                                
+                        nth_buy = 0
+                        for i in range(BUY_SPLIT_COUNT):
+                            if not stock['buy_done'][i]:
+                                nth_buy = i + 1
+                                break
+                        self.SEND_MSG_INFO(f"[{stock['name']}] {order_stock['avg_prvs']}원 {tot_trade_qty}/{order_qty}주 {nth_buy}차 {self.buy_sell_msg[buy_sell]} 전량 체결 완료", True)
+
+                    ret = True
+                    avg_price = int(order_stock['avg_prvs'])
+                    break
+
+                elif tot_trade_qty == 0:
+                    # 미체결
+                    break
+
+                elif order_qty > tot_trade_qty:
+                    # 일부 체결
+                    if stock['stockholdings'] < tot_trade_qty:
+                        for i in range(BUY_SPLIT_COUNT):
+                            if not stock['buy_done'][i]:
+                                # 일부만 매수된 경우, 다음날 매수 위해 매수량 업데이트
+                                stock['buy_qty'][i] -= tot_trade_qty
+                                break
+                        raise Exception(f"[{stock['name']}] {order_stock['avg_prvs']}원 {tot_trade_qty}/{order_qty}주 {self.buy_sell_msg[buy_sell]} 체결")
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
         finally:
             if not result:
                 self.SEND_MSG_ERR(msg)
-                return False, 0
+                ret = False
+                avg_price = 0
+            return ret, avg_price
 
     ##############################################################
     # 평균 체결가 리턴
@@ -3429,7 +3441,7 @@ class Stocks_info:
                 # -> 계속 하락하는 경우는 대기해야하지 않나? -> 계속 하락하는 종목은 약한 종목 -> 제외
                 self.check_clear_wait_buy_up_candle(code)
 
-                #TODO: 유지해야하는 status 제외하고 '' 처리
+                # 유지해야하는 status 제외하고 '' 처리
                 self.set_status_after_market(code)
         except Exception as ex:
             result = False
@@ -3580,17 +3592,6 @@ class Stocks_info:
             else:
                 self.trade_strategy.invest_risk = INVEST_RISK_LOW
             
-            self.trade_strategy.buy_trailing_stop = True        # 매수 후 트레일링 스탑 사용 여부
-            self.trade_strategy.use_trend_60ma = True           # 60일선 추세 사용 여부
-            self.trade_strategy.use_trend_90ma = True           # 90일선 추세 사용 여부
-
-            # 상승 양봉 종가 매수
-            self.trade_strategy.buy_strategy = BUY_STRATEGY_BUY_UP_CANDLE
-
-            # 지정가 매도
-            # 수익길게 10일선 이탈은 전체적으로 기회 적다 -> 정해진 목표가로 분할 매도가 전체적 수익엔 더 좋다
-            self.trade_strategy.sell_strategy = SELL_STRATEGY_TARGET_PRICE
-
             # 기회 적다 -> 조건을 완화하여 매수 기회 늘림
             invest_risk_high_under_value = -100
             invest_risk_high_gap_max_sell_target_price_p = -100
@@ -4308,8 +4309,9 @@ class Stocks_info:
             if t_now >= T_CLOSE_PRICE_TRADE:
                 # PRINT_DEBUG(f"[{stock['name']}]")
                 # 기회 많은 경우 안전하게 하려면 1차 매수 1주?
+                qty = self.get_buy_target_qty(code)
+
                 if self.is_up_candle(price_data):
-                    qty = self.get_buy_target_qty(code)
                     if not self.first_buy_done(stock):
                         if curr_price >= (stock['buy_price'][0] * (1 + self.to_percent(MAX_FIRST_BUY_UP_CANDLE_PRICE_CHANGE_RATE_P))) and stock['buy_price'][0] > 0:
                             # 1차 매수가 보다 X% 이상 경우 매수 금지

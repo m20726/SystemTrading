@@ -55,7 +55,7 @@
         ],
         "market_cap": 0,                                        시가총액(억)
         "recent_buy_date": null,                                최근 매수 일자
-        "trend_60ma":0,                                           이평선 추세, default 60일선
+        "trend_60ma":0,                                         이평선 추세, default 60일선
         "recent_sold_price":0,                                  직전 차수 매도가
         "first_sell_target_price": 0,                           1차 매도가
         "trend_90ma": 0,                                         90이평선 추세
