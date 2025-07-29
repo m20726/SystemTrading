@@ -17,6 +17,9 @@ T_MARKET_END = T_NOW.replace(hour=15, minute=30, second=0, microsecond=0)   # �
 # "15:15" 까지 매수 안됐고 "현재가 <= 매수가"면 매수
 T_BUY_AFTER = T_NOW.replace(hour=15, minute=15, second=0, microsecond=0)
 
+# 종가 매매 처리 기준은 15:15분
+T_CLOSE_PRICE_TRADE = T_NOW.replace(hour=15, minute=15, second=0, microsecond=0)
+
 # 종가 손절은 15:15분에 체크
 T_LOSS_CUT = T_NOW.replace(hour=15, minute=15, second=0, microsecond=0)
 

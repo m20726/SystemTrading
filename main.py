@@ -31,7 +31,7 @@ def buy_sell_task(stocks_info: Stocks_info, stop_event: threading.Event):
         result = False
         msg = "{}".format(traceback.format_exc())
     finally:
-        if result == False:
+        if not result:
             stocks_info.SEND_MSG_ERR(msg)
 
 ##############################################################
@@ -41,8 +41,7 @@ def main():
     try:
         PRINT_DEBUG("=== Program Start ===")
 
-        today = datetime.datetime.today().weekday()
-        if today == SATURDAY or today == SUNDAY:  # 토요일이나 일요일이면 자동 종료
+        if TODAY == SATURDAY or TODAY == SUNDAY:  # 토요일이나 일요일이면 자동 종료
             PRINT_DEBUG("=== Weekend, Program End ===")
             return
 
@@ -53,7 +52,9 @@ def main():
 
         # # stocks_info.json 에 추가/변경
         # for code in stocks_info.stocks.keys():
-        #     stocks_info.stocks[code]['sell_strategy'] = 0
+        #     stocks_info.stocks[code]['lowest_price_1'] = 0
+        #     stocks_info.stocks[code]['wait_buy_up_candle_date'] = None
+        #     stocks_info.stocks[code]['no_buy_today'] = False
         # stocks_info.save_stocks_info(STOCKS_INFO_FILE_PATH)
         
         # # stocks_info.json 에 key 제거
@@ -102,7 +103,7 @@ def main():
                         break
                 
                 # thread start 는 한 번만 호출
-                if worker_thread.is_alive() == False:
+                if not worker_thread.is_alive():
                     worker_thread.start()
 
                 # 시장 폭락 시 좀 더 보수적으로 대응
@@ -121,7 +122,7 @@ def main():
                 pre_stocks = stocks_info.check_save_stocks_info(pre_stocks)
                 
                 # 주기적으로 출력
-                if (t_now.minute % PERIODIC_PRINT_TIME_M == 0) and (allow_periodic_print == True):
+                if (t_now.minute % PERIODIC_PRINT_TIME_M == 0) and allow_periodic_print:
                     allow_periodic_print = False
                     stocks_info.show_buyable_stocks()
                     stocks_info.get_stock_balance()
@@ -133,6 +134,7 @@ def main():
         # Loop 종료
         stocks_info.check_ordered_stocks_trade_done()   # Loop 종료 후 체결 처리
         stocks_info.update_my_stocks()
+        # stocks_info.show_stocks(True)
         stocks_info.show_trade_done_stocks(BUY_CODE)
         stocks_info.show_trade_done_stocks(SELL_CODE)
         stocks_info.get_stock_balance(True)
@@ -157,7 +159,7 @@ def main():
         result = False
         msg = "{}".format(traceback.format_exc())
     finally:
-        if result == False:
+        if not result:
             stocks_info.SEND_MSG_ERR(msg)        
         time.sleep(1)
 
