@@ -158,6 +158,7 @@ def main():
         result = False
         msg = "{}".format(traceback.format_exc())
     finally:
+        stocks_info.shutdown_executor() # thread pool executor 종료
         if not result:
             stocks_info.SEND_MSG_ERR(msg)        
         time.sleep(1)
