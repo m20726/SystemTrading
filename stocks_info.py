@@ -3129,7 +3129,7 @@ class Stocks_info:
 
         today = date.today()
         # 주말, 공휴일 포함
-        NO_BUY_DAYS = 20
+        NO_BUY_DAYS = 10
 
         days_diff = (today - recent_buy_date).days
         if days_diff > NO_BUY_DAYS:         
@@ -4180,16 +4180,13 @@ class Stocks_info:
                 if lowest_price <= buy_target_price:
                     # 상승 양봉 종가 매수 전략 경우
                     if self.trade_strategy.buy_strategy == BUY_STRATEGY_BUY_UP_CANDLE:
-                        # 1차 매수 안된 경우 금일 저가가 x일 내에 최저가인 경우에 매수 대기한다
-                        # 1차 매수 된 경우는 바로 매수 대기
-                        if (not self.first_buy_done(stock) and (lowest_price <= self.get_lowest_pirce(code, 7))) or (self.first_buy_done(stock)):
-                            self.set_stocks(code, {
-                                'allow_monitoring_buy': True,
-                                'status': "상승 양봉 종가 매수 대기", 
-                                'wait_buy_up_candle_date': date.today().strftime('%Y-%m-%d')
-                            })
-                            # 상승 양봉 종가 매수 대기 시작 일자
-                            PRINT_INFO(f"[{stock['name']}] 상승 양봉 종가 매수 대기 시작, {curr_price}(현재가) {buy_target_price}(매수 목표가)")
+                        self.set_stocks(code, {
+                            'allow_monitoring_buy': True,
+                            'status': "상승 양봉 종가 매수 대기", 
+                            'wait_buy_up_candle_date': date.today().strftime('%Y-%m-%d')
+                        })
+                        # 상승 양봉 종가 매수 대기 시작 일자
+                        PRINT_INFO(f"[{stock['name']}] 상승 양봉 종가 매수 대기 시작, {curr_price}(현재가) {buy_target_price}(매수 목표가)")
                     else:
                         if self._check_buy_price(curr_price, lowest_price, buy_margin):
                             # 1차 매수 시 하한가 매수 금지 위해 전일 대비율(현재 등락율)이 MIN_PRICE_CHANGE_RATE_P % 이상에서 매수
@@ -4588,21 +4585,30 @@ class Stocks_info:
             # dict 접근을 한번만 하여 성능 향상
             stock = self.stocks[code]
 
-            # 상승 양봉 종가 매수 대기 상태에서 매수 없이 X일 지난 경우 매수 대기하지 않고 초기화
-            if self.wait_buy_up_candle(code) and not self.first_buy_done(stock):
-                WAIT_BUY_UP_CANDLE_DAYS = 7
-                wait_buy_up_candle_date = date.fromisoformat(stock['wait_buy_up_candle_date'])
-                if wait_buy_up_candle_date == None:
-                    return
-                today = date.today()
-                days_diff = (today - wait_buy_up_candle_date).days
-                if days_diff >= WAIT_BUY_UP_CANDLE_DAYS:
-                    self.set_stocks(code, {
-                        'allow_monitoring_buy': False, 
-                        'status': "",
-                        'wait_buy_up_candle_date': None
-                    })
-                    PRINT_INFO(f"[{stock['name']}] {wait_buy_up_candle_date} 상승 양봉 종가 매수 대기 후 {today} 까지 {days_diff}일 동안 매수 없어 매수 대기않고 초기화")
+            if self.wait_buy_up_candle(code):
+                if not self.first_buy_done(stock):
+                    # 상승 양봉 종가 매수 대기 상태에서 매수 없이 X일 지난 경우 매수 대기하지 않고 초기화
+                    WAIT_BUY_UP_CANDLE_DAYS = 7
+                    wait_buy_up_candle_date = date.fromisoformat(stock['wait_buy_up_candle_date'])
+                    if wait_buy_up_candle_date == None:
+                        return
+                    today = date.today()
+                    days_diff = (today - wait_buy_up_candle_date).days
+                    if days_diff >= WAIT_BUY_UP_CANDLE_DAYS:
+                        self.set_stocks(code, {
+                            'allow_monitoring_buy': False, 
+                            'status': "",
+                            'wait_buy_up_candle_date': None
+                        })
+                        PRINT_INFO(f"[{stock['name']}] {wait_buy_up_candle_date} 상승 양봉 종가 매수 대기 후 {today} 까지 {days_diff}일 동안 매수 없어 매수 대기않고 초기화")
+                elif not self.is_buyable_stock(code) and not self.is_my_stock(code):
+                    # 상승 양봉 종가 매수 대기 상태에서 매수 가능 종목도 아니고 보유 종목도 아니면 초기화
+                        self.set_stocks(code, {
+                            'allow_monitoring_buy': False,
+                            'status': "",
+                            'wait_buy_up_candle_date': None
+                        })
+                        PRINT_INFO(f"[{stock['name']}] 상승 양봉 종가 매수 대기 상태에서 매수 가능 종목도 아니고 보유 종목도 아니라서 초기화")
         except Exception as ex:
             result = False
             msg = "{}".format(traceback.format_exc())
