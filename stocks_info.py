@@ -2318,9 +2318,9 @@ class Stocks_info:
                 except Exception as e:
                     PRINT_ERR(f"[{self.stocks[code]['name']}] 처리 중 오류: {e}")
 
-                # 기존처럼 map 대신 submit → 비동기 실행 후 완료 대기
-                futures = [self.executor.submit(process_buy_stock, code) for code in buyable_codes]
-                wait(futures)
+            # 기존처럼 map 대신 submit → 비동기 실행 후 완료 대기
+            futures = [self.executor.submit(process_buy_stock, code) for code in buyable_codes]
+            wait(futures)
 
         except Exception as ex:
             result = False
