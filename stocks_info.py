@@ -2502,9 +2502,10 @@ class Stocks_info:
         else:
             take_profit_price = self.get_take_profit_price(code)
             if take_profit_price > 0 and curr_price <= take_profit_price:
-                qty = int(self.my_stocks[code]['stockholdings'])
-                if self.order_sell(code, curr_price, qty, ORDER_TYPE_LIMIT_ORDER):
-                    PRINT_INFO(f"[{stock['name']}] 트레일링 익절 매도: {qty}주, 현재가 {curr_price}원 <= 익절가 {take_profit_price}원")
+                if not self.already_ordered(code, SELL_CODE):
+                    qty = int(self.my_stocks[code]['stockholdings'])
+                    if self.order_sell(code, curr_price, qty, ORDER_TYPE_LIMIT_ORDER):
+                        PRINT_INFO(f"[{stock['name']}] 트레일링 익절 매도: {qty}주, 현재가 {curr_price}원 <= 익절가 {take_profit_price}원")
 
     ##############################################################
     # 주문 번호 리턴
