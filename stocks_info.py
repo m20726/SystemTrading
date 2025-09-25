@@ -3194,7 +3194,7 @@ class Stocks_info:
                 buy_target_price = self.get_buy_target_price(code)
 
                 if curr_price <= 0 or buy_target_price <= 0:
-                    PRINT_ERR(f"[{stock['name']}] 유효하지 않은 가격: curr_price({curr_price}) / buy_target_price({buy_target_price})")
+                    PRINT_WARN(f"[{stock['name']}] 유효하지 않은 가격: curr_price({curr_price}) / buy_target_price({buy_target_price})")
                     continue
 
                 gap_p = self.get_buy_target_price_gap(code)
