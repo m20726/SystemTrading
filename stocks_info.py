@@ -76,7 +76,7 @@ INVEST_RISK_HIGH = 2
 
 LOSS_CUT_P = 3                              # x% 이탈 시 손절
 LOSS_CUT_P_BUY_2_DONE = 2                   # 불타기에서 2차 매수 완료 후 x% 이탈 시 손절
-SELL_TARGET_P = 4                           # 1차 매도 목표가 %
+SELL_TARGET_P = 5                           # 1차 매도 목표가 %
 NEXT_SELL_TARGET_MARGIN_P = 4               # N차 매도가 : N-1차 매도가 * (1 + MARGIN_P) (N>=2), ex) 2%
 MIN_SELL_TARGET_P = 2                       # 최소 목표가 %
 
@@ -650,7 +650,7 @@ class Stocks_info:
                 if stock['trend_90ma'] == TREND_UP and stock['market_cap'] > AGREESIVE_BUY_MARKET_CAP:
                     # 공격적 매수가를 위해 envelope 는 기존 전략에 비해 적다
                     # 더 일찍 매수
-                    AGREESIVE_BUY_ENVELOPE = 10
+                    AGREESIVE_BUY_ENVELOPE = 11
                     # 공격적 매수 시 급락 가격은 한달 내 최고 종가에서 x% 빠졌을 때
                     AGREESIVE_BUY_PLUNGE_PRICE_MARGIN_P = 17
 
@@ -4258,7 +4258,7 @@ class Stocks_info:
 
             # 9시 장 시작시 lowest_price 0으로 나옴
             if curr_price <= 0 or lowest_price == 0:
-                PRINT_ERR(f"[{stock['name']}] 유효하지 않은 가격: curr_price({curr_price}) / lowest_price({lowest_price})")
+                PRINT_WARN(f"[{stock['name']}] 유효하지 않은 가격: curr_price({curr_price}) / lowest_price({lowest_price})")
                 return
 
             # _handle_buy_up_candle_close_price 에서 매수 금지로 allow_monitoring_buy = False 처리 했는데 다시 매수하는 현상 수정
