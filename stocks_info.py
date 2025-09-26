@@ -2432,7 +2432,7 @@ class Stocks_info:
                 price_data = self.get_price_data(code)
                 curr_price = int(price_data['stck_prpr'])
                 if curr_price <= 0:
-                    PRINT_ERR(f"[{stock['name']}] 유효하지 않은 가격: curr_price ({curr_price})")
+                    PRINT_WARN(f"[{stock['name']}] 유효하지 않은 가격: curr_price ({curr_price})")
                     continue
 
                 # 종목별로 체결 완료 처리 동안 매도 대기
@@ -3283,7 +3283,7 @@ class Stocks_info:
                 buy_target_price = self.get_buy_target_price(code)
 
                 if curr_price <= 0 or buy_target_price <= 0:
-                    PRINT_ERR(f"[{stock['name']}] 유효하지 않은 가격: curr_price({curr_price}) / buy_target_price({buy_target_price})")
+                    PRINT_WARN(f"[{stock['name']}] 유효하지 않은 가격: curr_price({curr_price}) / buy_target_price({buy_target_price})")
                     continue
 
                 gap_p = self.get_buy_target_price_gap(code)
@@ -4393,7 +4393,7 @@ class Stocks_info:
             
             # 9시 장 시작시 lowest_price 0으로 나옴
             if curr_price <= 0 or lowest_price == 0:
-                PRINT_ERR(f"[{stock['name']}] 유효하지 않은 가격: curr_price({curr_price}) / lowest_price({lowest_price})")
+                PRINT_WARN(f"[{stock['name']}] 유효하지 않은 가격: curr_price({curr_price}) / lowest_price({lowest_price})")
                 return
 
             # _handle_buy_up_candle_close_price 에서 매수 금지로 allow_monitoring_buy = False 처리 했는데 다시 매수하는 현상 수정
