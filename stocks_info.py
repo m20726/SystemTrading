@@ -227,9 +227,7 @@ class Stocks_info:
         self.my_cash = 0                                # 주문 가능 현금 잔고
 
         # 분할 매수 비중(%), BUY_SPLIT_COUNT 개수만큼 세팅 
-        self.buy_split_p = [40, 40, 20]      # 1차 40%, 2차 40%, 3차 20%
-        # for i in range(BUY_SPLIT_COUNT):
-        #     self.buy_split_p.append(100/BUY_SPLIT_COUNT)
+        self.buy_split_p = list()
 
         self.buy_invest_money = list()
         self.buy_done_order_list = list()               # 매수 체결 완료 주문 list
@@ -288,6 +286,16 @@ class Stocks_info:
         result = True
         msg = ""
         try:
+            # 분할 매수 비중(%), BUY_SPLIT_COUNT 개수만큼 세팅
+            if BUY_SPLIT_COUNT == 1:
+                self.buy_split_p = [100]
+            elif BUY_SPLIT_COUNT == 2:
+                self.buy_split_p = [60, 40]      # 1차 60%, 2차 40%
+            elif BUY_SPLIT_COUNT == 3:
+                self.buy_split_p = [40, 40, 30]  # 1차 40%, 2차 40%, 3차 3
+            else:
+                raise Exception("Need to set self.buy_split_p")
+
             for i in range(BUY_SPLIT_COUNT):
                 self.buy_invest_money.append(int(INVEST_MONEY_PER_STOCK * (self.buy_split_p[i] / 100)))
 
