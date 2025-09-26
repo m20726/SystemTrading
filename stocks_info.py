@@ -4729,7 +4729,26 @@ class Stocks_info:
     #   code            종목 코드    
     ##############################################################
     def is_all_buy_done(self, code):
-        return all(self.stocks[code]['buy_done'])
+        result = True
+        msg = ""
+        try:
+            ret = all(self.stocks[code]['buy_done'])
+
+            # self.stocks[code]['buy_done'] 개수가 BUY_SPLIT_COUNT 보다 큰 경우에도 is_all_buy_done 동작하도록 개선
+            if not ret:
+                buy_done_count = 0
+                for i in range(BUY_SPLIT_COUNT):
+                    if (self.stocks[code]['buy_done']):
+                        buy_done_count = buy_done_count + 1
+                if buy_done_count >= BUY_SPLIT_COUNT:
+                    ret = True
+        except Exception as ex:
+            result = False
+            msg = "{}".format(traceback.format_exc())
+        finally:
+            if not result:
+                self.SEND_MSG_ERR(msg)
+        return ret
 
     ##############################################################
     # 손절 처리
