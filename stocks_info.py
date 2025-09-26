@@ -41,9 +41,17 @@ from collections import defaultdict
 ##############################################################
 #                       Config                               #
 ##############################################################
-# 분할 매수 횟수
+# 분할 매수 개수
+# 변경 시 아래 list 개수도 변경 필요
+# stocks_info.stocks[code]['buy_price']
+# stocks_info.stocks[code]['buy_qty']
+# stocks_info.stocks[code]['buy_done']
 BUY_SPLIT_COUNT = 2
-# 분할 매도 획수
+
+# 분할 매도 개수
+# 변경 시 아래 list 개수도 변경 필요
+# stocks_info.stocks[code]['sell_done']
+# stocks_info.stocks[code]['sell_qty']
 SELL_SPLIT_COUNT = 2
 
 # 2차 매수 물타기
@@ -3210,23 +3218,40 @@ class Stocks_info:
     # 시간 지나서 손절 할 지 여부
     ##############################################################
     def _should_loss_cut_due_to_time(self, stock, recent_buy_date):
-        # 1차 매도 된 경우 또는 모든 차수 분할 매수 완료 경우는 시간 지났다고 손절 금지
-        if self.first_sell_done(stock) or stock['buy_done'][BUY_SPLIT_COUNT - 1]:
+        result = True
+        msg = ""
+        try:
+            # 1차 매도 된 경우 시간 지나서 손절 처리 진행
+            if self.first_sell_done(stock):
+                return False
+
+            if BUY_SPLIT_COUNT > 1:
+                # 2차 매수 이상 경우 모든 차수 분할 매수 완료 상태는 시간 지났다고 손절 금지
+                if stock['buy_done'][BUY_SPLIT_COUNT - 1]:
+                    return False
+            else:
+                # 1차 매수만 하는 경우는 1차 매수 완료 상태는 시간 지나서 손절 처리 진행
+                return True
+
+            today = date.today()
+            # 주말, 공휴일 포함
+            # Envelope 전략은 급락 후 빠른 반등을 노린다.
+            # 보통 1차 매수 후 7일 이내에 반등이 있다.
+            # 즉 1차 매수 후 X일 동안 2차 매수 없고 반등이 없으면 손절 처리로 손실을 최소화한다.
+            NO_BUY_DAYS = 10
+
+            days_diff = (today - recent_buy_date).days
+            if days_diff > NO_BUY_DAYS:
+                PRINT_INFO(f"[{stock['name']}] {recent_buy_date} 매수 후 {today} 까지 {days_diff}일 동안 매수 없어 손절")
+                return True
             return False
-
-        today = date.today()
-        # 주말, 공휴일 포함
-        # Envelope 전략은 급락 후 빠른 반등을 노린다.
-        # 보통 1차 매수 후 7일 이내에 반등이 있다.
-        # 즉 1차 매수 후 X일 동안 2차 매수 없고 반등이 없으면 손절 처리로 손실을 최소화한다.
-        NO_BUY_DAYS = 10
-
-        days_diff = (today - recent_buy_date).days
-        if days_diff > NO_BUY_DAYS:
-            PRINT_INFO(f"[{stock['name']}] {recent_buy_date} 매수 후 {today} 까지 {days_diff}일 동안 매수 없어 손절")
-            return True
-        return False
-
+        except Exception as ex:
+            result = False
+            msg = "{}".format(traceback.format_exc())
+        finally:
+            if not result:
+                self.SEND_MSG_ERR(msg)
+        
     ##############################################################
     # 매수 후 여지껏 최고가 업데이트
     # param :
@@ -4826,11 +4851,11 @@ class Stocks_info:
         try:
             ret = all(self.stocks[code]['buy_done'])
 
-            # self.stocks[code]['buy_done'] 개수가 BUY_SPLIT_COUNT 보다 큰 경우에도 is_all_buy_done 동작하도록 개선
+            # self.stocks[code]['buy_done'][i] 개수가 BUY_SPLIT_COUNT 보다 큰 경우에도 is_all_buy_done 동작하도록 개선
             if not ret:
                 buy_done_count = 0
                 for i in range(BUY_SPLIT_COUNT):
-                    if (self.stocks[code]['buy_done']):
+                    if (self.stocks[code]['buy_done'][i]):
                         buy_done_count = buy_done_count + 1
                 if buy_done_count >= BUY_SPLIT_COUNT:
                     ret = True
